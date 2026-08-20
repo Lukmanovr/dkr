@@ -1,0 +1,69 @@
+/*-- scss:defaults --*/
+// DKR slide theme — light deck for lecture halls, course identity throughout.
+
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:wght@700;900&display=swap');
+
+$backgroundColor: #fbfbfa;
+$mainColor: #1c1c21;
+$headingColor: #1c1c21;
+$linkColor: #0f8377;
+$selectionBackgroundColor: rgba(217, 96, 59, 0.25);
+
+$mainFont: "Source Sans 3", "Helvetica Neue", sans-serif;
+$mainFontSize: 34px;
+$headingFont: "Playfair Display", Georgia, serif;
+$headingTextTransform: none;
+$headingLetterSpacing: -0.01em;
+$heading1Size: 1.7em;
+$heading2Size: 1.25em;
+$heading3Size: 1.0em;
+$codeFont: "JetBrains Mono", monospace;
+
+/*-- scss:rules --*/
+
+.reveal .slide-number { color: #8e8e9a; }
+.reveal .footer { color: #8e8e9a; font-size: 0.45em; }
+
+.reveal h2 {
+  border-bottom: 2px solid #d9603b;
+  padding-bottom: 0.15em;
+  margin-bottom: 0.6em;
+}
+
+.reveal .accent { color: #d9603b; font-weight: 600; }
+.reveal .quiet { color: #8e8e9a; }
+
+.reveal blockquote {
+  border-left: 3px solid #d9a62e;
+  background: #f5f4f0;
+  font-family: "Libre Baskerville", Georgia, serif;
+  font-size: 0.85em;
+  padding: 0.4em 0.8em;
+}
+
+.reveal table {
+  font-size: 0.75em;
+}
+.reveal table th {
+  color: #8e8e9a;
+  text-transform: uppercase;
+  font-size: 0.8em;
+  letter-spacing: 0.06em;
+}
+
+.reveal pre code {
+  background: #f4f4f1;
+  border-radius: 8px;
+  padding: 0.6em;
+  max-height: 480px;
+}
+
+.reveal .progress { color: #d9603b; }
+
+/* section-divider slides */
+.reveal .divider h2 {
+  border: none;
+  font-size: 2.1em;
+  margin-top: 1.6em;
+}
+.reveal .divider p { color: #52525e; }

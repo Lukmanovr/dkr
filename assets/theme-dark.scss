@@ -1,15 +1,16 @@
 /*-- scss:defaults --*/
-// DKR dark theme — same identity on a deep ink ground; terracotta warmed one step
-// so it holds contrast, blues lifted for legibility.
+// DKR modern deep dark theme.
+// True deep ground (near-black ink, not navy), elevated surfaces, soft warm text,
+// terracotta accent lifted one step for contrast, teal as the secondary/link hue.
 
 @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:wght@400;700;900&display=swap');
 
-$body-bg: #16161e;
-$body-color: #e6e4dd;
-$link-color: #7aa7c7;
-$code-bg: #232330;
-$code-color: #a8dadc;
-$border-color: #2c2c3a;
+$body-bg: #0c0c11;
+$body-color: #e8e6e1;
+$link-color: #35c4b5;
+$code-bg: #1c1c25;
+$code-color: #f0a685;
+$border-color: #26262f;
 
 $font-family-sans-serif: "Source Sans 3", "Helvetica Neue", sans-serif;
 $font-family-monospace: "JetBrains Mono", "Fira Code", monospace;
@@ -17,25 +18,26 @@ $font-size-root: 16px;
 $headings-font-family: "Source Sans 3", sans-serif;
 $headings-font-weight: 600;
 
-$dkr-accent: #e8916f;
-$dkr-accent-dark: #d97a55;
-$dkr-blue: #7aa7c7;
-$dkr-blue-dark: #a8dadc;
-$dkr-green: #4db6a8;
-$dkr-yellow: #e9c46a;
-$dkr-red: #ef8a6d;
-$dkr-purple: #9d8ff0;
-$dkr-paper: #1d1d28;
-$dkr-muted: #7d7a92;
-$dkr-margin-bg: #22222e;
+$dkr-accent: #f08a63;
+$dkr-accent-dark: #d96b44;
+$dkr-teal: #35c4b5;
+$dkr-teal-deep: #7fe0d4;
+$dkr-green: #34c398;
+$dkr-yellow: #e5b84a;
+$dkr-red: #f07a5c;
+$dkr-purple: #a78bfa;
+$dkr-paper: #15151d;
+$dkr-muted: #77758a;
+$dkr-text-2: #b6b4c2;
+$dkr-margin-bg: #191922;
 
 /*-- scss:rules --*/
 
 :root {
   --dkr-accent: #{$dkr-accent};
   --dkr-accent-dark: #{$dkr-accent-dark};
-  --dkr-blue: #{$dkr-blue};
-  --dkr-blue-dark: #{$dkr-blue-dark};
+  --dkr-blue: #{$dkr-teal};
+  --dkr-blue-dark: #{$dkr-teal-deep};
   --dkr-green: #{$dkr-green};
   --dkr-yellow: #{$dkr-yellow};
   --dkr-red: #{$dkr-red};
@@ -99,10 +101,10 @@ main h3 {
 .margin-note {
   font-family: "Source Sans 3", sans-serif;
   font-size: 0.85rem;
-  color: #b9b6c9;
+  color: $dkr-text-2;
   background: $dkr-margin-bg;
   padding: 0.85rem 1rem;
-  border-radius: 4px;
+  border-radius: 6px;
   border-left: 2px solid $dkr-yellow;
   margin: 1.25rem 0;
   line-height: 1.6;
@@ -112,9 +114,9 @@ main h3 {
   margin: 2.2rem 0;
   padding: 1.4rem;
   background: $dkr-paper;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid $border-color;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.25);
 
   .fig-label {
     text-align: center;
@@ -129,7 +131,7 @@ main h3 {
   .fig-caption {
     font-family: "Source Sans 3", sans-serif;
     font-size: 0.85rem;
-    color: #b9b6c9;
+    color: $dkr-text-2;
     text-align: center;
     margin: 0.75rem auto 0;
     line-height: 1.5;
@@ -152,14 +154,14 @@ main h3 {
     cursor: pointer;
     border: 1px solid $border-color;
     background: transparent;
-    color: #b9b6c9;
+    color: $dkr-text-2;
     font-family: "Source Sans 3", sans-serif;
     font-size: 0.8rem;
     font-weight: 600;
     transition: all 0.15s;
     &.active, &:hover { border-color: $dkr-accent; }
-    &.active { background: $dkr-accent; color: #16161e; }
-    &:focus-visible { outline: 2px solid $dkr-blue; outline-offset: 2px; }
+    &.active { background: $dkr-accent; color: #0c0c11; }
+    &:focus-visible { outline: 2px solid $dkr-teal; outline-offset: 2px; }
   }
   input[type="range"] { accent-color: $dkr-accent; }
   svg text { font-family: "JetBrains Mono", monospace; }
@@ -171,7 +173,7 @@ main h3 {
 }
 div.callout-tip.callout { border-left-color: $dkr-green; }
 div.callout-warning.callout { border-left-color: $dkr-red; }
-div.callout-note.callout { border-left-color: $dkr-blue; }
+div.callout-note.callout { border-left-color: $dkr-teal; }
 
 main table {
   font-family: "Source Sans 3", sans-serif;
@@ -181,7 +183,7 @@ main table {
 details {
   font-size: 0.95rem;
   border: 1px solid $border-color;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0.5rem 0.9rem;
   margin-bottom: 0.8rem;
   background: $dkr-paper;
@@ -189,14 +191,14 @@ details {
     cursor: pointer;
     font-family: "Source Sans 3", sans-serif;
     font-weight: 600;
-    color: $dkr-blue-dark;
+    color: $dkr-teal-deep;
   }
 }
 
 .reading-annotation {
   font-family: "Source Sans 3", sans-serif;
   font-size: 0.9rem;
-  color: #b9b6c9;
+  color: $dkr-text-2;
   margin: 0.2rem 0 0.9rem 1rem;
   border-left: 2px solid $border-color;
   padding-left: 0.8rem;

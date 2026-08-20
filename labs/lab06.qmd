@@ -15,15 +15,22 @@ This lab implements everything from the [Week 6 lecture](../lectures/06-gcn.qmd)
 3. **Implement the GCN layer** (exercise 2) and train the two-layer model on Cora.
 4. **Beat the baseline honestly** (exercise 3): the structure-blind MLP next to the GCN —
    ≈ 0.60 vs ≈ 0.80 test accuracy, the twenty-point value of the citation graph.
-5. **Prove from-scratch == library**: your layer's output matches PyG's `GCNConv`
+5. **Watch the representations organize**: PCA of the hidden layer before vs after
+   training, colored by class — what the accuracy numbers look like from inside.
+6. **Build sparse $\hat{\mathbf{A}}$ straight from the edge list** (exercise 4) and
+   *measure* the lecture's dense-vs-sparse cost claims on real hardware.
+7. **Run the SGC ablation**: delete every nonlinearity, precompute
+   $\hat{\mathbf{A}}^2\mathbf{X}$, fit logistic regression — and decompose the GCN's win
+   into "the filter" vs "the network".
+8. **Prove from-scratch == library**: your layer's output matches PyG's `GCNConv`
    to numerical precision.
 
-Stretch (ungraded): the depth-vs-accuracy curve (oversmoothing, previewing Week 9) and
-the SGC ablation (remove every nonlinearity, keep the accuracy — what does that tell you?).
+Stretch (ungraded): the depth-vs-accuracy curve (the lecture's low-pass proposition made
+empirical) and a PubMed transfer of the whole pipeline.
 
-**Submitting.** One executed notebook on Moodle: all assertion checks ✓ + the two
-reflection answers. Grading: assertions 70% · reflections 30%. *Restart and run all*
-before you submit.
+**Submitting.** One executed notebook on Moodle: all four exercise checks ✓, the PCA
+figure, the timing printout, the SGC check ✓, and the three reflection answers.
+Grading: assertions 70% · reflections 30%. *Restart and run all* before you submit.
 
 **Environment.** One pinned install (`torch_geometric==2.8.0.post1`); the notebook never
 reinstalls `torch`. Runs on the free Colab tier and on a plain CPU; the `SMOKE`

@@ -1,16 +1,17 @@
 /*-- scss:defaults --*/
-// DKR light theme — ports the course's design language (adversarial-ML template):
-// Playfair Display display, Libre Baskerville body, Source Sans 3 UI, JetBrains Mono code,
-// warm paper ground with terracotta accent.
+// DKR modern light theme.
+// Identity: Playfair Display display · Libre Baskerville body · Source Sans 3 UI ·
+// JetBrains Mono code. Clean near-white ground, ink text, terracotta primary accent,
+// deep teal as the secondary/link hue. No blue anywhere.
 
 @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:wght@400;700;900&display=swap');
 
-$body-bg: #FAFAF8;
-$body-color: #1a1a2e;
-$link-color: #457b9d;
-$code-bg: #f4f3ee;
-$code-color: #1d3557;
-$border-color: #e8e8e0;
+$body-bg: #fbfbfa;
+$body-color: #1c1c21;
+$link-color: #0f8377;
+$code-bg: #f4f4f1;
+$code-color: #9a3f24;
+$border-color: #e8e7e3;
 
 $font-family-sans-serif: "Source Sans 3", "Helvetica Neue", sans-serif;
 $font-family-monospace: "JetBrains Mono", "Fira Code", monospace;
@@ -18,27 +19,30 @@ $font-size-root: 16px;
 $headings-font-family: "Source Sans 3", sans-serif;
 $headings-font-weight: 600;
 
-$dkr-accent: #e07a5f;
-$dkr-accent-dark: #c45d3e;
-$dkr-blue: #457b9d;
-$dkr-blue-dark: #1d3557;
-$dkr-green: #2a9d8f;
-$dkr-yellow: #e9c46a;
-$dkr-red: #e76f51;
-$dkr-purple: #6c5ce7;
-$dkr-paper: #FFFFFF;
-$dkr-muted: #8888a8;
-$dkr-margin-bg: #f0eeea;
+$dkr-accent: #d9603b;        // terracotta — the brand primary
+$dkr-accent-dark: #b84a2b;
+$dkr-teal: #0f8377;          // secondary hue (links, widget secondary marks)
+$dkr-teal-deep: #0a5f56;
+$dkr-green: #199473;
+$dkr-yellow: #d9a62e;
+$dkr-red: #cf4a30;
+$dkr-purple: #7c5cd6;
+$dkr-paper: #ffffff;
+$dkr-muted: #8e8e9a;
+$dkr-text-2: #52525e;
+$dkr-margin-bg: #f5f4f0;
 
 /*-- scss:rules --*/
 
 // Palette as CSS custom properties — the d3 widgets read these at runtime,
 // so every widget follows the light/dark toggle automatically.
+// (--dkr-blue / --dkr-blue-dark keep their legacy *names* but now carry the
+// teal roles; widget code addresses roles, not hues.)
 :root {
   --dkr-accent: #{$dkr-accent};
   --dkr-accent-dark: #{$dkr-accent-dark};
-  --dkr-blue: #{$dkr-blue};
-  --dkr-blue-dark: #{$dkr-blue-dark};
+  --dkr-blue: #{$dkr-teal};
+  --dkr-blue-dark: #{$dkr-teal-deep};
   --dkr-green: #{$dkr-green};
   --dkr-yellow: #{$dkr-yellow};
   --dkr-red: #{$dkr-red};
@@ -56,7 +60,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-// Display headings for page titles and lecture section headings
 .quarto-title h1.title,
 main h1 {
   font-family: "Playfair Display", Georgia, serif;
@@ -79,12 +82,10 @@ main h3 {
   margin-top: 2.2rem;
 }
 
-// UI chrome in the sans face
 .sidebar, .navbar, nav, .toc-title, #TOC, .page-navigation, .quarto-page-breadcrumbs {
   font-family: "Source Sans 3", sans-serif;
 }
 
-// Keyword introductions (ported .keyword convention)
 .keyword {
   color: $dkr-accent;
   font-style: normal;
@@ -92,7 +93,6 @@ main h3 {
   font-family: "Source Sans 3", sans-serif;
 }
 
-// Math blocks with a plain-English caption underneath (ported .math-block convention)
 .math-note {
   font-family: "Source Sans 3", sans-serif;
   font-size: 0.82rem;
@@ -103,27 +103,25 @@ main h3 {
   max-width: 620px;
 }
 
-// Margin-note asides (ported)
 .margin-note {
   font-family: "Source Sans 3", sans-serif;
   font-size: 0.85rem;
-  color: #4a4a6a;
+  color: $dkr-text-2;
   background: $dkr-margin-bg;
   padding: 0.85rem 1rem;
-  border-radius: 4px;
+  border-radius: 6px;
   border-left: 2px solid $dkr-yellow;
   margin: 1.25rem 0;
   line-height: 1.6;
 }
 
-// Interactive widget containers (ported .interactive-container convention)
 .interactive-container {
   margin: 2.2rem 0;
   padding: 1.4rem;
   background: $dkr-paper;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid $border-color;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(20, 20, 26, 0.05), 0 4px 14px rgba(20, 20, 26, 0.04);
 
   .fig-label {
     text-align: center;
@@ -138,7 +136,7 @@ main h3 {
   .fig-caption {
     font-family: "Source Sans 3", sans-serif;
     font-size: 0.85rem;
-    color: #4a4a6a;
+    color: $dkr-text-2;
     text-align: center;
     margin: 0.75rem auto 0;
     line-height: 1.5;
@@ -161,39 +159,36 @@ main h3 {
     cursor: pointer;
     border: 1px solid $border-color;
     background: transparent;
-    color: #4a4a6a;
+    color: $dkr-text-2;
     font-family: "Source Sans 3", sans-serif;
     font-size: 0.8rem;
     font-weight: 600;
     transition: all 0.15s;
     &.active, &:hover { border-color: $dkr-accent; }
     &.active { background: $dkr-accent; color: #fff; }
-    &:focus-visible { outline: 2px solid $dkr-blue; outline-offset: 2px; }
+    &:focus-visible { outline: 2px solid $dkr-teal; outline-offset: 2px; }
   }
   input[type="range"] { accent-color: $dkr-accent; }
   svg text { font-family: "JetBrains Mono", monospace; }
 }
 
-// Objectives / recap / pitfall callout accents
 .callout.callout-style-default {
   font-family: "Source Sans 3", sans-serif;
   font-size: 0.92rem;
 }
 div.callout-tip.callout { border-left-color: $dkr-green; }
 div.callout-warning.callout { border-left-color: $dkr-red; }
-div.callout-note.callout { border-left-color: $dkr-blue; }
+div.callout-note.callout { border-left-color: $dkr-teal; }
 
-// Tables in the sans face
 main table {
   font-family: "Source Sans 3", sans-serif;
   font-size: 0.88rem;
 }
 
-// Self-check answers & proofs: collapsible details styling
 details {
   font-size: 0.95rem;
   border: 1px solid $border-color;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0.5rem 0.9rem;
   margin-bottom: 0.8rem;
   background: $dkr-paper;
@@ -201,15 +196,14 @@ details {
     cursor: pointer;
     font-family: "Source Sans 3", sans-serif;
     font-weight: 600;
-    color: $dkr-blue-dark;
+    color: $dkr-teal-deep;
   }
 }
 
-// Reading-list annotation style
 .reading-annotation {
   font-family: "Source Sans 3", sans-serif;
   font-size: 0.9rem;
-  color: #4a4a6a;
+  color: $dkr-text-2;
   margin: 0.2rem 0 0.9rem 1rem;
   border-left: 2px solid $border-color;
   padding-left: 0.8rem;

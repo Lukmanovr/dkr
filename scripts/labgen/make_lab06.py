@@ -45,8 +45,10 @@ PyG's `GCNConv` computes.
 ### Goals
 1. Build and *verify* $\\hat{\\mathbf{A}}$ — assertions before training, always.
 2. Implement the GCN layer from the lecture's Definition 3 and check it on paper-sized examples.
-3. Reproduce the two numbers from lecture: GCN ≈ 0.80, MLP ≈ 0.60 test accuracy on Cora.
-4. Show from-scratch == library: your layer vs `GCNConv`, `allclose`.
+3. Reproduce the two numbers from lecture: GCN ≈ 0.80, MLP ≈ 0.60 test accuracy on Cora — and *watch* the hidden representations organize while training.
+4. Implement sparse propagation and **measure** the lecture's §2 cost claims (dense vs sparse).
+5. Run the SGC ablation: how much of the GCN's win is the fixed low-pass filter?
+6. Show from-scratch == library: your layer vs `GCNConv`, `allclose`.
 """),
 
     md("""## 0 · Setup
@@ -335,7 +337,134 @@ assert gcn_acc >= floor, f"GCN test accuracy {gcn_acc:.3f} below the {floor} flo
 assert gcn_acc > mlp_acc, "the GCN should beat the structure-blind baseline here"
 print("training checks ✓")"""),
 
-    md("""## 6 · From scratch == the library
+    md("""## 6 · Watch the embeddings organize
+
+Numbers hide what training actually does to the representation. Project the GCN's hidden
+layer to 2-D (PCA — no learned projection, so what you see is really there) before and
+after training: seven diffuse clouds become seven clusters, arranged so that *citation
+neighborhoods share regions*. The MLP's hidden layer, trained the same way, separates the
+classes too — but pull up any node's neighbors and they scatter, because nothing tied
+them together.
+"""),
+
+    code("""import matplotlib.pyplot as plt
+
+
+def hidden_pca(model, X, A_hat):
+    model.eval()
+    with torch.no_grad():
+        H = F.relu(model.l1(X, A_hat))                     # hidden layer, n × 16
+        H = H - H.mean(dim=0, keepdim=True)
+        U_, S_, V_ = torch.pca_lowrank(H, q=2)
+        return (H @ V_[:, :2]).cpu()
+
+
+untrained = GCN(dataset.num_features, 16, dataset.num_classes).to(device)
+before = hidden_pca(untrained, X, A_hat)
+
+trained = GCN(dataset.num_features, 16, dataset.num_classes).to(device)
+_ = train(trained, lambda m: m(X, A_hat))
+after = hidden_pca(trained, X, A_hat)
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), constrained_layout=True)
+for ax, Z, name in [(axes[0], before, "before training"), (axes[1], after, "after training")]:
+    ax.scatter(Z[:, 0], Z[:, 1], c=data.y, s=4, cmap="tab10", alpha=0.7)
+    ax.set_title(f"GCN hidden layer, {name}")
+    ax.set_xticks([]); ax.set_yticks([])
+plt.show()
+print("Look for: 7 clusters after training, with graph-neighborhoods sharing regions.")"""),
+
+    md("""## 7 · Sparse $\\hat{\\mathbf{A}}$, and the price of dense  *(exercise 4)*
+
+The lecture's §2 claims sparse propagation is $O(m)$ and dense is $O(n^2)$. Claims are
+cheap; measure it. First implement $\\hat{\\mathbf{A}}$ **directly from the edge list**
+as a `torch.sparse_coo_tensor` — no $n \\times n$ dense matrix anywhere in the
+construction.
+"""),
+
+    todo("""def normalize_adjacency_sparse(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
+    \"\"\"Sparse A_hat = D̃^{-1/2} (A + I) D̃^{-1/2}, built straight from edge_index.
+
+    Steps: append self-loop pairs (u,u) to the edge list; compute degrees of the
+    self-looped graph with torch.bincount on the row index; per-edge value
+    1/sqrt(deg[row] * deg[col]); assemble torch.sparse_coo_tensor and coalesce().
+    \"\"\"
+    ### BEGIN SOLUTION
+    loops = torch.arange(num_nodes)
+    idx = torch.cat([edge_index, torch.stack([loops, loops])], dim=1)
+    deg = torch.bincount(idx[0], minlength=num_nodes).float()
+    vals = (deg[idx[0]] * deg[idx[1]]).pow(-0.5)
+    return torch.sparse_coo_tensor(idx, vals, (num_nodes, num_nodes)).coalesce()
+    ### END SOLUTION
+
+
+# equivalence with the dense builder — on the path graph AND on Cora
+assert torch.allclose(normalize_adjacency_sparse(path, 3).to_dense(), A_hat_path, atol=1e-6)
+A_hat_sparse = normalize_adjacency_sparse(data.edge_index, data.num_nodes).to(device)
+assert torch.allclose(A_hat_sparse.to_dense(), A_hat, atol=1e-5), "sparse != dense on Cora"
+print("exercise 4 ✓ — sparse construction matches the dense one")""",
+         stub="""def normalize_adjacency_sparse(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
+    \"\"\"Sparse A_hat = D̃^{-1/2} (A + I) D̃^{-1/2}, built straight from edge_index.
+
+    Steps: append self-loop pairs (u,u) to the edge list; compute degrees of the
+    self-looped graph with torch.bincount on the row index; per-edge value
+    1/sqrt(deg[row] * deg[col]); assemble torch.sparse_coo_tensor and coalesce().
+    \"\"\"
+    # TODO: implement (≈ 5 lines). No dense n×n tensor allowed anywhere here.
+    raise NotImplementedError("implement normalize_adjacency_sparse")
+
+
+# equivalence with the dense builder — on the path graph AND on Cora
+assert torch.allclose(normalize_adjacency_sparse(path, 3).to_dense(), A_hat_path, atol=1e-6)
+A_hat_sparse = normalize_adjacency_sparse(data.edge_index, data.num_nodes).to(device)
+assert torch.allclose(A_hat_sparse.to_dense(), A_hat, atol=1e-5), "sparse != dense on Cora"
+print("exercise 4 ✓ — sparse construction matches the dense one")"""),
+
+    code("""import time
+
+H_probe = torch.randn(data.num_nodes, 16, device=device)
+reps = 5 if SMOKE else 30
+
+def bench(op):
+    op()                                   # warm-up
+    t0 = time.perf_counter()
+    for _ in range(reps):
+        op()
+    return (time.perf_counter() - t0) / reps * 1e3
+
+t_dense = bench(lambda: A_hat @ H_probe)
+t_sparse = bench(lambda: torch.sparse.mm(A_hat_sparse, H_probe))
+nnz = A_hat_sparse._nnz()
+print(f"propagation on Cora, {reps} reps: dense {t_dense:.2f} ms  vs  sparse {t_sparse:.2f} ms")
+print(f"dense touches n² = {data.num_nodes**2:,} entries; sparse touches nnz = {nnz:,} "
+      f"({100 * nnz / data.num_nodes**2:.2f}% of them)")
+print("On Cora both are fast — the point is the SCALING: n² vs m. Re-read lecture Q7 "
+      "for what happens at n = 2.4M, where the dense operator would need ~23 TB.")"""),
+
+    md("""## 8 · The SGC ablation: how much was the filter?
+
+The lecture's honest remark: on homophilous benchmarks, the fixed low-pass filter does
+most of the GCN's work. Test it. SGC (Wu et al., 2019) deletes every nonlinearity, so a
+2-layer GCN collapses into logistic regression on the *precomputed* features
+$\\hat{\\mathbf{A}}^2\\mathbf{X}$ — no message passing at training time at all.
+"""),
+
+    code("""X_sgc = A_hat_sparse @ (A_hat_sparse @ X)         # precompute once — this IS the "GNN"
+
+sgc = nn.Linear(dataset.num_features, dataset.num_classes).to(device)
+print("SGC (logistic regression on Â²X):")
+sgc_acc = train(sgc, lambda m: m(X_sgc))
+
+print(f"\\nMLP {mlp_acc:.3f}   SGC {sgc_acc:.3f}   GCN {gcn_acc:.3f}")
+gap_structure = sgc_acc - mlp_acc
+gap_nonlinear = gcn_acc - sgc_acc
+print(f"the fixed filter bought {100 * gap_structure:.1f} pts; "
+      f"the nonlinear network on top bought {100 * gap_nonlinear:.1f} pts")
+floor = 0.55 if SMOKE else 0.72
+assert sgc_acc >= floor, f"SGC accuracy {sgc_acc:.3f} below {floor} — check the precomputation"
+print("SGC check ✓ — now answer reflection R3 below")"""),
+
+    md("""## 9 · From scratch == the library
 
 Last step of the ladder: hand your weights to PyG's `GCNConv` and demand the same
 numbers. If this assertion passes, you have *implemented* the operator the entire
@@ -361,16 +490,16 @@ assert torch.allclose(out_ours, out_theirs, atol=1e-5), \\
 print("from-scratch == GCNConv ✓ (max diff",
       f"{(out_ours - out_theirs).abs().max().item():.2e})")"""),
 
-    md("""## 7 · Stretch (optional, ungraded)
+    md("""## 10 · Stretch (optional, ungraded)
 
 1. **The depth curve.** Generalize `GCN` to `n_layers ∈ {1,2,3,4,6}` and plot test
-   accuracy vs depth (5 seeds each, error bars). You are reproducing Pitfall 2 —
-   and previewing Week 9's oversmoothing theory.
-2. **Kill the nonlinearity.** Precompute `A_hat @ A_hat @ X` once and train plain
-   logistic regression on it (this is SGC from the optional reading). How close do you
-   get to the GCN? What does that say about where Cora's difficulty lives?
+   accuracy vs depth (5 seeds each, error bars). You are reproducing Pitfall 2 — and the
+   lecture's low-pass proposition predicts the shape before you run it.
+2. **Change the graph, keep the code.** Swap `Planetoid(name="Cora")` for `"PubMed"`
+   (19,717 nodes). Does the GCN-over-MLP gap grow or shrink? Time the sparse vs dense
+   propagation again — dense should now visibly hurt.
 
-## 8 · Reflection (answer in this cell, 2–4 sentences each)
+## 11 · Reflection (answer in this cell, 2–4 sentences each)
 
 **R1.** Your GCN used 2,568 unlabeled nodes at training time without ever seeing their
 labels. Point to the exact line of code through which they influence the loss.
@@ -378,14 +507,19 @@ labels. Point to the exact line of code through which they influence the loss.
 **R2.** The MLP baseline transfers to a brand-new paper with no citations; your GCN, as
 written, does not handle it gracefully. What exactly breaks, and which Week 7 idea fixes it?
 
+**R3.** Interpret your §8 numbers: if SGC lands close to the GCN, what — concretely —
+did the ReLU and the trained first layer contribute on Cora, and what kind of dataset
+would you expect to *widen* the GCN–SGC gap? (Hint: the lecture's heterophily remark.)
+
 *(your answers here)*
 
 ## What to submit
 
-Moodle expects one `.ipynb` with: all three exercise checks printing ✓, the
-training cell's assertions passing, the `GCNConv` equivalence ✓, and both reflection
-answers filled in. Grading: assertions 70% · reflections 30%. Run *Runtime → Restart and
-run all* before submitting — a notebook that doesn't execute top-to-bottom scores 0.
+Moodle expects one `.ipynb` with: all four exercise checks printing ✓, the training
+cell's assertions passing, the PCA figure rendered, the timing measurements printed,
+the SGC check ✓, the `GCNConv` equivalence ✓, and all three reflection answers filled
+in. Grading: assertions 70% · reflections 30%. Run *Runtime → Restart and run all*
+before submitting — a notebook that doesn't execute top-to-bottom scores 0.
 """),
 ]
 

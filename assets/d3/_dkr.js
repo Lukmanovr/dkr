@@ -9,20 +9,22 @@ window.DKR = (function () {
   function pal() {
     const s = getComputedStyle(document.documentElement);
     const get = (name, fallback) => (s.getPropertyValue(name) || fallback).trim();
+    // NOTE: the "blue"/"blueDark" keys are legacy names for the SECONDARY hue —
+    // since the modern palette they carry teal, not blue.
     return {
-      accent: get("--dkr-accent", "#e07a5f"),
-      accentDark: get("--dkr-accent-dark", "#c45d3e"),
-      blue: get("--dkr-blue", "#457b9d"),
-      blueDark: get("--dkr-blue-dark", "#1d3557"),
-      green: get("--dkr-green", "#2a9d8f"),
-      yellow: get("--dkr-yellow", "#e9c46a"),
-      red: get("--dkr-red", "#e76f51"),
-      purple: get("--dkr-purple", "#6c5ce7"),
+      accent: get("--dkr-accent", "#d9603b"),
+      accentDark: get("--dkr-accent-dark", "#b84a2b"),
+      blue: get("--dkr-blue", "#0f8377"),
+      blueDark: get("--dkr-blue-dark", "#0a5f56"),
+      green: get("--dkr-green", "#199473"),
+      yellow: get("--dkr-yellow", "#d9a62e"),
+      red: get("--dkr-red", "#cf4a30"),
+      purple: get("--dkr-purple", "#7c5cd6"),
       paper: get("--dkr-paper", "#ffffff"),
-      muted: get("--dkr-muted", "#8888a8"),
-      border: get("--dkr-border", "#e8e8e0"),
-      text: get("--dkr-text", "#1a1a2e"),
-      bg: get("--dkr-bg", "#FAFAF8"),
+      muted: get("--dkr-muted", "#8e8e9a"),
+      border: get("--dkr-border", "#e8e7e3"),
+      text: get("--dkr-text", "#1c1c21"),
+      bg: get("--dkr-bg", "#fbfbfa"),
     };
   }
 
