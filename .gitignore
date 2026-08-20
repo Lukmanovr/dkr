@@ -1,0 +1,33 @@
+# Quarto
+/_site/
+/.quarto/
+/lectures/*_files/
+/index_files/
+
+# Python / notebooks
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Data downloaded by notebooks (never commit datasets)
+/labs/data/
+/labs/**/dataset/
+*.pt
+*.npz
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# LaTeX build artifacts (sample exams)
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fdb_latexmk
+*.fls
