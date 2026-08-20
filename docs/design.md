@@ -371,6 +371,14 @@ rendered when JS is unavailable, shared palette/util module `assets/d3/_dkr.js`.
 Total: 56 core + 13 stretch = 69 specified; ≥4 per content lecture guaranteed by core set.
 Midterm week ships an interactive topic-map review widget (not counted).
 
+Survey-adopted additions folded into the table above (see §10): the Wk6 spectral
+playground doubles as Penn's frequency-response widget (coefficients → spectral response +
+diffusion side by side); Wk6 gains two more stretch candidates — the untrained-GCN
+karate-club demo (L65) and a propagation→convolution slider (TUM's label-prop→GCN arc);
+the GDL "blueprint table" (architecture = domain + symmetry) recurs as a static-plus-hover
+panel from Wk6 onward; Wk9's stretch may instead ship the adversarial edge-flip robustness
+demo (TUM), tying into the instructor's adversarial-ML course.
+
 ## 8. Toolchain decisions
 
 | Decision | Choice | Justification |
@@ -388,19 +396,149 @@ Midterm week ships an interactive topic-map review widget (not counted).
 
 ## 9. Reading list (per-week, fetch-verified)
 
-<!-- RESEARCH: filled from verified paper-selection workflow -->
+Full annotated list (2 required + 2–4 optional per content week, with "what to look for"
+annotations): **[docs/reading-list.md](reading-list.md)**. Every citation was verified by
+fetching the URL — twice, by independent agents (selection pass + adversarial verification
+pass); one venue correction found and applied (Wk12 diffusion survey → IEEE TKDE 2024).
+Required pairs at a glance:
 
-## 10. What we learned from other courses
+| Wk | Required paper 1 (original method) | Required paper 2 (follow-up/critique/survey) |
+|---|---|---|
+| 1 | Battaglia et al., *Relational inductive biases…* (arXiv 2018) | Hamilton, Ying, Leskovec, *Representation Learning on Graphs* (IEEE DEB 2017) |
+| 2 | Shervashidze et al., *WL Graph Kernels* (JMLR 2011) | Blondel et al., *Fast unfolding of communities* (Louvain, JSTAT 2008) |
+| 3 | Perozzi et al., *DeepWalk* (KDD 2014) | Grover & Leskovec, *node2vec* (KDD 2016) |
+| 4 | Bordes et al., *TransE* (NeurIPS 2013) | Sun et al., *RotatE* (ICLR 2019) |
+| 5 | Ren, Hu, Leskovec, *Query2box* (ICLR 2020) | Edge et al., *GraphRAG* (arXiv 2024, Microsoft) |
+| 6 | Kipf & Welling, *GCN* (ICLR 2017) | Gilmer et al., *Neural Message Passing* (ICML 2017) |
+| 7 | Hamilton et al., *GraphSAGE* (NeurIPS 2017) | Veličković et al., *GAT* (ICLR 2018) |
+| 9 | Xu et al., *How Powerful are GNNs?* (GIN, ICLR 2019) | Alon & Yahav, *Bottleneck/oversquashing* (ICLR 2021) |
+| 10 | Schlichtkrull et al., *RGCN* (ESWC 2018) | Hu et al., *Heterogeneous Graph Transformer* (WWW 2020) |
+| 11 | Chiang et al., *Cluster-GCN* (KDD 2019) | Zeng et al., *GraphSAINT* (ICLR 2020) |
+| 12 | Zhang & Chen, *SEAL* (NeurIPS 2018) | You et al., *GraphRNN* (ICML 2018) |
+| 13 | Ying et al., *Graphormer* (NeurIPS 2021) | Rampášek et al., *GraphGPS* (NeurIPS 2022) |
+| 14 | Rossi et al., *TGN* (arXiv 2020) | He et al., *LightGCN* (SIGIR 2020) |
 
-<!-- RESEARCH: filled from course survey workflow -->
+Optional papers include the modern anchors the syllabus references: ULTRA/KG foundation
+models (ICLR 2024, Wks 5+10), RelBench (NeurIPS 2024, Wk14), Temporal Graph Benchmark
+(NeurIPS 2023, Wk14), DiGress (ICLR 2023, Wk12), SignNet (ICLR 2023, Wk13), GATv2
+(ICLR 2022, Wk7), benchmark-hygiene critiques (Toutanova & Chen 2015; Sun et al. ACL 2020;
+Lv et al. KDD 2021), and applications (Google Maps ETA, PinSage).
+
+## 10. What we learned from other courses (survey of 6, and what we adopt)
+
+**Penn ESE 5140 (Ribeiro)** — one coherent derivation arc (convolution → graph filter →
+GNN → equivariance → stability), full written script per lecture, labs that verify theory.
+*Adopt:* the polynomial-filter derivation as Wk6's spectral path (filter $p_w(\mathbf{L})$
+before GCN); a frequency-response widget (edit filter coefficients → spectral response +
+node-domain diffusion, Wk6 core widget); the MovieLens "model ladder" (linear → MLP →
+graph filter → 1-layer → 2-layer GNN) as a Wk14 lab exercise; full speaker scripts (our
+speaker notes are already scripts — validated).
+
+**Geometric Deep Learning / Cambridge L65 (Bronstein, Veličković, Liò)** — everything
+derived from one symmetry blueprint; practicals mix proofs and code with per-exercise mark
+budgets; "derive what wasn't shown in lecture" as explicit practical design principle.
+*Adopt:* the Erlangen-programme narrative as Wk1's closing hook ("what is the one true
+architecture?" ← "what is the one true geometry?"); the blueprint table
+(architecture = domain + symmetry group) as a recurring widget from Wk6 on; the
+untrained-GCN-already-separates-karate-club demo (Wk6 widget: inductive bias made visceral);
+the GATv2 dictionary-lookup exercise (prove static attention fails → fix in 10 lines) in
+HW2; "specify ψ, φ, ρ to recover GCN/GAT/MPNN" as an exam-bank problem family; labs mixing
+proof exercises with code exercises, each with a published point value.
+
+**UvA DL notebooks (Lippe)** — the gold standard for notebook engineering.
+*Adopt:* the 4-node hand-check ritual — every new layer is first run on the same tiny
+fixed graph with identity weights and students reproduce one node's update by hand
+(this also aligns labs with our hand-simulation exam style); dense→sparse derivation path
+(dense matmul → why O(n²) fails → PyG edge_index → block-diagonal batching, shown by
+printing a real Batch object, Lab 6/7); the MLP-baseline discipline (every task lab trains
+the no-graph baseline and quantifies what structure buys); a `layer_by_name` registry +
+one shared training harness across all labs; assertion `unittests` cells; pretrained
+checkpoints auto-downloaded for expensive models; optional 10-minute viva as the honor-code
+enforcement instrument for suspected undeclared AI use (matches our AI policy's
+"explain any line on request").
+
+**McGill COMP 766 (Hamilton)** — the course the GRL book came from.
+*Adopt:* the encoder-decoder unification table (GRL Table 3.1) as an interactive widget
+spanning Wks 3–4 (shallow embeddings and KG embeddings as rows of one table — the
+course's conceptual spine); KGs placed immediately after node embeddings (validates our
+Wk3→Wk4 order against CS224W's late placement); classical-baselines-before-deep-methods
+discipline (labs must beat the classical baseline from Wk2).
+
+**TU Munich MLGS (Günnemann)** — probabilistic spine, robustness unit, scope discipline.
+*Adopt:* the label-propagation→GCN arc ("GCN = learned, parameterized diffusion" — our
+Wk3→Wk6 bridge, now with an explicit propagation→convolution slider widget in Wk6);
+a GNN-robustness stretch segment (adversarial edge-flip widget as Wk9 stretch; ties into
+the instructor's adversarial-ML course — cross-course synergy); their "companion course"
+pointer pattern for material we exclude.
+
+**CS224W Fall 2025 (baseline)** — its 3-HW/6-colab/staged-project assessment structure
+matches ours; its LLM-era tail (KG foundation models, LLM+GNN, RDL) is threaded through
+our Wks 5/10/14 instead of standing as separate lectures our 90-min budget can't afford.
 
 ## 11. GRL book mapping and notation
 
-<!-- RESEARCH: filled from GRL mapping agent; full table in docs/notation.md -->
+Complete chapter→week mapping with equation-level imports lives in the research record;
+the operative decisions:
 
-## 12. Ecosystem facts and risk register
+- **Coverage:** GRL supports Wks 1–4 and 6–12 directly (Ch1–9). Wk4 maps 1:1 onto Ch4.
+  **Zero book coverage:** Wk5 (query embeddings, GraphRAG), Wk13 (graph transformers, PEs),
+  Wk14 (temporal) — these weeks source from papers (§9) and still import the book's
+  notation as lingua franca.
+- **Two-pass assignments (deliberate):** Ch7.1 (spectral) is read twice — Wk6 assigns
+  7.1.1–7.1.4 (GFT → polynomial filters → GCN derivation), Wk9 re-reads the low-pass-filter
+  box for oversmoothing. Oversmoothing likewise appears with the influence-score lens
+  (Ch5.3, Thm 3) in Wk7 and the spectral lens in Wk9. Ch2.2 (neighborhood overlap) is
+  assigned in Wk3 (random-walk similarity → embeddings bridge) and re-assigned in Wk12 as
+  link-prediction baselines. GIN's formula (Ch7.3, Eq 7.63) is introduced in Wk7; its
+  WL-optimality proof (Thms 4–5) belongs to Wk9.
+- **The book's best thread, kept explicit:** spectral clustering (2.3) → Laplacian
+  eigenmaps (3.2) → DeepWalk as implicit matrix factorization of a Laplacian-related
+  matrix (3.3.1) — taught as one arc across Wks 2–3.
+- **Gaps the book named for us** (each already covered by §9 papers): betweenness/closeness
+  formulas, modularity/Louvain, global PageRank, oversquashing, SEAL/labeling trick,
+  Cluster-GCN/GraphSAINT, HAN/HGT, graph transformers, diffusion generation, temporal.
+- **Notation:** [docs/notation.md](notation.md) codifies the book's symbol table plus our
+  fixes: row-stochastic $\mathbf{P} = \mathbf{D}^{-1}\mathbf{A}$ (the book mixes
+  conventions), $\mathbf{X} \in \mathbb{R}^{n \times m_0}$ rows-per-node, permutation
+  matrices subscripted $\mathbf{P}_\pi$, KG scores oriented higher-is-better, and six house
+  rules (captioned formulas, bold/calligraphic typing, layer superscripts). Citations to
+  the book go by section number (stable across draft/published editions).
 
-<!-- RESEARCH: filled from ecosystem agent -->
+## 12. Ecosystem facts and risk register (verified Aug 2026)
+
+**Environment contract for all 15 labs:**
+- Colab 2026.07 runtime: Python 3.12.13, **torch 2.11.0 preinstalled — never reinstall
+  torch**; free tier = T4-when-available, ~12.7 GB RAM, ~90-min idle disconnect.
+- Install cell: `pip install torch_geometric==2.8.0.post1` (pure-Python, <1 min; PyG 2.8
+  supports torch 2.9–2.12). **No pyg-lib/torch-scatter/compiled extras anywhere.** Pin
+  every other package (`ogb==1.3.6` + compatible numpy, `pykeen`, `relbench` demo-tier).
+- Every lab completes CPU-only in ≤10–15 min (small hidden dims, SMOKE-aware epochs);
+  ≤30 min with GPU headroom. Kaggle Notebooks documented as the fallback platform.
+- Expect one Colab runtime bump mid-semester (→ torch 2.12): all notebooks re-run that
+  week (calendar reminder in handover doc).
+
+**Dataset policy** (per-dataset reliability audited):
+
+| Lab datasets | Source | Policy |
+|---|---|---|
+| Cora/PubMed, MUTAG/PROTEINS, FB15k-237, WN18RR, ZINC-subset, CoDEx, JODIE wikipedia | third-party GitHub raws, personal domains, a Dropbox link (ZINC = highest rot risk) | **Vendor all raw files in course-owned storage** (GitHub release + HF dataset mirror, CDN-backed vs classroom burst load); notebooks pre-place files under the PyG `root` so the course mirror is tried first, upstream second |
+| ogbn-arxiv, ogbl-collab | snap.stanford.edu via frozen `ogb==1.3.6` | Graded-lab tier; mirror processed copies (ODC-BY allows); smoke-test at semester start |
+| ogbn-products | snap.stanford.edu | **Demo-only** — processing OOMs free Colab (12.7 GB); scalability lab grades on ogbn-arxiv |
+| MovieLens-100k | files.grouplens.org | **License forbids redistribution** — no public mirror; stable upstream URL + private class Drive fallback; citation required in lab text |
+| Temporal (Wk14 stretch) | PyG `JODIEDataset` (stable snap URL) | Chosen over py-tgb (TGB's storage already migrated once, breaking old links) |
+
+**KG tooling:** TransE/RotatE implemented from scratch in Lab 4 (~50 lines each), checked
+against `torch_geometric.nn.kge` reference implementations (zero extra installs); PyKEEN
+shown as the production tool in one demo cell; RelBench (v2, Jan 2026) demo-tier with the
+small `rel-f1` database.
+
+**Risk register** (top items; full mitigations inline above):
+1. Dataset URL rot mid-semester → vendored mirrors, tried first (highest-likelihood risk; fully mitigated).
+2. Colab runtime bump breaking pins → torch-agnostic install contract, re-test week, runtime-version fallback selector documented for students.
+3. GPU quota exhaustion → CPU-first lab design, Kaggle fallback.
+4. OGB package staleness (frozen Apr 2023) vs numpy/Python drift → pinned numpy, semester-start smoke test, mirrored processed files.
+5. Widget volume (69) slipping the schedule → core-4/stretch tiering; a week ships when its core 4 pass Playwright QA; stretch tracked honestly in status reports.
+6. Solo-instructor grading load → autograded assertions cover ~60% of HW points; lab grading is submission-checklist-based; viva reserved for flagged cases.
 
 ## 13. Build plan and quality gates
 
