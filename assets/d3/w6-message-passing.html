@@ -1,0 +1,24 @@
+```{=html}
+<div class="interactive-container" id="w6-mp-widget">
+  <div class="fig-label">Interactive · Message passing</div>
+  <div class="widget-controls">
+    <button class="pill-btn" id="w6-mp-step" type="button">Step one layer</button>
+    <button class="pill-btn" id="w6-mp-reset" type="button">Reset</button>
+    <span>layer k = <strong id="w6-mp-layer">0</strong></span>
+  </div>
+  <div id="w6-mp-svg" aria-label="Message passing stepper on a six node graph"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: a 6-node graph (two triangles bridged by one edge) where each node carries a
+    2-dimensional feature vector; each step replaces every node's vector with the mean of
+    its own and its neighbors' vectors, and a side panel unrolls the selected node's
+    2-layer computation tree.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 1.</strong> Message passing with all weights fixed
+  to the identity. Press <em>Step one layer</em> and watch every node's vector become the
+  mean of its neighborhood (self-loop included); click a node — or use the arrow keys —
+  to unroll its computation tree. Keep stepping: the vectors converge toward each other.
+  That slow death of information is <em>oversmoothing</em>, and we will meet it formally
+  in Week 9.</p>
+</div>
+```

@@ -1,0 +1,203 @@
+/*-- scss:defaults --*/
+// DKR dark theme — same identity on a deep ink ground; terracotta warmed one step
+// so it holds contrast, blues lifted for legibility.
+
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:wght@400;700;900&display=swap');
+
+$body-bg: #16161e;
+$body-color: #e6e4dd;
+$link-color: #7aa7c7;
+$code-bg: #232330;
+$code-color: #a8dadc;
+$border-color: #2c2c3a;
+
+$font-family-sans-serif: "Source Sans 3", "Helvetica Neue", sans-serif;
+$font-family-monospace: "JetBrains Mono", "Fira Code", monospace;
+$font-size-root: 16px;
+$headings-font-family: "Source Sans 3", sans-serif;
+$headings-font-weight: 600;
+
+$dkr-accent: #e8916f;
+$dkr-accent-dark: #d97a55;
+$dkr-blue: #7aa7c7;
+$dkr-blue-dark: #a8dadc;
+$dkr-green: #4db6a8;
+$dkr-yellow: #e9c46a;
+$dkr-red: #ef8a6d;
+$dkr-purple: #9d8ff0;
+$dkr-paper: #1d1d28;
+$dkr-muted: #7d7a92;
+$dkr-margin-bg: #22222e;
+
+/*-- scss:rules --*/
+
+:root {
+  --dkr-accent: #{$dkr-accent};
+  --dkr-accent-dark: #{$dkr-accent-dark};
+  --dkr-blue: #{$dkr-blue};
+  --dkr-blue-dark: #{$dkr-blue-dark};
+  --dkr-green: #{$dkr-green};
+  --dkr-yellow: #{$dkr-yellow};
+  --dkr-red: #{$dkr-red};
+  --dkr-purple: #{$dkr-purple};
+  --dkr-paper: #{$dkr-paper};
+  --dkr-muted: #{$dkr-muted};
+  --dkr-border: #{$border-color};
+  --dkr-text: #{$body-color};
+  --dkr-bg: #{$body-bg};
+}
+
+body {
+  font-family: "Libre Baskerville", Georgia, serif;
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+
+.quarto-title h1.title,
+main h1 {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+}
+main h2 {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  font-size: 1.6rem;
+  border-bottom: 1px solid $border-color;
+  padding-bottom: 0.4rem;
+  margin-top: 3rem;
+}
+main h3 {
+  font-family: "Source Sans 3", sans-serif;
+  font-weight: 600;
+  font-size: 1.25rem;
+  margin-top: 2.2rem;
+}
+
+.sidebar, .navbar, nav, .toc-title, #TOC, .page-navigation, .quarto-page-breadcrumbs {
+  font-family: "Source Sans 3", sans-serif;
+}
+
+.keyword {
+  color: $dkr-accent;
+  font-style: normal;
+  font-weight: 600;
+  font-family: "Source Sans 3", sans-serif;
+}
+
+.math-note {
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.82rem;
+  color: $dkr-muted;
+  font-style: italic;
+  text-align: center;
+  margin: -0.6rem auto 1.6rem;
+  max-width: 620px;
+}
+
+.margin-note {
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.85rem;
+  color: #b9b6c9;
+  background: $dkr-margin-bg;
+  padding: 0.85rem 1rem;
+  border-radius: 4px;
+  border-left: 2px solid $dkr-yellow;
+  margin: 1.25rem 0;
+  line-height: 1.6;
+}
+
+.interactive-container {
+  margin: 2.2rem 0;
+  padding: 1.4rem;
+  background: $dkr-paper;
+  border-radius: 8px;
+  border: 1px solid $border-color;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+
+  .fig-label {
+    text-align: center;
+    margin-bottom: 1rem;
+    font-family: "Source Sans 3", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: $dkr-muted;
+  }
+  .fig-caption {
+    font-family: "Source Sans 3", sans-serif;
+    font-size: 0.85rem;
+    color: #b9b6c9;
+    text-align: center;
+    margin: 0.75rem auto 0;
+    line-height: 1.5;
+    max-width: 640px;
+    strong { color: $dkr-accent; }
+  }
+  .widget-controls {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    font-family: "Source Sans 3", sans-serif;
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+  }
+  button.pill-btn {
+    padding: 0.35rem 0.85rem;
+    border-radius: 20px;
+    cursor: pointer;
+    border: 1px solid $border-color;
+    background: transparent;
+    color: #b9b6c9;
+    font-family: "Source Sans 3", sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.15s;
+    &.active, &:hover { border-color: $dkr-accent; }
+    &.active { background: $dkr-accent; color: #16161e; }
+    &:focus-visible { outline: 2px solid $dkr-blue; outline-offset: 2px; }
+  }
+  input[type="range"] { accent-color: $dkr-accent; }
+  svg text { font-family: "JetBrains Mono", monospace; }
+}
+
+.callout.callout-style-default {
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.92rem;
+}
+div.callout-tip.callout { border-left-color: $dkr-green; }
+div.callout-warning.callout { border-left-color: $dkr-red; }
+div.callout-note.callout { border-left-color: $dkr-blue; }
+
+main table {
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.88rem;
+}
+
+details {
+  font-size: 0.95rem;
+  border: 1px solid $border-color;
+  border-radius: 6px;
+  padding: 0.5rem 0.9rem;
+  margin-bottom: 0.8rem;
+  background: $dkr-paper;
+  summary {
+    cursor: pointer;
+    font-family: "Source Sans 3", sans-serif;
+    font-weight: 600;
+    color: $dkr-blue-dark;
+  }
+}
+
+.reading-annotation {
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.9rem;
+  color: #b9b6c9;
+  margin: 0.2rem 0 0.9rem 1rem;
+  border-left: 2px solid $border-color;
+  padding-left: 0.8rem;
+}

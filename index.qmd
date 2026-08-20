@@ -1,0 +1,41 @@
+---
+title: "Data & Knowledge Representation"
+subtitle: "Graphs, knowledge graphs, and the machine learning that runs on them"
+toc: false
+---
+
+::: {.margin-note}
+**Fall 2026 · Innopolis University** · Thursdays, Aug 27 – Dec 3 · one 90-minute lecture +
+one lab per week · 3rd-year BS, Data Science track
+:::
+
+Relational structure is the dominant untapped signal in industrial data. A working ML
+engineer meets it as the knowledge graph grounding an LLM system, as a recommender's
+user–item graph, as a fraud ring in a transaction network, as a molecule — and, most often,
+as the relational database their company already owns. This course teaches you to
+**represent** such data (graphs, heterogeneous graphs, knowledge graphs), to **learn** from
+it (shallow embeddings → graph neural networks → graph transformers), and to **reason**
+over it (KG embeddings, multi-hop queries, GraphRAG).
+
+By the end of the course a strong student can read a current NeurIPS/ICLR graph-ML paper
+and implement it; every student can use PyTorch Geometric on a real problem and defend each
+design choice.
+
+## This week
+
+The course begins **Thursday, August 27, 2026**. Week 6's pilot materials are live now:
+the [GCN lecture](lectures/06-gcn.qmd) and [Lab 6](labs/lab06.qmd) show the format every
+week will follow — interactive lecture pages you can manipulate, and Colab labs that build
+each method from scratch before reaching for the library.
+
+## How the course works
+
+| | |
+|---|---|
+| **Lectures** | Interactive pages (read them like [Distill](https://distill.pub/2021/gnn-intro/) articles) + downloadable slide decks generated from the same source |
+| **Labs** | One Colab notebook per week; runs on the free tier end-to-end; from-scratch first, then PyTorch Geometric |
+| **Grading** | Labs 15% (best 12 of 14) · Homeworks 30% (3 × 10%) · Midterm 15% (Wk 8, Oct 15) · Project 20% · Final 20% (Wk 15, Dec 3) |
+| **AI policy** | AI assistants are allowed for labs, homework, and the project **with mandatory disclosure**, and you must be able to explain any line you submit. Exams: no aids beyond the final's cheat sheet. |
+
+See the full [syllabus](syllabus.qmd), the annotated [reading list](reading-list.qmd), and
+the [notation reference](notation.qmd) used across all fifteen weeks.

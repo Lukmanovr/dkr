@@ -1,0 +1,6 @@
+---
+title: "Reading list"
+subtitle: "Two required papers per week, annotated — what to read and what to look for"
+---
+
+{{< include docs/reading-list.md >}}

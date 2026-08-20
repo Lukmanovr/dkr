@@ -1,0 +1,40 @@
+```{=html}
+<div class="interactive-container" id="w6-sp-widget">
+  <div class="fig-label">Interactive · The spectral view</div>
+  <div class="widget-controls">
+    <span>graph:</span>
+    <button class="pill-btn" data-graph="ring" type="button">ring</button>
+    <button class="pill-btn" data-graph="grid" type="button">grid</button>
+    <button class="pill-btn active" data-graph="comm" type="button">two communities</button>
+    <span style="margin-left:1rem">mode:</span>
+    <button class="pill-btn active" data-mode="eig" type="button">eigenvectors</button>
+    <button class="pill-btn" data-mode="filter" type="button">polynomial filter</button>
+  </div>
+  <div class="widget-controls" id="w6-sp-eigrow">
+    <label for="w6-sp-k">eigenvector index k = <strong id="w6-sp-klabel">1</strong></label>
+    <input type="range" id="w6-sp-k" min="0" max="15" step="1" value="1" style="width:220px">
+  </div>
+  <div class="widget-controls" id="w6-sp-wrow" style="display:none">
+    <label for="w6-sp-w0">w₀ <strong id="w6-sp-w0label">1.0</strong></label>
+    <input type="range" id="w6-sp-w0" min="-2" max="2" step="0.1" value="1" style="width:110px">
+    <label for="w6-sp-w1">w₁ <strong id="w6-sp-w1label">-0.5</strong></label>
+    <input type="range" id="w6-sp-w1" min="-2" max="2" step="0.1" value="-0.5" style="width:110px">
+    <label for="w6-sp-w2">w₂ <strong id="w6-sp-w2label">0.0</strong></label>
+    <input type="range" id="w6-sp-w2" min="-1" max="1" step="0.05" value="0" style="width:110px">
+  </div>
+  <div id="w6-sp-svg" aria-label="Laplacian eigenvector and polynomial filter playground"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static view:
+    Laplacian eigenvectors drawn as node colorings on a ring, a grid, and a two-community
+    graph — low-index eigenvectors vary smoothly across edges, high-index ones oscillate;
+    in filter mode, adjustable coefficients define p(λ) = w₀ + w₁λ + w₂λ², plotted over
+    the eigenvalues, and nodes are colored by p(L)x for a one-hot input x.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 2.</strong> The spectral view of a graph.
+  <em>Eigenvector mode:</em> slide k and watch the colorings — u₀ is constant, u₁ splits
+  the two communities (this is spectral clustering from Week 2!), and high-k eigenvectors
+  oscillate across edges. <em>Filter mode:</em> shape p(λ) with three coefficients, click
+  a node to place a unit signal there, and see p(L)x in the node domain. A GCN layer is,
+  at heart, one cheap fixed low-pass filter of this kind.</p>
+</div>
+```

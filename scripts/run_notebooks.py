@@ -40,17 +40,22 @@ def run_notebook(path: Path, timeout: int) -> list[str]:
     client.execute()
 
     problems: list[str] = []
+    todo_hit = False  # once a student notebook hits its first (allowed) TODO error,
+    # everything downstream is cascade noise (NameError etc.) and is not judged.
     for idx, cell in enumerate(nb.cells):
         if cell.cell_type != "code":
             continue
         errors = [o for o in cell.get("outputs", []) if o.get("output_type") == "error"]
         if not errors:
             continue
+        if todo_hit:
+            continue
         tags = set(cell.get("metadata", {}).get("tags", []))
         for err in errors:
             ename = err.get("ename", "Error")
             if not is_solution and "student-todo" in tags and ename in ALLOWED_STUDENT_ERRORS:
-                continue  # expected: unfilled exercise cell
+                todo_hit = True
+                continue  # expected: unfilled exercise cell; skip the cascade after it
             problems.append(f"cell {idx}: {ename}: {err.get('evalue', '')[:200]}")
     return problems
 

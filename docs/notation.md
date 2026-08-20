@@ -1,5 +1,3 @@
-# DKR notation reference
-
 The course-wide notation contract. Every lecture, lab, homework, and exam uses these
 symbols with these meanings; deviations are bugs. Base convention follows Hamilton,
 *Graph Representation Learning* (2020); where the book is ambiguous we fix one choice

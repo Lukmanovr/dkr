@@ -1,5 +1,3 @@
-# DKR reading list (annotated, verified)
-
 Two required papers and two to four optional papers per content week. Every entry was
 fetch-verified (URL, title, authors, venue) on 2026-08-20, twice, by independent passes.
 Annotations tell the student what to look for. Weeks 8 and 15 are exams and carry no

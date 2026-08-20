@@ -1,0 +1,31 @@
+---
+title: "Lab 6 · GCN from scratch → PyTorch Geometric"
+subtitle: "Week 6 · builds the lecture, in order, with assertions at every step"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab06_gcn.ipynb){target="_blank"}
+ · [notebook source](https://github.com/lukmanovr/dkr/blob/main/labs/lab06_gcn.ipynb) · ≈ 25 min compute, free Colab or plain CPU
+
+This lab implements everything from the [Week 6 lecture](../lectures/06-gcn.qmd):
+
+1. **Build $\hat{\mathbf{A}}$** from a raw edge list — and *verify it by hand* on a
+   3-node path before trusting it with Cora (exercise 1).
+2. **Reproduce the lecture's hand-simulation** (Example 1) numerically — the same
+   computation you will do on paper in the midterm.
+3. **Implement the GCN layer** (exercise 2) and train the two-layer model on Cora.
+4. **Beat the baseline honestly** (exercise 3): the structure-blind MLP next to the GCN —
+   ≈ 0.60 vs ≈ 0.80 test accuracy, the twenty-point value of the citation graph.
+5. **Prove from-scratch == library**: your layer's output matches PyG's `GCNConv`
+   to numerical precision.
+
+Stretch (ungraded): the depth-vs-accuracy curve (oversmoothing, previewing Week 9) and
+the SGC ablation (remove every nonlinearity, keep the accuracy — what does that tell you?).
+
+**Submitting.** One executed notebook on Moodle: all assertion checks ✓ + the two
+reflection answers. Grading: assertions 70% · reflections 30%. *Restart and run all*
+before you submit.
+
+**Environment.** One pinned install (`torch_geometric==2.8.0.post1`); the notebook never
+reinstalls `torch`. Runs on the free Colab tier and on a plain CPU; the `SMOKE`
+environment variable (used by course CI) shrinks epochs so the whole notebook executes
+in under two minutes.

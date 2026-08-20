@@ -1,0 +1,41 @@
+---
+title: "Syllabus"
+subtitle: "Fifteen Thursdays, Aug 27 – Dec 3, 2026"
+---
+
+Each content week pairs a 90-minute lecture with a lab. Lecture and lab links go live as
+each week is published; **Week 6 is available now as the pilot** — it shows the format all
+weeks will follow.
+
+| Wk | Date | Lecture | Lab | Milestones |
+|:--:|------|---------|-----|------------|
+| 1 | Aug 27 | Why graphs? Representing relational data | Environment onboarding; NetworkX/PyG basics; real graphs | |
+| 2 | Sep 3 | Classical graph ML: centralities, PageRank, kernels, communities | Feature engineering + classical baselines; Louvain | |
+| 3 | Sep 10 | Shallow node embeddings: DeepWalk, node2vec, matrix-factorization view | DeepWalk from scratch; link-prediction evaluation | |
+| 4 | Sep 17 | Knowledge graphs I: triples, TransE → RotatE, negative sampling, MRR/Hits@K | TransE + RotatE from scratch on FB15k-237 | HW1 out |
+| 5 | Sep 24 | Knowledge graphs II: multi-hop reasoning, query embeddings, KGs + LLMs / GraphRAG | Multi-hop queries; mini-GraphRAG | Project topics out |
+| 6 | Oct 1 | [GNNs I: message passing and the GCN](lectures/06-gcn.qmd) | [GCN from scratch → PyG on Cora](labs/lab06.qmd) | HW1 due |
+| 7 | Oct 8 | GNNs II: the design space — GraphSAGE, GAT, GIN | Implement all three; ablation study | |
+| 8 | **Oct 15** | **Midterm exam** (written, full session, Wks 1–7) | Midterm debrief + project kickoff | HW2 out |
+| 9 | Oct 22 | GNN theory: WL test, expressiveness, oversmoothing, oversquashing | WL implementation; expressiveness experiments | Project proposal due |
+| 10 | Oct 29 | Heterogeneous & relational GNNs: RGCN, HAN/HGT, GNNs on KGs | RGCN: hetero node classification + KG link prediction | HW2 due |
+| 11 | Nov 5 | Scaling GNNs: sampling, Cluster-GCN, GraphSAINT, SGC | ogbn-arxiv at scale; profiling | |
+| 12 | Nov 12 | Link prediction & graph generation: VGAE, SEAL, GraphRNN, diffusion | VGAE + SEAL; a small generative model | HW3 out |
+| 13 | Nov 19 | Beyond message passing: positional encodings, graph transformers | GPS-style model on ZINC molecules | Project midway |
+| 14 | Nov 26 | Graphs in production: temporal, recommenders, relational DL, GraphRAG | LightGCN on MovieLens | HW3 due |
+| 15 | **Dec 3** | **Final exam** (written, cumulative) | Project presentations | Report due |
+
+## Assessment at a glance
+
+- **Labs (15%)** — best 12 of 14, 1.25% each; graded on passing the notebook's assertion
+  checks plus short reflection answers.
+- **Homeworks (30%)** — three larger assignments (5–10 h each) mixing derivations and
+  implementation, released after weeks 4, 8, and 12.
+- **Midterm (15%)** — written, 90 minutes, week 8, covers weeks 1–7. A sample exam with
+  solutions is published beforehand.
+- **Project (20%)** — teams of 2–3; proposal (Wk 9), midway check (Wk 13), report + code +
+  8-minute talk (Wk 15).
+- **Final (20%)** — written, 90 minutes, week 15, cumulative with post-midterm emphasis.
+  One single-sided A4 cheat sheet and a calculator allowed.
+
+Grade cutoffs: **A ≥ 90 · B ≥ 75 · C ≥ 60**.

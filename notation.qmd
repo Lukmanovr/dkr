@@ -1,0 +1,6 @@
+---
+title: "Notation reference"
+subtitle: "The symbol contract used across all fifteen weeks"
+---
+
+{{< include docs/notation.md >}}

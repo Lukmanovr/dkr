@@ -1,0 +1,24 @@
+```{=html}
+<div class="interactive-container" id="w6-nm-widget">
+  <div class="fig-label">Interactive · Choosing the normalization</div>
+  <div class="widget-controls">
+    <button class="pill-btn" id="w6-nm-step" type="button">Propagate one step</button>
+    <button class="pill-btn" id="w6-nm-reset" type="button">Reset</button>
+    <span>step = <strong id="w6-nm-step-label">0</strong></span>
+  </div>
+  <div id="w6-nm-svg" aria-label="Comparison of sum, mean, and symmetric normalization"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static view:
+    the same hub-and-spokes graph propagated under (A+I)h, D̃⁻¹Ãh, and D̃^-½ÃD̃^-½h; after a
+    few steps the unnormalized sum's feature norm has grown by orders of magnitude while
+    both normalized operators remain bounded.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 3.</strong> The same graph, the same starting
+  features, three propagation rules. Press <em>Propagate</em> a few times: the raw sum
+  <code>(A+I)h</code> explodes along the hub (its norm grows like the leading eigenvalue
+  to the k-th power — watch the log chart), while mean and symmetric normalization stay
+  bounded. The symmetric variant additionally discounts messages <em>through</em>
+  high-degree nodes on both endpoints — this is exactly the D̃<sup>-½</sup>ÃD̃<sup>-½</sup>
+  in the GCN layer.</p>
+</div>
+```
