@@ -1,0 +1,68 @@
+```{=html}
+<figure class="dkr-fig">
+<svg viewBox="0 0 760 230" role="img" aria-label="One GCN layer as a matrix pipeline: A-hat times H times W, then nonlinearity">
+  <defs>
+    <marker id="mpArrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L8,3.5 L0,7 Z" fill="var(--dkr-muted, #8e8e9a)"/>
+    </marker>
+  </defs>
+  <g font-family="'Source Sans 3', sans-serif" text-anchor="middle">
+    <!-- A_hat -->
+    <rect x="40" y="46" width="110" height="110" rx="10" fill="none" stroke="var(--dkr-teal, #0f8377)" stroke-width="2.5"/>
+    <g fill="var(--dkr-teal, #0f8377)" opacity="0.55">
+      <rect x="52" y="58" width="16" height="16" rx="3"/><rect x="76" y="58" width="16" height="16" rx="3"/><rect x="124" y="58" width="16" height="16" rx="3"/>
+      <rect x="52" y="82" width="16" height="16" rx="3"/><rect x="100" y="82" width="16" height="16" rx="3"/>
+      <rect x="76" y="106" width="16" height="16" rx="3"/><rect x="124" y="106" width="16" height="16" rx="3"/>
+      <rect x="52" y="130" width="16" height="16" rx="3"/><rect x="100" y="130" width="16" height="16" rx="3"/>
+    </g>
+    <text x="95" y="36" font-size="19" font-weight="700" fill="var(--dkr-teal-deep, #0a5f56)">Â</text>
+    <text x="95" y="176" font-size="13" fill="var(--dkr-muted, #8e8e9a)">n × n · sparse · fixed</text>
+
+    <text x="172" y="108" font-size="24" fill="var(--dkr-muted, #8e8e9a)">×</text>
+
+    <!-- H -->
+    <rect x="192" y="46" width="66" height="110" rx="10" fill="none" stroke="#d9a62e" stroke-width="2.5"/>
+    <g fill="#d9a62e" opacity="0.5">
+      <rect x="202" y="58" width="46" height="12" rx="3"/><rect x="202" y="78" width="46" height="12" rx="3"/>
+      <rect x="202" y="98" width="46" height="12" rx="3"/><rect x="202" y="118" width="46" height="12" rx="3"/>
+      <rect x="202" y="138" width="46" height="12" rx="3"/>
+    </g>
+    <text x="225" y="36" font-size="19" font-weight="700" fill="#b98a1e">H</text>
+    <text x="225" y="176" font-size="13" fill="var(--dkr-muted, #8e8e9a)">n × d</text>
+
+    <text x="280" y="108" font-size="24" fill="var(--dkr-muted, #8e8e9a)">×</text>
+
+    <!-- W -->
+    <rect x="300" y="66" width="70" height="70" rx="10" fill="none" stroke="var(--dkr-accent, #d9603b)" stroke-width="2.5"/>
+    <rect x="310" y="76" width="50" height="50" rx="6" fill="var(--dkr-accent, #d9603b)" opacity="0.35"/>
+    <text x="335" y="56" font-size="19" font-weight="700" fill="var(--dkr-accent, #d9603b)">W</text>
+    <text x="335" y="176" font-size="13" fill="var(--dkr-muted, #8e8e9a)">d × d′ · learned</text>
+
+    <path d="M386,101 L432,101" stroke="var(--dkr-muted, #8e8e9a)" stroke-width="2.2" fill="none" marker-end="url(#mpArrow)"/>
+    <text x="409" y="88" font-size="15" fill="var(--dkr-muted, #8e8e9a)">ReLU</text>
+
+    <!-- H' -->
+    <rect x="446" y="46" width="66" height="110" rx="10" fill="none" stroke="#d9a62e" stroke-width="2.5"/>
+    <g fill="#d9a62e" opacity="0.75">
+      <rect x="456" y="58" width="46" height="12" rx="3"/><rect x="456" y="78" width="46" height="12" rx="3"/>
+      <rect x="456" y="98" width="46" height="12" rx="3"/><rect x="456" y="118" width="46" height="12" rx="3"/>
+      <rect x="456" y="138" width="46" height="12" rx="3"/>
+    </g>
+    <text x="479" y="36" font-size="19" font-weight="700" fill="#b98a1e">H′</text>
+    <text x="479" y="176" font-size="13" fill="var(--dkr-muted, #8e8e9a)">n × d′</text>
+
+    <!-- cost card -->
+    <g font-size="14" fill="var(--dkr-text, #1c1c21)" text-anchor="start">
+      <rect x="556" y="52" width="182" height="100" rx="10" fill="var(--dkr-paper, #fff)" stroke="var(--dkr-border, #d5d4cf)" stroke-width="1.4"/>
+      <text x="572" y="78" font-weight="700">cost per layer</text>
+      <text x="572" y="102">propagate: <tspan font-weight="700" fill="var(--dkr-teal-deep, #0a5f56)">O(m·d′)</tspan> sparse</text>
+      <text x="572" y="124">mix: <tspan font-weight="700" fill="var(--dkr-accent, #d9603b)">O(n·d·d′)</tspan></text>
+      <text x="572" y="144" font-size="12.5" fill="var(--dkr-muted, #8e8e9a)">dense Â would be O(n²·d′)</text>
+    </g>
+  </g>
+  <g font-family="'Source Sans 3', sans-serif" font-size="13.5" fill="var(--dkr-muted, #8e8e9a)" text-anchor="middle">
+    <text x="380" y="214">the graph enters through one sparse multiply; everything learned lives in W</text>
+  </g>
+</svg>
+</figure>
+```

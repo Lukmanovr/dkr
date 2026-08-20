@@ -208,3 +208,16 @@ details {
   border-left: 2px solid $border-color;
   padding-left: 0.8rem;
 }
+
+// Static figure system (inline SVG includes from assets/figures/)
+.dkr-fig {
+  margin: 2rem auto;
+  text-align: center;
+  svg { width: 100%; max-width: 700px; height: auto; }
+  figcaption {
+    font-family: "Source Sans 3", sans-serif;
+    font-size: 0.85rem;
+    color: $dkr-muted;
+    margin-top: 0.5rem;
+  }
+}

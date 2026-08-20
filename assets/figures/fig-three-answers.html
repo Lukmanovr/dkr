@@ -1,0 +1,77 @@
+```{=html}
+<figure class="dkr-fig">
+<svg viewBox="0 0 760 300" role="img" aria-label="Three approaches: MLP sees only features, label propagation sees only edges, GNN sees both">
+  <!-- shared mini-graph per panel: 5 nodes -->
+  <!-- panel frames -->
+  <g fill="none" stroke="var(--dkr-border, #d5d4cf)" stroke-width="1.4">
+    <rect x="12"  y="14" width="232" height="230" rx="12"/>
+    <rect x="264" y="14" width="232" height="230" rx="12"/>
+    <rect x="516" y="14" width="232" height="230" rx="12"/>
+  </g>
+  <g font-family="'Source Sans 3', sans-serif" font-size="15" font-weight="700" fill="var(--dkr-text, #1c1c21)" text-anchor="middle">
+    <text x="128" y="42">MLP — features only</text>
+    <text x="380" y="42">Label prop — edges only</text>
+    <text x="632" y="42">GNN — both</text>
+  </g>
+
+  <!-- Panel 1: feature bars visible, edges ghosted -->
+  <g transform="translate(18,50)">
+    <g stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.4" stroke-dasharray="2,4" opacity="0.3">
+      <line x1="70" y1="40" x2="150" y2="30"/><line x1="70" y1="40" x2="55" y2="110"/>
+      <line x1="150" y1="30" x2="170" y2="100"/><line x1="55" y1="110" x2="170" y2="100"/><line x1="55" y1="110" x2="115" y2="150"/>
+    </g>
+    <g>
+      <circle cx="70" cy="40" r="11" fill="#d9a62e"/><circle cx="150" cy="30" r="11" fill="#cf4a30"/>
+      <circle cx="55" cy="110" r="11" fill="#199473"/><circle cx="170" cy="100" r="11" fill="#7c5cd6"/><circle cx="115" cy="150" r="11" fill="#d1567e"/>
+    </g>
+    <g fill="var(--dkr-muted, #8e8e9a)" opacity="0.9">
+      <rect x="86" y="34" width="26" height="5" rx="2"/><rect x="86" y="42" width="16" height="5" rx="2"/>
+      <rect x="166" y="24" width="22" height="5" rx="2"/><rect x="166" y="32" width="30" height="5" rx="2"/>
+      <rect x="71" y="104" width="28" height="5" rx="2"/><rect x="71" y="112" width="14" height="5" rx="2"/>
+      <rect x="186" y="94" width="18" height="5" rx="2"/><rect x="186" y="102" width="26" height="5" rx="2"/>
+      <rect x="131" y="144" width="24" height="5" rx="2"/><rect x="131" y="152" width="18" height="5" rx="2"/>
+    </g>
+  </g>
+  <!-- Panel 2: edges strong, nodes hollow -->
+  <g transform="translate(270,50)">
+    <g stroke="var(--dkr-teal, #0f8377)" stroke-width="2.4">
+      <line x1="70" y1="40" x2="150" y2="30"/><line x1="70" y1="40" x2="55" y2="110"/>
+      <line x1="150" y1="30" x2="170" y2="100"/><line x1="55" y1="110" x2="170" y2="100"/><line x1="55" y1="110" x2="115" y2="150"/>
+    </g>
+    <g fill="var(--dkr-paper, #fff)" stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.6">
+      <circle cx="70" cy="40" r="11"/><circle cx="150" cy="30" r="11"/>
+      <circle cx="55" cy="110" r="11"/><circle cx="170" cy="100" r="11"/><circle cx="115" cy="150" r="11"/>
+    </g>
+  </g>
+  <!-- Panel 3: both -->
+  <g transform="translate(522,50)">
+    <g stroke="var(--dkr-teal, #0f8377)" stroke-width="2.4">
+      <line x1="70" y1="40" x2="150" y2="30"/><line x1="70" y1="40" x2="55" y2="110"/>
+      <line x1="150" y1="30" x2="170" y2="100"/><line x1="55" y1="110" x2="170" y2="100"/><line x1="55" y1="110" x2="115" y2="150"/>
+    </g>
+    <g>
+      <circle cx="70" cy="40" r="11" fill="#d9a62e"/><circle cx="150" cy="30" r="11" fill="#cf4a30"/>
+      <circle cx="55" cy="110" r="11" fill="#199473"/><circle cx="170" cy="100" r="11" fill="#7c5cd6"/><circle cx="115" cy="150" r="11" fill="#d1567e"/>
+    </g>
+    <g fill="var(--dkr-muted, #8e8e9a)" opacity="0.9">
+      <rect x="86" y="34" width="26" height="5" rx="2"/><rect x="166" y="24" width="22" height="5" rx="2"/>
+      <rect x="71" y="104" width="28" height="5" rx="2"/><rect x="186" y="94" width="18" height="5" rx="2"/>
+      <rect x="131" y="144" width="24" height="5" rx="2"/>
+    </g>
+  </g>
+
+  <!-- verdict chips -->
+  <g font-family="'Source Sans 3', sans-serif" font-size="14.5" font-weight="700" text-anchor="middle">
+    <rect x="78"  y="212" width="100" height="26" rx="13" fill="var(--dkr-muted, #8e8e9a)"/>
+    <text x="128" y="230" fill="#fff">≈ 60%</text>
+    <rect x="316" y="212" width="128" height="26" rx="13" fill="var(--dkr-muted, #8e8e9a)"/>
+    <text x="380" y="230" fill="#fff">cannot learn</text>
+    <rect x="582" y="212" width="100" height="26" rx="13" fill="var(--dkr-accent, #d9603b)"/>
+    <text x="632" y="230" fill="#fff">≈ 82%</text>
+  </g>
+  <g font-family="'Source Sans 3', sans-serif" font-size="13.5" fill="var(--dkr-muted, #8e8e9a)" text-anchor="middle">
+    <text x="380" y="278">each early answer throws away half the data — the GNN is the model that keeps both</text>
+  </g>
+</svg>
+</figure>
+```

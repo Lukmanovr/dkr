@@ -1,0 +1,55 @@
+```{=html}
+<figure class="dkr-fig">
+<svg viewBox="0 0 760 330" role="img" aria-label="The GCN update equation with every term annotated in plain language">
+  <defs>
+    <marker id="eqArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="var(--dkr-muted, #8e8e9a)"/>
+    </marker>
+  </defs>
+
+  <!-- term highlight boxes (behind the equation text) -->
+  <g opacity="0.22">
+    <rect x="176" y="128" width="42"  height="52" rx="8" fill="#e5b84a"/>
+    <rect x="222" y="128" width="58"  height="52" rx="8" fill="#d9603b"/>
+    <rect x="284" y="118" width="196" height="72" rx="8" fill="#0f8377"/>
+    <rect x="502" y="128" width="112" height="52" rx="8" fill="#7c5cd6"/>
+  </g>
+
+  <!-- the equation, as text -->
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="30" fill="var(--dkr-text, #1c1c21)">
+    <text x="30" y="163">h<tspan font-size="18" dy="8">v</tspan><tspan font-size="18" dy="-22">(k+1)</tspan><tspan dy="14"> = </tspan></text>
+    <text x="184" y="163">σ<tspan font-size="30">(</tspan></text>
+    <text x="228" y="163">W<tspan font-size="18" dy="8">k</tspan></text>
+    <text x="292" y="163"><tspan font-size="36">Σ</tspan><tspan font-size="16" dy="16" dx="-8">u∈N(v)</tspan></text>
+    <text x="384" y="150">h<tspan font-size="16" dy="7">u</tspan><tspan font-size="16" dy="-19">(k)</tspan></text>
+    <line x1="378" y1="160" x2="462" y2="160" stroke="var(--dkr-text, #1c1c21)" stroke-width="1.6"/>
+    <text x="390" y="186" font-size="24">|N(v)|</text>
+    <text x="486" y="163">+</text>
+    <text x="512" y="163">B<tspan font-size="18" dy="8">k</tspan><tspan dy="-8" dx="6">h</tspan><tspan font-size="18" dy="8">v</tspan><tspan font-size="18" dy="-22">(k)</tspan></text>
+    <text x="622" y="163"><tspan font-size="30">)</tspan></text>
+  </g>
+
+  <!-- annotations with arrows -->
+  <g font-family="'Source Sans 3', sans-serif" font-size="14.5" font-weight="600">
+    <text x="120" y="52"  fill="#b98a1e">non-linearity (ReLU)</text>
+    <path d="M186,60 L196,120" stroke="#b98a1e" stroke-width="1.8" fill="none" marker-end="url(#eqArrow)"/>
+
+    <text x="330" y="36"  fill="var(--dkr-accent, #d9603b)">shared, learned weights — one W per layer, all nodes</text>
+    <path d="M328,44 L256,120" stroke="var(--dkr-accent, #d9603b)" stroke-width="1.8" fill="none" marker-end="url(#eqArrow)"/>
+
+    <text x="180" y="250" fill="var(--dkr-teal-deep, #0a5f56)">average of the neighbors' previous-layer embeddings</text>
+    <path d="M340,232 L368,196" stroke="var(--dkr-teal, #0f8377)" stroke-width="1.8" fill="none" marker-end="url(#eqArrow)"/>
+
+    <text x="530" y="250" fill="#7c5cd6">keep some of yourself</text>
+    <path d="M580,232 L562,190" stroke="#7c5cd6" stroke-width="1.8" fill="none" marker-end="url(#eqArrow)"/>
+
+    <text x="60" y="110" fill="var(--dkr-muted, #8e8e9a)" font-weight="400" font-size="13.5">embedding of v</text>
+    <text x="60" y="126" fill="var(--dkr-muted, #8e8e9a)" font-weight="400" font-size="13.5">at the next layer</text>
+  </g>
+
+  <!-- takeaway band -->
+  <rect x="120" y="284" width="520" height="34" rx="10" fill="var(--dkr-green, #199473)"/>
+  <text x="380" y="306" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="15" font-weight="700" fill="#fff">the Σ is a sum over a multiset — that is what makes the layer permutation invariant</text>
+</svg>
+</figure>
+```

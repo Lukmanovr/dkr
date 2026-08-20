@@ -1,16 +1,16 @@
 /*-- scss:defaults --*/
 // DKR modern deep dark theme.
-// True deep ground (near-black ink, not navy), elevated surfaces, soft warm text,
-// terracotta accent lifted one step for contrast, teal as the secondary/link hue.
+// Soft graphite ground (lifted from near-black per instructor feedback), elevated
+// surfaces, warm text; terracotta accent lifted one step, teal as secondary/link hue.
 
 @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:wght@400;700;900&display=swap');
 
-$body-bg: #0c0c11;
-$body-color: #e8e6e1;
+$body-bg: #1a1c22;
+$body-color: #e0ded8;
 $link-color: #35c4b5;
-$code-bg: #1c1c25;
+$code-bg: #262933;
 $code-color: #f0a685;
-$border-color: #26262f;
+$border-color: #343742;
 
 $font-family-sans-serif: "Source Sans 3", "Helvetica Neue", sans-serif;
 $font-family-monospace: "JetBrains Mono", "Fira Code", monospace;
@@ -26,10 +26,10 @@ $dkr-green: #34c398;
 $dkr-yellow: #e5b84a;
 $dkr-red: #f07a5c;
 $dkr-purple: #a78bfa;
-$dkr-paper: #15151d;
-$dkr-muted: #77758a;
-$dkr-text-2: #b6b4c2;
-$dkr-margin-bg: #191922;
+$dkr-paper: #23262e;
+$dkr-muted: #8b8a98;
+$dkr-text-2: #bcbac4;
+$dkr-margin-bg: #21242c;
 
 /*-- scss:rules --*/
 
@@ -160,7 +160,7 @@ main h3 {
     font-weight: 600;
     transition: all 0.15s;
     &.active, &:hover { border-color: $dkr-accent; }
-    &.active { background: $dkr-accent; color: #0c0c11; }
+    &.active { background: $dkr-accent; color: #1a1c22; }
     &:focus-visible { outline: 2px solid $dkr-teal; outline-offset: 2px; }
   }
   input[type="range"] { accent-color: $dkr-accent; }
@@ -202,4 +202,17 @@ details {
   margin: 0.2rem 0 0.9rem 1rem;
   border-left: 2px solid $border-color;
   padding-left: 0.8rem;
+}
+
+// Static figure system (inline SVG includes from assets/figures/)
+.dkr-fig {
+  margin: 2rem auto;
+  text-align: center;
+  svg { width: 100%; max-width: 700px; height: auto; }
+  figcaption {
+    font-family: "Source Sans 3", sans-serif;
+    font-size: 0.85rem;
+    color: $dkr-muted;
+    margin-top: 0.5rem;
+  }
 }

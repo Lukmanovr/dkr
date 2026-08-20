@@ -1,0 +1,81 @@
+```{=html}
+<figure class="dkr-fig">
+<svg viewBox="0 0 760 420" role="img" aria-label="The two-layer computation graph of node A: leaves feed shared aggregation boxes, which feed A">
+  <defs>
+    <marker id="cgArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="var(--dkr-muted, #8e8e9a)"/>
+    </marker>
+    <marker id="cgAccent" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="var(--dkr-accent, #d9603b)"/>
+    </marker>
+  </defs>
+
+  <!-- layer labels -->
+  <g font-family="'Source Sans 3', sans-serif" font-size="14" font-weight="700" fill="var(--dkr-muted, #8e8e9a)" text-anchor="middle">
+    <text x="65"  y="28">layer 2</text>
+    <text x="330" y="28">layer 1</text>
+    <text x="600" y="28">layer 0 = input features x</text>
+  </g>
+
+  <!-- level-1 boxes and leaves -->
+  <g fill="var(--dkr-paper, #ffffff)" stroke="var(--dkr-border, #d5d4cf)" stroke-width="1.6">
+    <rect x="150" y="150" width="84" height="104" rx="10"/>
+    <rect x="400" y="52"  width="54" height="48" rx="8"/>
+    <rect x="400" y="166" width="54" height="48" rx="8"/>
+    <rect x="400" y="316" width="54" height="48" rx="8"/>
+  </g>
+
+  <!-- dashed message arrows: leaves -> boxes -->
+  <g stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.4" stroke-dasharray="4,4" fill="none">
+    <path d="M556,62  L458,70"  marker-end="url(#cgArrow)"/>
+    <path d="M556,100 L458,86"  marker-end="url(#cgArrow)"/>
+    <path d="M556,148 L458,178" marker-end="url(#cgArrow)"/>
+    <path d="M556,182 L458,188" marker-end="url(#cgArrow)"/>
+    <path d="M556,216 L458,196" marker-end="url(#cgArrow)"/>
+    <path d="M556,250 L458,206" marker-end="url(#cgArrow)"/>
+    <path d="M556,340 L458,340" marker-end="url(#cgArrow)"/>
+    <!-- boxes -> level-1 nodes -->
+    <path d="M400,76  L352,78"  marker-end="url(#cgArrow)"/>
+    <path d="M400,190 L352,190" marker-end="url(#cgArrow)"/>
+    <path d="M400,340 L352,338" marker-end="url(#cgArrow)"/>
+    <!-- level-1 nodes -> main box -->
+    <path d="M318,84  L236,168" marker-end="url(#cgArrow)"/>
+    <path d="M318,190 L236,196" marker-end="url(#cgArrow)"/>
+    <path d="M318,332 L236,238" marker-end="url(#cgArrow)"/>
+    <!-- main box -> A -->
+    <path d="M150,202 L96,202"  marker-end="url(#cgArrow)"/>
+  </g>
+
+  <!-- nodes -->
+  <g font-family="'Source Sans 3', sans-serif" font-weight="700" font-size="15" text-anchor="middle">
+    <circle cx="72"  cy="202" r="18" fill="#d9a62e"/><text x="72"  y="208" fill="#fff">A</text>
+    <circle cx="334" cy="80"  r="15" fill="#cf4a30"/><text x="334" y="85"  fill="#fff">B</text>
+    <circle cx="334" cy="190" r="15" fill="#199473"/><text x="334" y="195" fill="#fff">C</text>
+    <circle cx="334" cy="336" r="15" fill="#7c5cd6"/><text x="334" y="341" fill="#fff">D</text>
+    <!-- leaves: B's neighbors {A, C} -->
+    <circle cx="572" cy="62"  r="11" fill="#d9a62e"/><text x="572" y="66"  font-size="11" fill="#fff">A</text>
+    <circle cx="572" cy="100" r="11" fill="#199473"/><text x="572" y="104" font-size="11" fill="#fff">C</text>
+    <!-- C's neighbors {A, B, E, F} -->
+    <circle cx="572" cy="148" r="11" fill="#d9a62e"/><text x="572" y="152" font-size="11" fill="#fff">A</text>
+    <circle cx="572" cy="182" r="11" fill="#cf4a30"/><text x="572" y="186" font-size="11" fill="#fff">B</text>
+    <circle cx="572" cy="216" r="11" fill="#d1567e"/><text x="572" y="220" font-size="11" fill="#fff">E</text>
+    <circle cx="572" cy="250" r="11" fill="#0f8377"/><text x="572" y="254" font-size="11" fill="#fff">F</text>
+    <!-- D's neighbor {A} -->
+    <circle cx="572" cy="340" r="11" fill="#d9a62e"/><text x="572" y="344" font-size="11" fill="#fff">A</text>
+  </g>
+
+  <!-- annotations -->
+  <g font-family="'Source Sans 3', sans-serif" font-size="14.5" font-weight="600" fill="var(--dkr-accent, #d9603b)">
+    <text x="30" y="120">① average the</text>
+    <text x="30" y="138">incoming messages</text>
+    <path d="M116,146 L172,162" stroke="var(--dkr-accent, #d9603b)" stroke-width="2" fill="none" marker-end="url(#cgAccent)"/>
+    <text x="96" y="300">② transform with shared</text>
+    <text x="96" y="318">weights W, then ReLU</text>
+    <path d="M180,290 L192,260" stroke="var(--dkr-accent, #d9603b)" stroke-width="2" fill="none" marker-end="url(#cgAccent)"/>
+  </g>
+  <g font-family="'Source Sans 3', sans-serif" font-size="13.5" fill="var(--dkr-muted, #8e8e9a)">
+    <text x="427" y="392" text-anchor="middle">every box is the SAME function — one W per layer, shared by all nodes</text>
+  </g>
+</svg>
+</figure>
+```

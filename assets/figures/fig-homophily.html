@@ -1,0 +1,52 @@
+```{=html}
+<figure class="dkr-fig">
+<svg viewBox="0 0 760 240" role="img" aria-label="Homophily versus heterophily: neighborhood averaging helps when neighbors agree and destroys signal when they alternate">
+  <g fill="none" stroke="var(--dkr-border, #d5d4cf)" stroke-width="1.4">
+    <rect x="16"  y="14" width="352" height="186" rx="12"/>
+    <rect x="392" y="14" width="352" height="186" rx="12"/>
+  </g>
+  <g font-family="'Source Sans 3', sans-serif" font-size="15" font-weight="700" text-anchor="middle">
+    <text x="192" y="42" fill="var(--dkr-text, #1c1c21)">homophily (Cora)</text>
+    <text x="568" y="42" fill="var(--dkr-text, #1c1c21)">heterophily (fraud, dating…)</text>
+  </g>
+
+  <!-- homophily: two same-color clusters, one bridge -->
+  <g transform="translate(30,55)">
+    <g stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.6" opacity="0.7">
+      <line x1="45" y1="35" x2="105" y2="20"/><line x1="45" y1="35" x2="80" y2="80"/><line x1="105" y1="20" x2="80" y2="80"/>
+      <line x1="105" y1="20" x2="150" y2="55"/><line x1="80" y1="80" x2="150" y2="55"/>
+      <line x1="150" y1="55" x2="215" y2="60"/>
+      <line x1="215" y1="60" x2="265" y2="25"/><line x1="215" y1="60" x2="280" y2="85"/><line x1="265" y1="25" x2="280" y2="85"/>
+      <line x1="265" y1="25" x2="315" y2="60"/><line x1="280" y1="85" x2="315" y2="60"/>
+    </g>
+    <g>
+      <circle cx="45" cy="35" r="12" fill="#d9a62e"/><circle cx="105" cy="20" r="12" fill="#d9a62e"/>
+      <circle cx="80" cy="80" r="12" fill="#d9a62e"/><circle cx="150" cy="55" r="12" fill="#d9a62e"/>
+      <circle cx="215" cy="60" r="12" fill="#0f8377"/><circle cx="265" cy="25" r="12" fill="#0f8377"/>
+      <circle cx="280" cy="85" r="12" fill="#0f8377"/><circle cx="315" cy="60" r="12" fill="#0f8377"/>
+    </g>
+  </g>
+  <!-- heterophily: alternating colors on a grid-ish graph -->
+  <g transform="translate(410,55)">
+    <g stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.6" opacity="0.7">
+      <line x1="45" y1="30" x2="115" y2="30"/><line x1="115" y1="30" x2="185" y2="30"/><line x1="185" y1="30" x2="255" y2="30"/>
+      <line x1="45" y1="30" x2="80" y2="85"/><line x1="115" y1="30" x2="80" y2="85"/><line x1="115" y1="30" x2="150" y2="85"/>
+      <line x1="185" y1="30" x2="150" y2="85"/><line x1="185" y1="30" x2="220" y2="85"/><line x1="255" y1="30" x2="220" y2="85"/>
+      <line x1="80" y1="85" x2="150" y2="85"/><line x1="150" y1="85" x2="220" y2="85"/>
+    </g>
+    <g>
+      <circle cx="45" cy="30" r="12" fill="#d9a62e"/><circle cx="115" cy="30" r="12" fill="#0f8377"/>
+      <circle cx="185" cy="30" r="12" fill="#d9a62e"/><circle cx="255" cy="30" r="12" fill="#0f8377"/>
+      <circle cx="80" cy="85" r="12" fill="#0f8377"/><circle cx="150" cy="85" r="12" fill="#d9a62e"/>
+      <circle cx="220" cy="85" r="12" fill="#0f8377"/>
+    </g>
+  </g>
+
+  <g font-family="'Source Sans 3', sans-serif" font-size="14" font-weight="600" text-anchor="middle">
+    <text x="192" y="178" fill="var(--dkr-green, #199473)">neighbors agree → averaging sharpens ✓</text>
+    <text x="568" y="178" fill="var(--dkr-red, #cf4a30)">neighbors differ → averaging destroys ✗</text>
+    <text x="380" y="226" font-size="13.5" font-weight="400" fill="var(--dkr-muted, #8e8e9a)">the GCN's low-pass bias is a bet on the left panel — always check which world your graph lives in</text>
+  </g>
+</svg>
+</figure>
+```
