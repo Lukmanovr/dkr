@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.10.18
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Guard against leaked solutions
+        run: python scripts/check_no_solutions.py
+
+      - name: Render site
+        run: quarto render
+
+      - name: Check links (internal + external)
+        run: python scripts/check_links.py _site
+
+  notebooks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install lab environment (CPU)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r labs/requirements.txt nbclient nbformat ipykernel
+
+      - name: Execute notebooks (smoke mode)
+        env:
+          SMOKE: "1"
+        run: python scripts/run_notebooks.py labs homeworks --timeout 1500
