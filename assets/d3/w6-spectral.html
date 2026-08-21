@@ -22,7 +22,7 @@
     <label for="w6-sp-w2">w₂ <strong id="w6-sp-w2label">0.0</strong></label>
     <input type="range" id="w6-sp-w2" min="-1" max="1" step="0.05" value="0" style="width:110px">
   </div>
-  <div id="w6-sp-svg" aria-label="Laplacian eigenvector and polynomial filter playground"></div>
+  <div id="w6-sp-svg" role="img" aria-label="Laplacian eigenvector and polynomial filter playground"></div>
   <noscript>
     <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static view:
     Laplacian eigenvectors drawn as node colorings on a ring, a grid, and a two-community
@@ -35,6 +35,8 @@
   the two communities (this is spectral clustering from Week 2!), and high-k eigenvectors
   oscillate across edges. <em>Filter mode:</em> shape p(λ) with three coefficients, click
   a node to place a unit signal there, and see p(L)x in the node domain. A GCN layer is,
-  at heart, one cheap fixed low-pass filter of this kind.</p>
+  at heart, one cheap fixed low-pass filter of this kind. <strong>Try this:</strong> in filter
+  mode set w₀=0, w₁=1 — a pure high-pass — click a node on the two-community graph and watch the
+  filter light up <em>boundaries</em> instead of regions.</p>
 </div>
 ```

@@ -140,5 +140,5 @@
   });
 
   U.onThemeChange(render);
-  render();
+  U.lazyBoot("w6-pm-svg", render);
 })();

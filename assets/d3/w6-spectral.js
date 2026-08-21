@@ -107,6 +107,7 @@
       .attr("fill", (d) => U.signedColor(vals[d.id], vmax, P))
       .attr("stroke", (d) => (mode === "filter" && d.id === delta) ? P.accentDark : P.muted)
       .attr("stroke-width", (d) => (mode === "filter" && d.id === delta) ? 2.5 : 1);
+    node.append("circle").attr("r", 19).attr("fill", "transparent");
     node.append("text").attr("text-anchor", "middle").attr("dy", 3.5)
       .attr("font-size", 8.5).attr("fill", P.text)
       .text((d) => vals[d.id].toFixed(1).replace("-0.0", "0.0"));
@@ -172,5 +173,5 @@
     document.getElementById("w6-sp-w" + i).addEventListener("input", (e) => { w[+i] = +e.target.value; render(); }));
 
   U.onThemeChange(render);
-  render();
+  U.lazyBoot("w6-sp-svg", render);
 })();

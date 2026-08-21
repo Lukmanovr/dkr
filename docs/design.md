@@ -221,8 +221,8 @@ cannot diverge). Page order, implementing brief §4.2 exactly:
 7. **In this week's lab** — 3–5 sentence bridge naming exactly which objects from the lecture get implemented.
 8. **Required reading (2 papers)** — each with 2–4-sentence "what to look for" annotation; **Also see**: GRL book chapter + CS224W lecture; **Optional** (2–4 papers).
 9. **Check your understanding** — 5–8 questions, mix conceptual/derivation, answers in collapsible blocks.
-10. **Speaker notes & timing plan** — collapsed block: segment-by-segment 90-min plan (durations, pause points, which widget to drive live, expected questions). Also feeds revealjs speaker notes.
-11. **Slides link** — auto-generated deck download/open link in the header block.
+10. **Teaching script** — collapsed block: the 90-minute run of show (segment timings, 🗳 quick-vote and 🗣 ask-the-room beats, the ✋ timed hand-computation pause, which widget to drive live, expected questions, contingency cuts). Class is taught directly from the projected page.
+11. ~~Slides link~~ — **removed by instructor decision (2026-08-21)**: no slide decks in this course. Brief §4.2.11 deviation, approved. The lecture page is the single classroom artifact; a print stylesheet covers the offline/PDF role; the deck's engagement beats live on as the page's predict-before-reveal blocks and the teaching script.
 
 House style ported from the adversarial-ML template: serif body (Libre Baskerville),
 Playfair display headings, Source Sans UI, JetBrains Mono code, terracotta `#e07a5f` accent
@@ -550,10 +550,55 @@ weak-spot list. Then assessments/policies, then final QA (CI: site build, all no
 SMOKE-executed, links, widgets; manual: 2-click nav, dark mode, mobile, notation sweep)
 and a handover doc.
 
-Definition of done per week: lecture page passes component lint (11 components present,
-≥4 widgets, ≥2 annotated required papers, 5–8 self-checks with answers, speaker notes
-≈90 min); lab runs green in SMOKE mode and ≤30 min real mode on free Colab (spot-verified);
+Definition of done per week: lecture page passes component lint (template components
+present, ≥4 widgets each with a Try-this experiment, ≥2 annotated required papers, 5–8
+self-checks with answers, teaching script ≈90 min, ≥2 predict-before-reveal blocks,
+figures conform to docs/figure-style.md); the Quality Bar below walked and satisfied;
+lab runs green in SMOKE mode and ≤30 min real mode on free Colab (spot-verified);
 solutions pass all assertions; no TODO/TBD strings; every citation resolves.
+
+## 14. The Quality Bar (standing, instructor-approved 2026-08-21)
+
+Three checklists govern every page, figure, and widget; the full annotated versions live
+in the approved plan of 2026-08-21 and are summarized here. **The target: every lecture
+on par with or better than the Distill.pub GNN articles.**
+
+**A · What makes a lecture great** — (1–4) narrative spine: a driving question with
+stakes, one running example carrying the lecture, tension→resolution section openers, an
+honest limitations ending; (5–9) Mayer load discipline: coherence, signaling,
+segmenting (≤5 paragraphs between visual/interactive beats), spatial contiguity
+(explanations next to their objects), recap-as-pretraining; (10–12) dual coding: every
+core object in ≥2 linked color-coded representations, one visual vocabulary
+(figure-style.md), animation only for state/causality; (13–17) active learning:
+predict-before-reveal blocks, self-checks with feedback, a pencil-and-paper "you compute
+it", ≥4 manipulable widgets with suggested experiments, details-on-demand (hover
+glossary, collapsibles); (18–20) rigor with scaffolding: complete derivations, notation
+discipline, honest failures; (21–24) memory & transfer: cross-week callbacks, takeaway
+anchors, pitfalls-as-inoculation, a production touchpoint; (25) conversational
+second-person voice.
+
+*Measured 2026-08-21 (Lighthouse, localhost, simulated slow-4G): Accessibility 100 ·
+Best-practices 100 · Performance 55.* The performance score is dominated by ~2 MB of
+render-blocking framework CSS/JS (KaTeX + Bootstrap + fonts) under simulated 4G and by
+the dev server sending no cache headers (GitHub Pages does). **Perf backlog, honest:**
+vendor + subset KaTeX with `font-display: swap`; prune unused Bootstrap via a trimmed
+SCSS build; re-measure on the deployed Pages site where caching applies. Widgets already
+lazy-init and all scripts defer, so interactivity cost is near zero (TBT 0 ms, CLS 0.07).
+
+**B · What makes a modern website great** — Core Web Vitals (LCP ≤ 2.5 s, INP ≤ 200 ms,
+CLS ≤ 0.1) with lazy widget init and preconnected swap fonts; 60–75-ch measure and a
+type scale; print stylesheet; token-driven AA-contrast theming; ≤2-click navigation with
+scroll-spy ToC, search, reading-time and dates; visible focus states, 150–250 ms
+micro-transitions, reduced-motion respect, keyboard operability, skip link; aria +
+text fallbacks on every widget/figure, no color-only encoding; touch-usable at 360 px;
+OG cards, favicon, useful 404, license footer; exactly one signature delight moment.
+
+**C · What great design is made of** — visible hierarchy; a consistent grid; proximity
+does the grouping; whitespace as material; a modular rhythm; role-based color with a
+sparingly-spent accent; functional contrast; stable identity colors (the cast);
+purposeful four-face type pairing; one recognizable figure grammar; finished details;
+restraint in effects; motion that communicates; a distinctive single identity across
+the whole site.
 
 **[DECISION] items for Gate 1 sign-off:** §1 syllabus deltas (esp. dropping Mapper/TDA);
 §5.2 no-HW4; §5.4 final at 90 min; §5.6 project milestone dates; license proposal

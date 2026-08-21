@@ -107,5 +107,5 @@
   });
 
   U.onThemeChange(render);
-  render();
+  U.lazyBoot("w6-nm-svg", render);
 })();

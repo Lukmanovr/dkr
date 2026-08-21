@@ -62,6 +62,7 @@
       .attr("fill", (d) => d.id === selected ? P.accent : P.paper)
       .attr("stroke", (d) => d.id === selected ? P.accentDark : P.blue)
       .attr("stroke-width", 2);
+    node.append("circle").attr("r", 24).attr("fill", "transparent");
     node.append("text")
       .attr("text-anchor", "middle").attr("dy", 5)
       .attr("font-size", 13).attr("font-weight", 700)
@@ -145,5 +146,5 @@
   });
 
   U.onThemeChange(render);
-  render();
+  U.lazyBoot("w6-mp-svg", render);
 })();

@@ -6,7 +6,7 @@
     <button class="pill-btn" id="w6-nm-reset" type="button">Reset</button>
     <span>step = <strong id="w6-nm-step-label">0</strong></span>
   </div>
-  <div id="w6-nm-svg" aria-label="Comparison of sum, mean, and symmetric normalization"></div>
+  <div id="w6-nm-svg" role="img" aria-label="Comparison of sum, mean, and symmetric normalization"></div>
   <noscript>
     <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static view:
     the same hub-and-spokes graph propagated under (A+I)h, D̃⁻¹Ãh, and D̃^-½ÃD̃^-½h; after a
@@ -19,6 +19,7 @@
   to the k-th power — watch the log chart), while mean and symmetric normalization stay
   bounded. The symmetric variant additionally discounts messages <em>through</em>
   high-degree nodes on both endpoints — this is exactly the D̃<sup>-½</sup>ÃD̃<sup>-½</sup>
-  in the GCN layer.</p>
+  in the GCN layer. <strong>Try this:</strong> after 6 steps, compare the hub's value with a leaf's
+  under mean vs GCN — which rule lets the hub dominate more, and why?</p>
 </div>
 ```

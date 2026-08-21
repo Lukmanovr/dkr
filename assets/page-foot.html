@@ -1,0 +1,121 @@
+<script>
+/* DKR page runtime: reading meta, hover glossary, predict-reveal, skip link, print prep.
+ * Vanilla, ~2 KB, inlined site-wide so no path or caching issues. */
+(function () {
+  "use strict";
+
+  // ── skip-to-content link (keyboard users) ────────────────────────────────
+  var main = document.getElementById("quarto-document-content") || document.querySelector("main");
+  if (main) {
+    var skip = document.createElement("a");
+    skip.className = "skip-link";
+    skip.href = "#" + (main.id || "quarto-document-content");
+    skip.textContent = "Skip to content";
+    document.body.insertBefore(skip, document.body.firstChild);
+  }
+
+  // ── reading time under the title (long pages only) ───────────────────────
+  if (main) {
+    var words = (main.innerText || "").trim().split(/\s+/).length;
+    if (words > 1200) {
+      var mins = Math.max(1, Math.round(words / 200));
+      var meta = document.createElement("p");
+      meta.className = "reading-meta";
+      meta.textContent = "≈ " + mins + " min read · " + words.toLocaleString() + " words";
+      var title = document.querySelector(".quarto-title-meta") || document.querySelector(".quarto-title");
+      if (title) title.insertAdjacentElement("afterend", meta);
+    }
+  }
+
+  // ── hover/tap glossary for .term[data-def] ───────────────────────────────
+  var tip = document.createElement("div");
+  tip.className = "dkr-tooltip";
+  tip.setAttribute("role", "tooltip");
+  tip.setAttribute("aria-hidden", "true"); // unnamed while empty; named+shown together
+  tip.id = "dkr-tooltip";
+  document.body.appendChild(tip);
+  var tipFor = null;
+
+  function showTip(el) {
+    tip.textContent = el.getAttribute("data-def");
+    tip.setAttribute("aria-hidden", "false");
+    tip.classList.add("show");
+    var r = el.getBoundingClientRect();
+    var top = r.top - tip.offsetHeight - 10;
+    if (top < 8) top = r.bottom + 10;
+    var left = Math.min(Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2),
+                        window.innerWidth - tip.offsetWidth - 8);
+    tip.style.top = top + window.scrollY + "px";
+    tip.style.left = left + "px";
+    el.setAttribute("aria-describedby", "dkr-tooltip");
+    tipFor = el;
+  }
+  function hideTip() {
+    tip.classList.remove("show");
+    tip.setAttribute("aria-hidden", "true");
+    if (tipFor) { tipFor.removeAttribute("aria-describedby"); tipFor = null; }
+  }
+  document.querySelectorAll(".term[data-def]").forEach(function (el) {
+    el.setAttribute("tabindex", "0");
+    el.addEventListener("mouseenter", function () { showTip(el); });
+    el.addEventListener("mouseleave", hideTip);
+    el.addEventListener("focus", function () { showTip(el); });
+    el.addEventListener("blur", hideTip);
+    el.addEventListener("click", function (ev) {  // tap-to-toggle on touch
+      ev.preventDefault();
+      tipFor === el && tip.classList.contains("show") ? hideTip() : showTip(el);
+    });
+  });
+  document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") hideTip(); });
+  window.addEventListener("scroll", hideTip, { passive: true });
+
+  // ── predict-before-reveal blocks ─────────────────────────────────────────
+  document.querySelectorAll(".predict").forEach(function (block) {
+    var ans = block.querySelector(".predict-answer");
+    if (!ans) return;
+    var btn = block.querySelector("button.predict-btn");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "predict-btn";
+      block.insertBefore(btn, ans);
+    }
+    btn.textContent = "I've committed — reveal";
+    btn.setAttribute("aria-expanded", "false");
+    btn.addEventListener("click", function () {
+      var open = block.classList.toggle("revealed");
+      btn.setAttribute("aria-expanded", String(open));
+      btn.textContent = open ? "Hide again" : "I've committed — reveal";
+    });
+  });
+
+  // ── repair Quarto's collapsible callout headers (aria-expanded needs a role;
+  //    role="button" also makes them keyboard-operable) ─────────────────────
+  document.querySelectorAll('.callout-header[data-bs-toggle="collapse"]').forEach(function (h) {
+    h.setAttribute("role", "button");
+    h.setAttribute("tabindex", "0");
+    h.removeAttribute("aria-label"); // the visible title is the accessible name
+    h.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); h.click(); }
+    });
+  });
+
+  // ── printing: open every collapsible so nothing is lost on paper ─────────
+  var reopened = [];
+  window.addEventListener("beforeprint", function () {
+    reopened = [];
+    document.querySelectorAll("details:not([open])").forEach(function (d) {
+      d.setAttribute("open", ""); reopened.push(d);
+    });
+    document.querySelectorAll(".predict:not(.revealed)").forEach(function (p) {
+      p.classList.add("revealed", "print-revealed");
+    });
+  });
+  window.addEventListener("afterprint", function () {
+    reopened.forEach(function (d) { d.removeAttribute("open"); });
+    document.querySelectorAll(".predict.print-revealed").forEach(function (p) {
+      p.classList.remove("revealed", "print-revealed");
+    });
+  });
+})();
+</script>

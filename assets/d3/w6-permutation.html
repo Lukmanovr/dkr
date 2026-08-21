@@ -5,7 +5,7 @@
     <button class="pill-btn" id="w6-pm-shuffle" type="button">Shuffle the node ordering</button>
     <button class="pill-btn" id="w6-pm-reset" type="button">Reset</button>
   </div>
-  <div id="w6-pm-svg" aria-label="Permutation equivariance demonstration"></div>
+  <div id="w6-pm-svg" role="img" aria-label="Permutation equivariance demonstration"></div>
   <noscript>
     <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static view:
     one 5-node graph stored under two different node orderings; a message-passing layer
@@ -17,6 +17,7 @@
   Shuffle a few times: the message-passing layer's output <em>travels with each node</em> —
   that is permutation equivariance — while the MLP reading the flattened matrix returns a
   different score for the very same graph. A model whose answer depends on storage order
-  isn't learning about the graph at all.</p>
+  isn't learning about the graph at all. <strong>Try this:</strong> shuffle until the MLP score
+  barely moves — then explain why 'barely' is still a failure while the GNN's zero drift is a theorem.</p>
 </div>
 ```

@@ -55,9 +55,14 @@ def collect_links(site_dir: Path) -> tuple[set[tuple[Path, str]], set[str]]:
     return internal, external
 
 
+SITE_PREFIX = "/dkr"  # GitHub Pages project subpath; absolute links carry it (e.g. on 404)
+
+
 def check_internal(site_dir: Path, source: Path, target: str) -> str | None:
     if not target:
         return None
+    if target.startswith(SITE_PREFIX + "/") or target == SITE_PREFIX:
+        target = target[len(SITE_PREFIX):] or "/"
     base = site_dir if target.startswith("/") else source.parent
     resolved = (base / target.lstrip("/")).resolve()
     if resolved.is_dir():

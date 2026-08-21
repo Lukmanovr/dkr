@@ -155,18 +155,40 @@ window.DKR = (function () {
       : d3.interpolateRgb(P.paper, P.blue)(-t);
   }
 
+  // Honor the user's reduced-motion preference in every widget.
+  function motionOK() {
+    return !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
   // Standard widget scaffold: clears container, adds responsive SVG.
+  // Re-renders get a 180 ms soft fade (skipped under reduced motion) so full
+  // redraws read as state changes rather than flicker.
   function svgIn(containerId, w, h) {
     const el = d3.select("#" + containerId);
+    const isRedraw = !el.select("svg").empty();
     el.selectAll("*").remove();
-    return el.append("svg")
+    const svg = el.append("svg")
       .attr("viewBox", `0 0 ${w} ${h}`)
       .attr("width", "100%")
       .style("max-width", w + "px")
       .style("display", "block")
       .style("margin", "0 auto");
+    if (isRedraw && motionOK()) {
+      svg.style("opacity", 0.35).transition().duration(180).style("opacity", 1);
+    }
+    return svg;
+  }
+
+  // Defer a widget's first render until it approaches the viewport (LCP/INP).
+  function lazyBoot(containerId, bootFn) {
+    const el = document.getElementById(containerId);
+    if (!el || !("IntersectionObserver" in window)) { bootFn(); return; }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { io.disconnect(); bootFn(); }
+    }, { rootMargin: "300px 0px" });
+    io.observe(el);
   }
 
   return { pal, onThemeChange, graph, adjacency, degrees, neighbors, circleLayout,
-           drawMatrix, matmul, relu, symEig, signedColor, svgIn };
+           drawMatrix, matmul, relu, symEig, signedColor, svgIn, motionOK, lazyBoot };
 })();

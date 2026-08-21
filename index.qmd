@@ -32,7 +32,7 @@ each method from scratch before reaching for the library.
 
 | | |
 |---|---|
-| **Lectures** | Interactive pages (read them like [Distill](https://distill.pub/2021/gnn-intro/) articles) + downloadable slide decks generated from the same source |
+| **Lectures** | Interactive articles in the spirit of [Distill](https://distill.pub/2021/gnn-intro/) — read them, play with them, print them; class is taught directly from these pages |
 | **Labs** | One Colab notebook per week; runs on the free tier end-to-end; from-scratch first, then PyTorch Geometric |
 | **Grading** | Labs 15% (best 12 of 14) · Homeworks 30% (3 × 10%) · Midterm 15% (Wk 8, Oct 15) · Project 20% · Final 20% (Wk 15, Dec 3) |
 | **AI policy** | AI assistants are allowed for labs, homework, and the project **with mandatory disclosure**, and you must be able to explain any line you submit. Exams: no aids beyond the final's cheat sheet. |

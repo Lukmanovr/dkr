@@ -1,0 +1,17 @@
+---
+title: "This page doesn't exist"
+toc: false
+---
+
+The address may have a typo, or the material you're after may not be published yet —
+weeks go live one by one across the semester.
+
+Useful places to go instead:
+
+- [Syllabus](/syllabus.qmd) — every week, with links that activate as materials publish
+- [Lectures](/lectures/06-gcn.qmd) — the most recent published lecture
+- [Home](/index.qmd)
+
+If you followed a link from within the course site to get here, that's a bug we want to
+know about — [open an issue](https://github.com/lukmanovr/dkr/issues/new) and paste the
+address.

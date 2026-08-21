@@ -6,7 +6,7 @@
     <button class="pill-btn" id="w6-mp-reset" type="button">Reset</button>
     <span>layer k = <strong id="w6-mp-layer">0</strong></span>
   </div>
-  <div id="w6-mp-svg" aria-label="Message passing stepper on a six node graph"></div>
+  <div id="w6-mp-svg" role="img" aria-label="Message passing stepper on a six node graph"></div>
   <noscript>
     <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
     view: a 6-node graph (two triangles bridged by one edge) where each node carries a
@@ -19,6 +19,8 @@
   mean of its neighborhood (self-loop included); click a node — or use the arrow keys —
   to unroll its computation tree. Keep stepping: the vectors converge toward each other.
   That slow death of information is <em>oversmoothing</em>, and we will meet it formally
-  in Week 9.</p>
+  in Week 9. <strong>Try this:</strong> walk through the nodes with the arrow keys and compare
+  their computation trees — B's has more leaves than C's. Now explain why the high-degree nodes
+  settle toward the neighborhood average fastest.</p>
 </div>
 ```

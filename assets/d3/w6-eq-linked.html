@@ -1,0 +1,121 @@
+```{=html}
+<div class="interactive-container" id="w6-eq-widget">
+  <div class="fig-label">Interactive · The layer, term by term</div>
+  <style>
+    #w6-eq-widget .eq-line {
+      text-align: center;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1.45rem;
+      margin: 0.4rem 0 1rem;
+      line-height: 2.1;
+    }
+    #w6-eq-widget .eq-term {
+      padding: 0.05em 0.22em;
+      border-radius: 6px;
+      border-bottom: 3px solid;
+      cursor: pointer;
+      transition: background-color 0.18s ease;
+      white-space: nowrap;
+    }
+    #w6-eq-widget .eq-term:focus-visible { outline: 2px solid var(--dkr-accent, #d9603b); outline-offset: 2px; }
+    #w6-eq-widget .eq-term[data-link="relu"] { border-color: #d9a62e; }
+    #w6-eq-widget .eq-term[data-link="w"]    { border-color: var(--dkr-accent, #d9603b); }
+    #w6-eq-widget .eq-term[data-link="agg"]  { border-color: var(--dkr-blue, #0f8377); }
+    #w6-eq-widget .eq-term[data-link="self"] { border-color: #7c5cd6; }
+    #w6-eq-widget .eq-term.hot[data-link="relu"] { background: rgba(217, 166, 46, 0.22); }
+    #w6-eq-widget .eq-term.hot[data-link="w"]    { background: rgba(217, 96, 59, 0.20); }
+    #w6-eq-widget .eq-term.hot[data-link="agg"]  { background: rgba(15, 131, 119, 0.18); }
+    #w6-eq-widget .eq-term.hot[data-link="self"] { background: rgba(124, 92, 214, 0.20); }
+    #w6-eq-widget svg .lnk-part { transition: opacity 0.18s ease; }
+    #w6-eq-widget svg.lnk-focus .lnk-part { opacity: 0.18; }
+    #w6-eq-widget svg.lnk-focus .lnk-part.lnk-hot { opacity: 1; }
+    @media (prefers-reduced-motion: reduce) {
+      #w6-eq-widget .eq-term, #w6-eq-widget svg .lnk-part { transition: none; }
+    }
+  </style>
+
+  <p class="eq-line" aria-label="The mean-aggregation GNN layer equation; each term can be focused to highlight the matching diagram part">
+    h⁽ᵏ⁺¹⁾<sub>v</sub> =
+    <span class="eq-term" tabindex="0" data-link="relu">σ</span>(
+    <span class="eq-term" tabindex="0" data-link="w">W<sub>k</sub></span> ·
+    <span class="eq-term" tabindex="0" data-link="agg">Σ<sub>u∈N(v)</sub> h⁽ᵏ⁾<sub>u</sub> ⁄ |N(v)|</span>
+    +
+    <span class="eq-term" tabindex="0" data-link="self">B<sub>k</sub> h⁽ᵏ⁾<sub>v</sub></span>
+    )
+  </p>
+
+  <svg id="w6-eq-svg" viewBox="0 0 760 260" role="img"
+       aria-label="Dataflow of one layer: neighbor vectors are averaged, mixed by W, combined with the node's own state, passed through the nonlinearity">
+    <defs>
+      <marker id="elArrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+        <path d="M0,0 L8,3.5 L0,7 Z" fill="var(--dkr-muted, #8e8e9a)"/>
+      </marker>
+    </defs>
+
+    <!-- aggregation: neighbors + arrows + mean box -->
+    <g class="lnk-part" id="lnk-agg">
+      <g font-family="'Source Sans 3', sans-serif" font-weight="700" font-size="13" text-anchor="middle">
+        <circle cx="66" cy="55"  r="15" fill="#cf4a30"/><text x="66" y="60"  fill="#fff">B</text>
+        <circle cx="66" cy="125" r="15" fill="#199473"/><text x="66" y="130" fill="#fff">C</text>
+        <circle cx="66" cy="195" r="15" fill="#7c5cd6"/><text x="66" y="200" fill="#fff">D</text>
+      </g>
+      <g stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.5" stroke-dasharray="4,4" fill="none">
+        <path d="M86,60  L166,110" marker-end="url(#elArrow)"/>
+        <path d="M86,125 L166,125" marker-end="url(#elArrow)"/>
+        <path d="M86,190 L166,140" marker-end="url(#elArrow)"/>
+      </g>
+      <rect x="172" y="95" width="96" height="60" rx="10" fill="var(--dkr-paper, #fff)"
+            stroke="var(--dkr-blue, #0f8377)" stroke-width="2.2"/>
+      <text x="220" y="121" text-anchor="middle" font-family="'Source Sans 3', sans-serif"
+            font-size="14.5" font-weight="700" fill="var(--dkr-blue-dark, #0a5f56)">mean of</text>
+      <text x="220" y="140" text-anchor="middle" font-family="'Source Sans 3', sans-serif"
+            font-size="14.5" font-weight="700" fill="var(--dkr-blue-dark, #0a5f56)">N(v)</text>
+    </g>
+
+    <!-- junction plus -->
+    <g class="lnk-part" id="lnk-plus">
+      <path d="M268,125 L318,125" stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.8" fill="none" marker-end="url(#elArrow)"/>
+      <circle cx="341" cy="125" r="17" fill="var(--dkr-paper, #fff)" stroke="var(--dkr-border, #d5d4cf)" stroke-width="1.8"/>
+      <text x="341" y="132" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="19" font-weight="700" fill="var(--dkr-text, #1c1c21)">+</text>
+    </g>
+
+    <!-- self path -->
+    <g class="lnk-part" id="lnk-self">
+      <g font-family="'Source Sans 3', sans-serif" font-weight="700" font-size="13" text-anchor="middle">
+        <circle cx="341" cy="222" r="16" fill="#d9a62e"/><text x="341" y="227" fill="#fff">v</text>
+      </g>
+      <path d="M341,204 L341,148" stroke="#7c5cd6" stroke-width="2" stroke-dasharray="4,4" fill="none" marker-end="url(#elArrow)"/>
+      <text x="392" y="192" text-anchor="middle" font-family="'Source Sans 3', sans-serif"
+            font-size="12.5" fill="#7c5cd6" font-weight="600">keep some of yourself</text>
+    </g>
+
+    <!-- W transform -->
+    <g class="lnk-part" id="lnk-w">
+      <path d="M358,125 L408,125" stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.8" fill="none" marker-end="url(#elArrow)"/>
+      <rect x="414" y="97" width="74" height="56" rx="10" fill="var(--dkr-accent, #d9603b)" opacity="0.16"/>
+      <rect x="414" y="97" width="74" height="56" rx="10" fill="none" stroke="var(--dkr-accent, #d9603b)" stroke-width="2.2"/>
+      <text x="451" y="123" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="16" font-weight="700" fill="var(--dkr-accent, #d9603b)">W, B</text>
+      <text x="451" y="141" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="11" fill="var(--dkr-muted, #8e8e9a)">shared, learned</text>
+    </g>
+
+    <!-- relu + output -->
+    <g class="lnk-part" id="lnk-relu">
+      <path d="M488,125 L560,125" stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.8" fill="none" marker-end="url(#elArrow)"/>
+      <text x="522" y="112" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="14" font-weight="700" fill="#b98a1e">σ · ReLU</text>
+      <g font-family="'Source Sans 3', sans-serif" font-weight="700" font-size="13" text-anchor="middle">
+        <circle cx="592" cy="125" r="16" fill="#d9a62e" stroke="var(--dkr-accent, #d9603b)" stroke-width="2.5"/>
+        <text x="592" y="130" fill="#fff">v</text>
+      </g>
+      <text x="668" y="121" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="13.5" fill="var(--dkr-text, #1c1c21)">h⁽ᵏ⁺¹⁾ — the node,</text>
+      <text x="668" y="139" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="13.5" fill="var(--dkr-text, #1c1c21)">one layer wiser</text>
+    </g>
+  </svg>
+
+  <p class="fig-caption"><strong>Figure 5.</strong> The layer and its dataflow are the same
+  object. <strong>Hover or tab through the equation's terms</strong> — the matching piece of
+  the diagram stays lit while the rest fades; hovering the diagram highlights the term. The
+  Σ over a multiset is what makes the layer permutation invariant; the shared
+  <span style="color: var(--dkr-accent, #d9603b); font-weight: 600">W</span> is what makes it a
+  <em>network</em> rather than fixed propagation.</p>
+</div>
+```

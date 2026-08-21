@@ -16,6 +16,9 @@ website:
   site-url: https://lukmanovr.github.io/dkr/
   repo-url: https://github.com/lukmanovr/dkr
   repo-actions: [issue, source]
+  favicon: assets/favicon.svg
+  open-graph: true
+  twitter-card: true
   search:
     location: sidebar
     type: overlay
@@ -43,7 +46,7 @@ website:
           - href: notation.qmd
             text: Notation reference
   page-footer:
-    left: "DKR · Innopolis University · Fall 2026"
+    left: "DKR · Innopolis University · Fall 2026 · content [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), code MIT"
     right: "Built with [Quarto](https://quarto.org) · [Source](https://github.com/lukmanovr/dkr)"
 
 format:
@@ -58,6 +61,8 @@ format:
     code-copy: true
     code-overflow: wrap
     link-external-newwindow: true
+    include-in-header: assets/page-head.html
+    include-after-body: assets/page-foot.html
     grid:
       body-width: 780px
       margin-width: 220px
