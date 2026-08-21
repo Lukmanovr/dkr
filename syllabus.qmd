@@ -9,7 +9,7 @@ weeks will follow.
 
 | Wk | Date | Lecture | Lab | Milestones |
 |:--:|------|---------|-----|------------|
-| 1 | Aug 27 | Why graphs? Representing relational data | Environment onboarding; NetworkX/PyG basics; real graphs | |
+| 1 | Aug 27 | [Why graphs? Representing relational data](lectures/01-why-graphs.qmd) | [Hello, graphs — onboarding](labs/lab01.qmd) | |
 | 2 | Sep 3 | Classical graph ML: centralities, PageRank, kernels, communities | Feature engineering + classical baselines; Louvain | |
 | 3 | Sep 10 | Shallow node embeddings: DeepWalk, node2vec, matrix-factorization view | DeepWalk from scratch; link-prediction evaluation | |
 | 4 | Sep 17 | Knowledge graphs I: triples, TransE → RotatE, negative sampling, MRR/Hits@K | TransE + RotatE from scratch on FB15k-237 | HW1 out |

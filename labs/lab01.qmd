@@ -1,0 +1,32 @@
+---
+title: "Lab 1 · Hello, graphs"
+subtitle: "Week 1 · environment onboarding, the karate club, and three representations"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab01_graphs.ipynb)
+
+**≈ 15 minutes of compute · free Colab or any CPU · no GPU needed**
+
+The onboarding lab, implementing the [Week 1 lecture](../lectures/01-why-graphs.qmd):
+
+1. **Set up the semester's environment** — the exact pinned Colab/CPU stack every later
+   lab assumes (one install line; the notebook explains the contract).
+2. **Meet the real karate club** — load Zachary's 1977 network, check the lecture's
+   numbers against it, and draw it colored by the actual split.
+3. **Build the cast graph by hand** (exercise 1): write its PyG `edge_index` from the
+   edge list and pass the assertions — the representation the whole course runs on.
+4. **Degrees without a matrix** (exercise 2): the sparse habit, from day one.
+5. **Verify the lecture's pencil math** (exercise 3): $\mathbf{A}^2$ walk counts and
+   the Laplacian's cut-counting quadratic form, matched digit for digit.
+6. **First contact with Cora** — and an honest answer to "when does dense actually die?"
+7. **A real Wikidata fragment** (exercise 4): twelve facts about Innopolis's own
+   neighborhood as (head, relation, tail) triples — knowledge graphs made concrete two
+   weeks before we formalize them.
+
+Stretch (ungraded): reproduce the split prediction with one Laplacian eigenvector — a
+two-week-early preview of spectral clustering.
+
+**Submitting.** One executed notebook on Moodle: all four exercise checks ✓, the club
+figure, three reflection answers. Grading: assertions 70% · reflections 30%.
+*Restart and run all* before you submit. AI-assistant use is allowed with disclosure,
+per the honor code — the notebook's final cell restates the policy.

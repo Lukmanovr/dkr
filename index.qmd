@@ -21,12 +21,14 @@ By the end of the course a strong student can read a current NeurIPS/ICLR graph-
 and implement it; every student can use PyTorch Geometric on a real problem and defend each
 design choice.
 
-## This week
+## Start here
 
-The course begins **Thursday, August 27, 2026**. Week 6's pilot materials are live now:
-the [GCN lecture](lectures/06-gcn.qmd) and [Lab 6](labs/lab06.qmd) show the format every
-week will follow — interactive lecture pages you can manipulate, and Colab labs that build
-each method from scratch before reaching for the library.
+The course begins **Thursday, August 27, 2026** with
+[Week 1: Why graphs?](lectures/01-why-graphs.qmd) and its
+[onboarding lab](labs/lab01.qmd) — set up your environment there first. Materials go
+live week by week; the [GCN week](lectures/06-gcn.qmd) is also published and shows where
+the course is headed: interactive lecture pages you can manipulate, and Colab labs that
+build each method from scratch before reaching for the library.
 
 ## How the course works
 

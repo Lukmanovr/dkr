@@ -1,0 +1,32 @@
+```{=html}
+<div class="interactive-container" id="w1-ct-widget">
+  <div class="fig-label">Interactive · The price of a representation</div>
+  <div class="widget-controls">
+    <label for="w1-ct-n">nodes n = <strong id="w1-ct-nlabel">2.7 k</strong></label>
+    <input type="range" id="w1-ct-n" min="1" max="9.3" step="0.05" value="3.43" style="width:150px">
+    <label for="w1-ct-d">mean degree d̄ = <strong id="w1-ct-dlabel">3.9</strong></label>
+    <input type="range" id="w1-ct-d" min="0.3" max="2.5" step="0.05" value="0.59" style="width:120px">
+  </div>
+  <div class="widget-controls">
+    <span>presets:</span>
+    <button class="pill-btn" data-preset="cast" type="button">cast graph</button>
+    <button class="pill-btn active" data-preset="cora" type="button">Cora</button>
+    <button class="pill-btn" data-preset="arxiv" type="button">ogbn-arxiv</button>
+    <button class="pill-btn" data-preset="products" type="button">ogbn-products</button>
+    <button class="pill-btn" data-preset="social" type="button">a social network</button>
+  </div>
+  <div id="w1-ct-svg" role="img" aria-label="Log-scale comparison of storage cost for dense matrix, adjacency list, and edge list"></div>
+  <p id="w1-ct-verdict" style="text-align:center; font-family:'Source Sans 3',sans-serif; font-weight:600; font-size:0.9rem;"></p>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: log-scale bars comparing n² (dense matrix), n+2m (adjacency list), and 2m
+    (edge list) entries as n and mean degree vary; for ogbn-products the dense matrix
+    would need ~24 TB while the edge list fits in memory.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 2.</strong> Real graphs are sparse — mean degree
+  grows slowly while n² explodes. Drag the sliders or hit the presets and watch the
+  dense matrix leave the realm of the storable while the edge list stays casual.
+  <strong>Try this:</strong> find the n where the dense matrix first outgrows a 16 GB
+  GPU at Cora's degree — it is smaller than you think.</p>
+</div>
+```

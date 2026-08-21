@@ -117,9 +117,8 @@ write the code and count its costs.
 
 ## 1. From propagation to message passing
 
-Before any formalism, meet the graph that stars in every diagram from here to the end of
-the lecture — six nodes, each with its own color, so you can follow individual nodes
-through every construction:
+Our cast graph from Week 1 stars in every diagram of this lecture — the colors let you
+follow individual nodes through every construction, with $A$ as today's target:
 
 {{< include ../assets/figures/fig-input-graph.html >}}
 

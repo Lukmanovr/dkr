@@ -1,0 +1,453 @@
+---
+title: "Why Graphs? Representing Relational Data"
+subtitle: "Week 1 · Thursday, August 27, 2026 · 90 minutes"
+description: "What information lives in connections that lives nowhere else — and how to hand it to a computer: graph types, the three storage representations, degrees and Laplacians, the three levels of prediction, and the ordering trap."
+date: 2026-08-27
+date-modified: last-modified
+format:
+  html:
+    toc-depth: 3
+---
+
+::: {.content-visible when-format="html"}
+
+::: {.callout-tip title="Learning objectives" icon="false"}
+After this lecture (and Lab 1) you can:
+
+1. **model** a real system as a graph, choosing and defending the type — directed, weighted, bipartite, heterogeneous — as a modeling decision, not a given;
+2. **construct and interconvert** the three storage representations — adjacency matrix, adjacency list, edge list (COO) — and state their space costs on sparse graphs;
+3. **compute** degrees, the degree matrix, the Laplacian $\mathbf{L} = \mathbf{D} - \mathbf{A}$, and walk counts via powers of $\mathbf{A}$, by hand, on small graphs;
+4. **classify** any graph problem as node-, edge-, or graph-level and name a deployed industrial instance of each;
+5. **explain** why node ordering is storage rather than information, and what that will demand of every model in this course.
+:::
+
+## A club splits in two, and a graph sees it coming
+
+In the early 1970s the anthropologist Wayne Zachary spent three years observing a
+university karate club — 34 members, and one slow-motion disaster: the instructor
+(everyone called him *Mr. Hi*) and the club president (*the Officer*) fell out over
+lesson prices, factions formed, and the club tore in half. Every member had to choose a
+side.
+
+Zachary had no machine learning — it was 1977. What he had was a record of **who was
+friends with whom**: 34 people, 78 friendships. He modeled the split as information
+flowing through friendships and predicted each member's choice from the network's
+structure alone.
+
+::: {.predict}
+**Commit before you look.** Out of 34 members, how many do you think structure alone —
+no interviews, no attitudes, no demographics, just the friendship graph — predicted
+correctly?
+
+::: {.predict-answer}
+**33 of 34.** One member (ringed in red below) went against the graph's prediction —
+Zachary even explains him: he was weeks from his black-belt exam and could not afford to
+leave the instructor, whatever his friendships said. Every failure of a model should
+come with a story that good.
+:::
+:::
+
+{{< include ../assets/figures/fig-w1-hero.html >}}
+
+That is the thesis of this course, in one 1977 result: **connections carry information
+that lives nowhere else.** No column in a spreadsheet about these 34 people — age, rank,
+years of membership — predicts the split like the friendships do. The information *is*
+the structure.
+
+Half a century later, the systems around you run on the same idea at billion-node scale:
+
+{{< include ../assets/figures/fig-w1-systems.html >}}
+
+This course teaches you to **represent** such data (this week and next), to **learn**
+from it (embeddings, then graph neural networks), and to **reason** over it (knowledge
+graphs, up to the retrieval systems grounding today's LLMs). Today is the foundation
+everything stands on: what a graph is, how a computer holds one, the first numbers you
+can squeeze out of pure structure, and the three kinds of questions you can ask.
+
+**Roadmap.** (1) Graphs and their types — a modeling decision. (2) Three ways to store a
+graph, and why the honest answer is "the cheap one". (3) First structure numbers:
+degrees, walks, and a strange matrix called the Laplacian that will follow us all
+semester. (4) The three levels of prediction. (5) A trap involving node ordering that
+sets up the deepest idea of the course.
+
+::: {.callout-note title="Recap — what this lecture assumes" collapse="true"}
+Only your prerequisites — nothing graph-specific:
+
+- **BFS/DFS** from your algorithms course: how to traverse; we build on the *representations* they used.
+- **Matrix multiplication** and what $(\mathbf{M}^2)_{ij} = \sum_k M_{ik}M_{kj}$ unpacks to — one proposition today turns this mechanical fact into a counting device.
+- **Big-O** notation for space and time.
+- From ML: features live in vectors; models eat tensors. Today's question is how a *relationship* becomes a tensor.
+:::
+
+## 1. What is a graph — and which graph?
+
+::: {#def-graph .definition name="Graph"}
+A **graph** $\mathcal{G} = (\mathcal{V}, \mathcal{E})$ is a set of **nodes**
+$\mathcal{V}$ and a set of **edges** $\mathcal{E} \subseteq \mathcal{V} \times \mathcal{V}$,
+each edge a pair of nodes. A **simple graph** is undirected, with no self-loops and at
+most one edge per pair; $n = |\mathcal{V}|$, $m = |\mathcal{E}|$. Each node $u$ may
+carry a **feature vector** $\mathbf{x}_u \in \mathbb{R}^{m_0}$, stacked into
+$\mathbf{X} \in \mathbb{R}^{n \times m_0}$.
+:::
+
+::: {.math-note}
+Nodes are the entities, edges are the relationships, features are what a spreadsheet
+would have told you anyway. The whole course lives in the tension between
+$\mathbf{X}$ (what things are) and $\mathcal{E}$ (how things relate).
+:::
+
+Meet the graph that will star on our whiteboard for all fifteen weeks — six nodes, each
+with its own permanent color, so that in any later diagram you can follow an individual
+node through a construction:
+
+{{< include ../assets/figures/fig-input-graph.html >}}
+
+The definition above is the *plainest* graph. Real systems usually need more, and the
+choice of *which* graph to build is a genuine modeling decision — arguably the most
+consequential one you will make in any graph project:
+
+{{< include ../assets/d3/w1-types.html >}}
+
+Names to keep: **directed** graphs when the relation is one-way (citations, follows,
+web links — a citation *from* a survey means something different than one *to* it);
+**weighted** when the relation has magnitude; **bipartite** when nodes come in two sets
+and edges only cross between them (users×items — the entire recommender-systems industry
+lives on this shape, Week 14); **heterogeneous** when nodes and edges carry *types* —
+the shape of a <span class="term" data-def="Knowledge graph: a heterogeneous graph whose typed edges are read as facts — (head entity, relation, tail entity) triples, like (Innopolis University, located_in, Tatarstan). Weeks 4–5 are devoted to them.">knowledge graph</span>,
+which we treat as a first-class citizen of this course starting Week 4; **multigraphs**
+when a pair can be connected more than once (two transactions between the same
+accounts).
+
+One modeling honesty note before moving on: sometimes there is no graph until *you*
+build one — practitioners routinely create k-nearest-neighbor graphs over plain
+vectors, co-occurrence graphs over text, correlation graphs over time series. The graph
+is then a lens you chose, and every conclusion downstream inherits that choice. We will
+return to this in the pitfalls.
+
+## 2. Handing a graph to a computer
+
+A graph is a set of pairs — sets are not tensors, and your GPU eats tensors. There are
+exactly three standard ways to serialize the relationship structure, and you should be
+able to write all three from memory:
+
+::: {#def-adj .definition name="Adjacency matrix"}
+The **adjacency matrix** of a graph on nodes $1..n$ is
+$\mathbf{A} \in \mathbb{R}^{n \times n}$ with $\mathbf{A}[u,v] = 1$ if
+$(u,v) \in \mathcal{E}$ and $0$ otherwise — real-valued for weighted graphs, symmetric
+exactly when the graph is undirected, and generally *not* symmetric for directed ones.
+:::
+
+The **adjacency list** stores, per node, the list of its neighbors — the representation
+your BFS used. The **edge list** just stores the $m$ pairs; stacked as a $2 \times m$
+integer tensor it is called
+<span class="term" data-def="COO — coordinate format: a sparse tensor stored as the list of coordinates of its nonzero entries. A graph's edge list IS its adjacency matrix in COO form. PyTorch Geometric's edge_index is exactly this.">COO format</span>,
+and under the name `edge_index` it is the representation PyTorch Geometric — and
+therefore this course's labs — runs on.
+
+{{< include ../assets/figures/fig-w1-representations.html >}}
+
+Build the intuition with your hands — edit the graph and watch every representation
+track it:
+
+{{< include ../assets/d3/w1-builder.html >}}
+
+### Which one, then? Follow the money
+
+::: {#prp-storage .proposition name="Storage costs"}
+For a graph with $n$ nodes and $m$ undirected edges, the adjacency matrix stores
+$n^2$ entries regardless of $m$; the adjacency list stores $n + 2m$; the edge list
+$2m$. For a **sparse** graph — $m = O(n)$, the regime of essentially every real
+network — the matrix is a factor $\Theta(n)$ more expensive than either alternative.
+:::
+
+::: {.math-note}
+The matrix buys $O(1)$ edge lookup and the ability to *multiply* (next section); the
+lists buy survival. Real systems store lists/COO and materialize matrix *products*
+without ever materializing the matrix — you will meet this trick as "sparse matmul" in
+Week 6 and live inside it from then on.
+:::
+
+Real graphs are dramatically sparse: Cora averages under 4 citations per paper;
+ogbn-products, with 2.4 million products, averages ~50 co-purchases — meaning its
+adjacency matrix would be **99.998% zeros**. Feel the scaling yourself:
+
+{{< include ../assets/d3/w1-cost.html >}}
+
+## 3. First numbers from pure structure
+
+Before any learning, the representations themselves already answer questions. Three
+objects, all built from $\mathbf{A}$, will follow us to Week 15.
+
+**Degree.** $d_u = \sum_v \mathbf{A}[u,v]$ — how connected a node is; collected into the
+diagonal **degree matrix** $\mathbf{D}$. In the karate club, Mr. Hi and the Officer are
+the two highest-degree nodes — the hubs the factions formed around. (Degree is the first
+and crudest of the *centralities*; Week 2 builds the full toolbox.)
+
+**Walks, by matrix power.** Here is the first genuinely surprising payoff of the matrix
+representation:
+
+::: {#prp-walks .proposition name="Powers of A count walks"}
+For any $k \ge 1$, $(\mathbf{A}^k)[u,v]$ equals the number of **walks** of length
+exactly $k$ from $u$ to $v$ (a walk may revisit nodes and edges). In particular
+$(\mathbf{A}^2)[u,u] = d_u$, and for $u \neq v$, $(\mathbf{A}^2)[u,v]$ counts the
+**common neighbors** of $u$ and $v$.
+:::
+
+<details><summary>Proof (induction on k — worth doing once in your life)</summary>
+Base case $k = 1$: $\mathbf{A}[u,v]$ is $1$ exactly when a length-1 walk (an edge)
+exists, and a pair has at most one. Inductive step: assume $(\mathbf{A}^{k-1})[u,w]$
+counts length-$(k{-}1)$ walks $u \to w$. Every length-$k$ walk $u \to v$ is a
+length-$(k{-}1)$ walk to some neighbor $w$ of $v$, followed by the edge $(w,v)$, and
+this decomposition is unique. Summing over the possible penultimate nodes:
+$\#\{\text{length-}k\text{ walks } u \to v\} = \sum_w (\mathbf{A}^{k-1})[u,w] \, \mathbf{A}[w,v] = (\mathbf{A}^k)[u,v]$
+— which is precisely the definition of the matrix product. $\square$
+</details>
+
+::: {#exm-walks .example name="Hand computation on the cast graph"}
+On the cast graph (edges $AB, AC, AD, BC, CE, CF, EF$): $(\mathbf{A}^2)[A,A] = d_A = 3$.
+$(\mathbf{A}^2)[A,C]$ counts common neighbors of $A$ and $C$: their neighbor sets are
+$\{B, C, D\}$ and $\{A, B, E, F\}$, sharing only $B$ — so $1$: the single 2-walk
+$A \to B \to C$. And $(\mathbf{A}^2)[A,F]$? Common neighbors of $A$ and $F$: $\{B,C,D\} \cap \{C,E\} = \{C\}$ — again $1$,
+the walk $A \to C \to F$. You will verify all 36 entries with one line of code in the
+lab; on the midterm you may be asked for two or three of them with a pencil.
+:::
+
+Common-neighbor counts are not a toy: "how many mutual friends" is the baseline behind
+every "people you may know" feature, and in Week 3 it becomes the first serious
+link-prediction heuristic.
+
+**The Laplacian.** The strangest and most durable object of the week:
+
+::: {#def-lap .definition name="Graph Laplacian"}
+$\mathbf{L} = \mathbf{D} - \mathbf{A}$: degrees on the diagonal, $-1$ for each edge off
+it. Every row sums to zero.
+:::
+
+::: {#prp-lap .proposition name="The Laplacian is a variation meter"}
+For any signal $\mathbf{x} \in \mathbb{R}^n$ (one number per node),
+
+$$
+\mathbf{x}^\top \mathbf{L} \mathbf{x} \;=\; \sum_{(u,v) \in \mathcal{E}} (x_u - x_v)^2 .
+$$
+
+The quadratic form measures how much $\mathbf{x}$ **disagrees across edges** — zero
+exactly when $\mathbf{x}$ is constant on every connected component, large when
+neighbors differ.
+:::
+
+<details><summary>Proof (expand and regroup)</summary>
+$\mathbf{x}^\top \mathbf{L} \mathbf{x} = \mathbf{x}^\top \mathbf{D} \mathbf{x} - \mathbf{x}^\top \mathbf{A} \mathbf{x}
+= \sum_u d_u x_u^2 - \sum_{(u,v) \in \mathcal{E}} 2 x_u x_v$.
+In the first term, each edge $(u,v)$ contributes $x_u^2$ once (via $d_u$) and $x_v^2$
+once (via $d_v$); so both sums range over edges:
+$\sum_{(u,v) \in \mathcal{E}} (x_u^2 + x_v^2 - 2x_u x_v) = \sum_{(u,v) \in \mathcal{E}} (x_u - x_v)^2$. $\square$
+</details>
+
+Why care, this week? Because "how much does a quantity vary across edges" is the
+mathematical form of the question the karate club answered: allegiance varied *little*
+across friendships — friends chose the same side. That tendency has a name you will use
+weekly, <span class="term" data-def="Homophily: connected nodes tend to be alike — friends share sides, papers cite their own topic, fraudsters transact with mules. The single assumption doing the most silent work in graph ML; its failure (heterophily) is where naive methods break.">**homophily**</span>,
+and the Laplacian is the instrument that measures it. Next week $\mathbf{L}$ finds
+communities; in Week 6 its eigenvectors become the *frequencies* of a graph and explain
+what "convolutional" means in GCN. When a matrix keeps showing up like that, learn its
+face early.
+
+## 4. Three levels of asking
+
+Every graph-ML product you will ever build answers a question at one of exactly three
+levels, and the level dictates the loss, the data splits, and the metrics — get the
+level wrong and nothing downstream can save you.
+
+{{< include ../assets/d3/w1-tasks.html >}}
+
+Anchor each level to a system that pays salaries: **node-level** — integrity scoring at
+every large platform (is this account a bot?), paper topics on Cora (our Week 6
+running example); **edge-level** — "people you may know", product recommendation, and
+knowledge-graph completion (which missing fact is true? — Weeks 4–5); **graph-level** —
+molecular property prediction (the screen that surfaced the antibiotic halicin ran a
+graph-level model over millions of candidate molecules), malware detection on call
+graphs.
+
+Semi-supervised framing, which will be our default: in the karate club, imagine you
+observed the choices of only *four* members and had to fill in the other thirty from
+the friendship structure. That — few labels, full structure — is exactly the setting of
+Cora and of Week 6.
+
+## 5. The ordering trap
+
+One more foundation stone, disguised as a bookkeeping remark. To write $\mathbf{A}$ at
+all, we had to *number* the nodes — the cast graph's matrix came out as it did because
+we chose $A{=}1, \dots, F{=}6$. Nothing in the club or the citation network chose that
+numbering; storage did.
+
+::: {.predict}
+**Predict.** Our six-node cast graph can be numbered $6! = 720$ different ways, giving
+up to 720 different adjacency matrices for the *same* graph. Suppose you feed two of
+those matrices, flattened into vectors, to an ordinary MLP. Same graph in both cases —
+does the MLP give the same answer?
+
+::: {.predict-answer}
+**No — in general it gives 720 different answers to one question.** The MLP reads
+positions, positions encode our arbitrary numbering, so it learns storage artifacts.
+Fixing this properly — building models whose answers provably cannot depend on the
+numbering — is called *permutation invariance*, it is the deepest idea in this course,
+and in Week 6 we will prove our models have it and catch an MLP failing it, live. For
+now, carry the warning: **node order is storage, not information.**
+:::
+:::
+
+## Common pitfalls
+
+::: {.callout-warning title="Pitfall 1 · Reaching for the dense matrix because the formula has an A in it" icon="false"}
+Formulas are written with $\mathbf{A}$; code should almost never materialize it. At
+$n = 10^6$ — a small industrial graph — dense $\mathbf{A}$ is 4 TB. The formula's
+$\mathbf{A}\mathbf{x}$ is computed from the edge list in $O(m)$. Translate math to
+sparse ops reflexively; Lab 1 starts the habit.
+:::
+
+::: {.callout-warning title="Pitfall 2 · Symmetrizing a directed relation without noticing" icon="false"}
+Loading citations, follows, or web links into an undirected structure silently asserts
+"X cites Y" ≡ "Y cites X" — destroying, for citation networks, the entire notion of
+influence direction. Libraries do this *for* you if you use the wrong loader flag. Know
+which of your relations are truly symmetric; it is a modeling claim, not a default.
+:::
+
+::: {.callout-warning title="Pitfall 3 · “The graph is given”" icon="false"}
+Someone chose those edges — a logging pipeline, a thresholded similarity, a k-NN
+builder, a business rule. Different choice, different graph, different conclusions.
+Interrogate the edge definition of any dataset before trusting results on it; when
+*you* build the graph, report the recipe as part of the model.
+:::
+
+::: {.callout-warning title="Pitfall 4 · Judging a graph by its hairball" icon="false"}
+Force-directed drawings of more than a few hundred nodes are decoration, not analysis —
+layout algorithms invent geometry that is not in the data. Judge graphs by statistics
+(degrees, components, clustering — Week 2) and by task performance; draw only what is
+small enough to read, as our figures do.
+:::
+
+::: {.callout-warning title="Pitfall 5 · Assuming your graph behaves like the karate club" icon="false"}
+Today's success story ran on homophily: friends chose alike. Transaction graphs,
+dating graphs, and protein interactions routinely violate it — connected nodes
+*differ* systematically. Every structure-based method you will learn makes an
+assumption of this kind somewhere; the professional habit is to check it (Week 2 gives
+you the tools) before believing any result.
+:::
+
+## In this week's lab
+
+[Lab 1](../labs/lab01.qmd) is the course onboarding: you set up the exact Colab + PyTorch
+Geometric environment used all semester, load the real karate club and reproduce today's
+hero figure's data, build the cast graph as a PyG `edge_index` **by hand** (and check it
+against assertions), compute degrees, $\mathbf{A}^2$, and the Laplacian in torch —
+verifying @exm-walks numerically — and take a first look at Cora, the dataset that
+returns in Week 6. Plus a two-minute detour into a real Wikidata fragment, so knowledge
+graphs are concrete objects before Week 4 formalizes them.
+
+## Required reading
+
+**1 · Battaglia et al. — *Relational inductive biases, deep learning, and graph networks* (2018).** [arXiv:1806.01261](https://arxiv.org/abs/1806.01261)
+
+::: {.reading-annotation}
+The position paper for the whole field: deep learning wins when architecture matches
+data structure, and graphs are the most general structure. Read Sections 1–2 closely —
+Table 1, mapping fully-connected/convolutional/recurrent layers to their relational
+assumptions, is the single most important artifact; skim the graph-network formalism in
+Section 3 on first pass (it returns in Week 6). There are no experiments — that is the
+point: read it for the argument.
+:::
+
+**2 · Hamilton, Ying & Leskovec — *Representation Learning on Graphs: Methods and Applications* (IEEE DEB 2017).** [arXiv:1709.05584](https://arxiv.org/abs/1709.05584)
+
+::: {.reading-annotation}
+The survey whose framing organizes this course: every method is an encoder + a decoder +
+a similarity + a loss. Internalize that four-part template from Section 2 — it is the
+mental filing cabinet you will slot DeepWalk, TransE, and GCNs into over the coming
+weeks. Notice how today's task taxonomy becomes downstream uses of embeddings. Skip the
+architecture details for now; we return to each in depth.
+:::
+
+**Also see:** Hamilton, *GRL book*, §1.1–1.2 (definitions and tasks — our notation
+follows it) · CS224W lecture "Introduction".
+
+**Optional:** Sanchez-Lengeling et al., [A Gentle Introduction to Graph Neural
+Networks](https://doi.org/10.23915/distill.00033) (Distill 2021) — the interactive
+article this course's style descends from; play with its widgets ·
+Derrow-Pinion et al., [ETA Prediction with GNNs in Google Maps](https://arxiv.org/abs/2108.11482)
+(CIKM 2021) — today's road-network panel, deployed for a billion users ·
+Ying et al., [PinSage](https://arxiv.org/abs/1806.01973) (KDD 2018) — the
+bipartite-graph shape at Pinterest scale; read the systems story, defer the math.
+
+## Check your understanding
+
+<details><summary>Q1 · Modeling — A dataset of bank transfers: accounts, transfers with amounts and timestamps, some accounts flagged as mules. Choose the graph type and justify each property you keep.</summary>
+Directed (money flows one way — symmetrizing destroys the laundering pattern),
+weighted (amounts matter), multigraph or timestamped edges (repeat transfers between
+the same pair are the signal, not noise), homogeneous nodes but with features
+(account age, KYC status). The task is node-level (flag mules) — and note this graph is
+likely *heterophilous*: mules transact with victims, not with other mules (Pitfall 5).
+</details>
+
+<details><summary>Q2 · Hand computation — On the cast graph, compute (A²)[B,F] and name the walks it counts. Then explain why (A²)[u,u] = dᵤ in one sentence.</summary>
+Neighbors of $B$: $\{A, C\}$; neighbors of $F$: $\{C, E\}$; common: $\{C\}$ — so
+$(\mathbf{A}^2)[B,F] = 1$, the walk $B \to C \to F$. Diagonal: a length-2 walk from $u$
+back to $u$ must go out along one of $u$'s $d_u$ edges and immediately return along the
+same edge, giving exactly $d_u$ such walks.
+</details>
+
+<details><summary>Q3 · Representations — Your graph has n = 10⁷ nodes and m = 5·10⁷ edges. Give the entry counts for all three representations and say which you would use for (a) repeated "are u,v connected?" queries, (b) feeding a PyG model, (c) a whiteboard derivation.</summary>
+Dense matrix: $n^2 = 10^{14}$ entries (≈ 400 TB at 4 B — nonexistent). Adjacency list:
+$n + 2m = 1.1 \times 10^8$. Edge list: $2m = 10^8$. For (a) neither raw list is ideal —
+a hash set of edges or sorted adjacency (binary search) gives fast membership; (b) COO
+`edge_index`; (c) the dense matrix — on the whiteboard, $n = 6$ and clarity wins. The
+representation is a tool choice per operation, not an identity.
+</details>
+
+<details><summary>Q4 · Laplacian — Compute row A of L for the cast graph, and evaluate xᵀLx for x = (1,1,1,1,0,0) (nodes A..F). What is the quadratic form counting here?</summary>
+$d_A = 3$, $A$'s neighbors are $B, C, D$: row $A$ of $\mathbf{L}$ is
+$(3, -1, -1, -1, 0, 0)$. The form sums $(x_u - x_v)^2$ over edges; $x$ is the indicator
+of $\{A,B,C,D\}$, so only edges crossing to $\{E,F\}$ contribute $1$ each: edges $CE$
+and $CF$ — total $\mathbf{2}$. The quadratic form counts the **cut edges** of the
+partition — precisely the quantity next week's community detection minimizes.
+</details>
+
+<details><summary>Q5 · Tasks — Classify each as node-, edge-, or graph-level: (a) will this user churn?, (b) is this new molecule soluble?, (c) how long will this road segment take at 6pm?, (d) which paper should this citation-manager suggest next?</summary>
+(a) node-level; (b) graph-level; (c) edge-level (the segment is an edge of the road
+graph — Google Maps' actual setup); (d) edge-level (link prediction between user/paper
+or paper/paper). If you hesitated on (c): what is a node and what is an edge is itself
+a modeling decision — road intersections as nodes makes segments edges.
+</details>
+
+<details><summary>Q6 · The trap — Your colleague trains a fraud model that takes the first 100 rows of the adjacency matrix as features "because the important accounts come first". Give two distinct reasons this is broken.</summary>
+(1) Ordering is storage: renumber the accounts and the model's inputs — and answers —
+change for the identical graph; "comes first" is an artifact of the export script.
+(2) Even granting a meaningful order, row $u$ of $\mathbf{A}$ is an $n$-dimensional
+one-hot-neighborhood vector: it cannot transfer to graphs of other sizes and treats
+"connected to account #37" as a feature — memorization, not structure. Both failures
+are cured by the permutation-invariant machinery this course builds.
+</details>
+
+<details><summary>Q7 · Transfer — Zachary's model predicted the split from structure. State the assumption that made this possible, and describe a real network where the same method would fail badly.</summary>
+Homophily: allegiance varied smoothly across friendships (small $\mathbf{x}^\top \mathbf{L}\mathbf{x}$
+for the allegiance signal). A heterophilous counterexample: a bipartite
+fraudster–victim transaction network — connected nodes are systematically *opposite*,
+so "predict my label from my neighbors' labels" inverts the truth. Checking which
+regime you are in, before modeling, is the Week 2 skill.
+</details>
+
+## Where this leaves us
+
+You can now put a real system into a graph, store it honestly, and read off its first
+numbers. What you cannot yet do is *rank* — which node matters most, which two nodes
+belong to the same community, whether this graph is even the homophilous kind our
+methods will assume. Structure has much more to say before any learning happens:
+centralities that found search engines, a relabeling trick from 1968 that will turn out
+to bound what neural networks can ever see on a graph, and the community-finding
+machinery that Zachary's little club launched. That is Week 2: **classical graph ML —
+structure as features.** Bring the Laplacian; it works there too.
+
+:::
+
+::: {.content-visible when-format="html"}
+{{< include ../assets/d3/w1-scripts.html >}}
+:::
