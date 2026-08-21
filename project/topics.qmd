@@ -1,0 +1,150 @@
+---
+title: "Project Topics"
+subtitle: "16 suggested directions — or bring your own"
+---
+
+Every topic below is feasible on **free Colab** with datasets that download cleanly
+(that was a selection criterion — Week 1's licensing lesson applies to projects too).
+Difficulty: ⚙ solid (well-trodden, success is likely, rigor is the challenge) ·
+⚙⚙ ambitious (a real design decision or two) · ⚙⚙⚙ adventurous (research-adjacent;
+we help you scope it). Teams may also propose their own topic in this style.
+
+Where a topic touches material we have not reached yet (GNNs, Weeks 6–13), the labs
+will catch up with you before the proposal is due — planning around the syllabus is
+part of the exercise.
+
+## Track A · Node & graph prediction
+
+**A1 · Beat the ladder on ogbn-arxiv** ⚙
+Node classification on OGB's 170k-paper citation graph, with the course's honest
+ladder as your baseline suite: structural statistics → community one-hots → DeepWalk
+→ GCN/SAGE. *Dataset:* `ogb` (`ogbn-arxiv`). *Interesting because:* the OGB
+leaderboard forces standardized splits, and the deliverable is a clean ablation of
+*where* each accuracy point comes from — features, structure, or depth.
+
+**A2 · Heterophily: when neighbors mislead** ⚙⚙
+Weeks 1 and 3 kept warning about heterophilous graphs. Measure it: compare GCN-style
+models against structure-blind MLPs and heterophily-aware variants on the classic
+heterophilous benchmarks. *Dataset:* PyG's `WikipediaNetwork` (chameleon, squirrel) +
+`Actor`. *Interesting because:* the field's own benchmarks here were criticized as
+flawed — reproducing *that* critique is a legitimate angle.
+
+**A3 · Molecular property prediction, honestly scaffolded** ⚙⚙
+Graph-level prediction on `ogbg-molhiv` (or QM9 regression targets), with scaffold
+splits versus random splits as the central experiment. *Dataset:* `ogb` /
+PyG `QM9`. *Interesting because:* the random-vs-scaffold gap is the
+pharma version of our leakage lessons — quantify it, explain it, and report which
+model degrades most gracefully.
+
+**A4 · Fraud detection on Elliptic** ⚙⚙
+Classify illicit Bitcoin transactions on a real 200k-node temporal graph with heavy
+class imbalance and a temporal split. *Dataset:* PyG `EllipticBitcoinDataset`.
+*Interesting because:* it is heterophilous, imbalanced, and time-split all at once —
+every honest-evaluation reflex from the course gets exercised, and PR-AUC (not
+accuracy) is the story.
+
+## Track B · Links, recommendations, time
+
+**B1 · Link prediction three ways on ogbl-collab** ⚙
+Heuristics (common neighbors, Adamic–Adar) vs shallow embeddings vs a GNN on a
+collaboration graph with a *time-based* split. *Dataset:* `ogb` (`ogbl-collab`).
+*Interesting because:* the heuristics are embarrassingly strong — explaining *when*
+learning helps over counting is the actual contribution.
+
+**B2 · A recommender from scratch on MovieLens** ⚙⚙
+Bipartite user–item graph; implement BPR-style embedding factorization, then a graph
+propagation model (LightGCN-style), evaluated with sane negative sampling and
+Recall@K. *Dataset:* MovieLens-100k/1M — download directly from GroupLens (its
+license permits research use; do not redistribute). *Interesting because:*
+recommender evaluation is a minefield of leaks (popularity bias, sampled metrics) —
+Week 3's and 4's pitfalls, at industrial scale.
+
+**B3 · Temporal graph learning on TGB** ⚙⚙⚙
+Pick one small TGB link-prediction task and compare a static-graph baseline
+(retrained per snapshot) against a temporal method. *Dataset:* `py-tgb`
+(`tgbl-wiki` is the small one). *Interesting because:* "does time actually help, or
+is recency a sufficient feature?" has a measurable, frequently surprising answer.
+
+**B4 · Relational databases as graphs (RelBench)** ⚙⚙⚙
+Take one RelBench task and compare the graph-ML route against a strong tabular
+baseline (gradient boosting on joined features). *Dataset:* `relbench` (pick a small
+task). *Interesting because:* this is the newest frontier of "graphs in production"
+(Week 14's topic) and the tabular baseline is genuinely hard to beat — either
+outcome is publishable-grade insight for a course report.
+
+## Track C · Knowledge graphs
+
+**C1 · The pattern audit, at scale** ⚙
+Week 4's cheat sheet as an empirical study: measure symmetry, inversion,
+composition, and 1-to-N-ness per relation on FB15k-237 and WN18RR, then test whether
+the measurements predict per-relation performance of TransE/DistMult/ComplEx/RotatE.
+*Dataset:* PyG `FB15k_237`, `WordNet18RR`. *Interesting because:* it turns the
+course's central KG theory into falsifiable predictions — Lab 4's showdown, in the
+wild.
+
+**C2 · KG completion on CoDEx** ⚙⚙
+A cleaner, harder Wikidata-based benchmark with verified *hard negatives*. Train two
+scorers, evaluate with the triple-classification task its negatives enable (not just
+ranking). *Dataset:* CoDEx (github.com/tsafavi/codex, plain TSV files).
+*Interesting because:* real labeled negatives — the thing Week 4 said KGs never give
+you — exist here, and they change what you can honestly claim.
+
+**C3 · Biomedical link prediction on ogbl-biokg** ⚙⚙
+Drug–protein–disease completion (the hero example of Week 5, for real). Per-relation
+evaluation, stratified by entity frequency (Pitfall 5). *Dataset:* `ogb`
+(`ogbl-biokg`). *Interesting because:* the popularity-vs-truth failure mode is vivid
+in biomedicine, and the stratified analysis is the contribution.
+
+**C4 · Multi-hop queries: measure the easy/hard gap** ⚙⚙⚙
+Implement Query2box-lite (Lab 5 gives you the skeleton), generate 2-hop and
+intersection queries on FB15k-237, and produce the definitive easy-vs-hard-answer
+analysis of Week 5 §3 — including how the gap changes with training epochs and
+embedding dimension. *Interesting because:* you will produce the plot every
+reasoning paper should contain and most don't.
+
+## Track D · KGs meet LLMs
+
+**D1 · GraphRAG vs vector RAG, refereed properly** ⚙⚙
+Build both pipelines over a corpus you assemble (e.g., 50–100 Wikipedia articles on
+one domain), with a question set stratified as in Week 5: single-fact, multi-hop,
+corpus-global, fuzzy. Metric: supporting-fact coverage (Lab 5's), plus answer
+correctness with a small local model or manual grading. *Interesting because:* the
+honest routed comparison — which question types go to which retriever — is more
+useful than either side's marketing.
+
+**D2 · LLM-assisted KG construction, with a precision budget** ⚙⚙
+Extract a KG from a document set with an LLM (local or API), then engineer the Week 5
+repair pipeline: canonicalization, schema type-checking, provenance. Deliverable: an
+extraction-precision study (sampled, hand-verified) before and after each repair.
+*Interesting because:* everyone demos extraction; almost nobody measures it. The
+measurement is the project.
+
+**D3 · Can an LLM traverse?** ⚙⚙⚙
+Give a language model the Week 5 toy KGs (serialized as triples in context) and
+benchmark it on multi-hop conjunctive queries against Query2box and plain traversal,
+as query depth and graph size grow. *Interesting because:* the failure curve of
+in-context graph reasoning is a live research question you can chart with a small,
+clean experiment.
+
+## Track E · Reproducibility studies
+
+**E1 · Reproduce a course paper's core claim** ⚙⚙
+Pick one: node2vec's p/q effects (Fig. 3 of the paper), RotatE's phase histograms,
+GCN vs the simplified SGC, or the FB15k leakage finding. Reproduce the central
+figure/table from scratch, document every place the paper underspecified something,
+and report where your numbers land. *Interesting because:* reproduction with a
+discrepancy log is real science, teaches more than novelty, and the course's rigor
+rubric rewards it fully.
+
+**E2 · The tie-breaking audit** ⚙
+Re-implement the ACL 2020 re-evaluation protocol: take two public KG-embedding
+implementations, measure their score-tie rates, and quantify how much MRR moves
+under optimistic vs random tie-breaking. *Dataset:* FB15k-237/WN18RR.
+*Interesting because:* it is a small, sharp, fully-scoped project with a guaranteed
+honest deliverable — ideal for a team that wants depth over breadth.
+
+---
+
+**Choosing:** pick the track that matches the weeks you enjoyed; check the dataset
+downloads *this week*; and bring the proposal's "main risk" honestly — the best
+proposals name the experiment that could kill the idea and schedule it first.

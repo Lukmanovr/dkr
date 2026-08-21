@@ -1,0 +1,27 @@
+```{=html}
+<div class="interactive-container" id="w5-bx-widget">
+  <div class="fig-label">Interactive · Queries as boxes</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-scene="path" type="button">2-hop path</button>
+    <button class="pill-btn" data-scene="intersect" type="button">intersection</button>
+    <button class="pill-btn" data-scene="points" type="button">why not points</button>
+    <button class="pill-btn" id="w5-bx-step" type="button">step</button>
+    <button class="pill-btn" id="w5-bx-reset" type="button">reset</button>
+  </div>
+  <div id="w5-bx-svg" role="img" aria-label="A two-dimensional embedding space where query boxes are built step by step: projection moves and grows a box, intersection shrinks to the overlap, and a point embedding fails to cover three answers"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the boxes figure above shows the 2-hop scene; the intersection scene shrinks
+    two branch boxes to their overlap, and the points scene shows a single point unable
+    to represent a three-answer set.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 2.</strong> Query2box's three moves, with
+  containment computed live: <em>projection</em> translates and widens, <em>intersection</em>
+  shrinks to the overlap (and the overlap of boxes is again a box — closure is the
+  design), and the third scene is the argument for regions: a query with three answers
+  defeats any single point. <strong>Try this:</strong> in the intersection scene, read
+  off which drug survives both constraints, and check it against the KG by hand. Then
+  answer: what would the <em>union</em> of two boxes be — and why does that break
+  closure? (That crack is where BetaE enters.)</p>
+</div>
+```

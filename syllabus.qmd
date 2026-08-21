@@ -13,7 +13,7 @@ weeks will follow.
 | 2 | Sep 3 | [Classical graph ML: structure as features](lectures/02-classical-graph-ml.qmd) | [Centralities, PageRank, communities, WL](labs/lab02.qmd) | |
 | 3 | Sep 10 | [Shallow node embeddings](lectures/03-embeddings.qmd) | [DeepWalk from scratch](labs/lab03.qmd) | |
 | 4 | Sep 17 | [Knowledge graphs I: facts as geometry](lectures/04-knowledge-graphs.qmd) | [TransE & RotatE on FB15k-237](labs/lab04.qmd) | [HW1 out](homeworks/hw1.qmd) |
-| 5 | Sep 24 | Knowledge graphs II: multi-hop reasoning, query embeddings, KGs + LLMs / GraphRAG | Multi-hop queries; mini-GraphRAG | Project topics out |
+| 5 | Sep 24 | [Knowledge graphs II: reasoning & the LLM era](lectures/05-kg-reasoning.qmd) | [Query2box-lite & mini-GraphRAG](labs/lab05.qmd) | [Project launch](project/index.qmd) |
 | 6 | Oct 1 | [GNNs I: message passing and the GCN](lectures/06-gcn.qmd) | [GCN from scratch → PyG on Cora](labs/lab06.qmd) | [HW1 due](homeworks/hw1.qmd) |
 | 7 | Oct 8 | GNNs II: the design space — GraphSAGE, GAT, GIN | Implement all three; ablation study | |
 | 8 | **Oct 15** | **Midterm exam** (written, full session, Wks 1–7) | Midterm debrief + project kickoff | HW2 out |

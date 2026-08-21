@@ -1,0 +1,33 @@
+---
+title: "Lab 5 · Questions as geometry"
+subtitle: "Week 5 · Query2box-lite + a mini-GraphRAG bake-off"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab05_reasoning.ipynb)
+
+**≈ 25 minutes of compute · free Colab or any CPU · no GPU needed**
+
+Both halves of the [Week 5 lecture](../lectures/05-kg-reasoning.qmd), built and
+measured:
+
+1. **The box distance** (exercise 1): inside vs outside, with hand-checkable numbers.
+2. **Projection and intersection** (exercise 2): project grows, intersect shrinks —
+   the two operators, asserted on toys.
+3. **Easy vs hard answers** (exercise 3): the split that separates reasoning from
+   recall, verified on the lecture's drug–protein–disease toy where you already know
+   the answer (Naproxen is the hard one).
+4. **The gap, on real data** (exercise 4): compose 2-hop query boxes from your own
+   operators, train on FB15k-237 — 1-hop pretraining, then path fine-tuning — and
+   measure Hits@10 on easy versus hard answers of held-out queries. The gap you
+   compute is the lecture's §3 in one number.
+5. **Mini-GraphRAG** (exercise 5): entity linking + subgraph expansion versus real
+   cosine retrieval over six documents, refereed by supporting-fact coverage —
+   structure wins the hops, similarity wins the fuzz, and your code proves both.
+
+Stretch (ungraded): real intersection queries, the gap-vs-dimension curve (a seed for
+project topic C4), and breaking the entity linker on purpose.
+
+**Submitting.** One executed notebook on Moodle: all five exercise checks ✓, three
+reflection answers. Grading: assertions 70% · reflections 30%. *Restart and run all*
+before you submit. AI-assistant use is allowed with disclosure, per the honor code —
+the notebook's final cell restates the policy.

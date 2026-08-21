@@ -1,0 +1,66 @@
+---
+title: "Course Project"
+subtitle: "Teams of 2–3 · 20% of the grade · launched Week 5, presented Week 15"
+---
+
+The project is where the course's methods meet a problem you chose: pick a task and
+dataset, build something real, evaluate it honestly, and present it like you mean it.
+Browse the [topic list](topics.qmd) — or propose your own within the course's scope
+(graph ML, knowledge graphs, or their intersection with LLM systems).
+
+## Milestones
+
+| Milestone | Due | What it is |
+|---|---|---|
+| **Team formation** | Week 6 (Oct 1) | 2–3 people; post your team + tentative topic in the course forum |
+| **Proposal** | Week 9 (Oct 22) | 1 page: task, dataset, method, evaluation plan, main risk |
+| **Midway check** | Week 12 (Nov 12) | repo + preliminary results + blocker list; 15-min meeting with TA/instructor |
+| **Report + code** | Week 15 (Dec 3) | 6 pages, NeurIPS style; reproducible repo (README, pinned env, one-command run) |
+| **Talk** | Week 15 (Dec 3) | 8 minutes + questions, in the final session |
+
+The proposal is short on purpose: task and dataset chosen, evaluation defined
+*before* results exist, one named risk with a fallback. We give fast feedback —
+mostly to catch scope problems while they are cheap.
+
+## Grading (100 points)
+
+| Criterion | Points | What earns them |
+|---|---|---|
+| Problem formulation & motivation | 15 | a precise task, a real reason, a clear success measure |
+| Method correctness | 25 | the model does what the report says; design choices justified |
+| Experimental rigor | 25 | **baselines, ablations, error bars** — the course's honest-measurement standard |
+| Reproducibility | 15 | fresh-clone test: README + pinned environment + one command to the main result |
+| Report clarity | 10 | a reader from this course follows it without you in the room |
+| Presentation | 10 | 8 minutes that respect the audience: claim, evidence, honest limits |
+
+Rigor advice you have already practiced all semester: every week's lab beat a simple
+baseline before trusting a fancy method (statistics → communities → embeddings →
+GCN), quantified its leaks, and reported what *didn't* work. Projects are graded by
+the same taste. A negative result, honestly obtained and clearly analyzed, can earn
+full marks; a leaderboard number without baselines cannot.
+
+## Originality, credit, and AI use
+
+- External code is welcome **with citation** (repo, commit, what you used). The
+  report must contain an explicit **"our contribution"** paragraph: what exists
+  beyond the tutorial/starter you began from.
+- An **AI-use statement** is mandatory in the report (tools, for what). Same honor
+  code as homework: you must be able to explain any line and any decision.
+- Datasets: prefer the vetted ones in the [topic list](topics.qmd); anything else,
+  clear the license with us first (Week 1's lesson: not everything downloadable is
+  redistributable).
+
+## FAQ
+
+**Can we propose our own topic?** Yes — most of the best projects are personal. Keep
+it inside the course's methods and clear it in the proposal.
+
+**Team of 1? Of 4?** No. The rubric assumes 2–3 people; solo projects lose the
+built-in reviewer, and quads diffuse.
+
+**Compute?** Every suggested topic is feasible on free Colab (that constraint was a
+selection criterion). If your own topic needs more, your proposal's risk section
+should say where the compute comes from.
+
+**Can the project extend into a thesis?** Encouraged — talk to us at the midway
+check about scoping the handoff.

@@ -1,0 +1,24 @@
+```{=html}
+<div class="interactive-container" id="w5-ex-widget">
+  <div class="fig-label">Interactive · Cleaning up after the extractor</div>
+  <div class="widget-controls">
+    <label style="font-size:0.85rem"><input type="checkbox" id="w5-ex-canon"> canonicalize aliases</label>
+    <label style="font-size:0.85rem"><input type="checkbox" id="w5-ex-schema"> schema type-check</label>
+    <label style="font-size:0.85rem"><input type="checkbox" id="w5-ex-prov"> require provenance</label>
+  </div>
+  <div id="w5-ex-svg" role="img" aria-label="Five LLM-extracted triples with three repair toggles: canonicalization merges alias entities, the schema check drops an ill-typed fact, and the provenance check drops a hallucinated fact, with live entity and fact counts"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: five extracted triples; the repairs merge two alias entities, drop one
+    ill-typed fact and one hallucinated fact, leaving three clean facts over five
+    entities.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 4.</strong> The construction figure's output,
+  now with the repair crew. Each toggle is one real pipeline stage, and the entity
+  counter is the tell: raw extraction claims seven "entities" for a five-entity world.
+  <strong>Try this:</strong> find the switch order that leaves a <em>false</em> fact in
+  the shipped graph while everything looks tidy — then recall Figure 3's coverage
+  meter and say what GraphRAG does with a confident lie. That chain of thought is why
+  provenance is a schema field, not a luxury.</p>
+</div>
+```

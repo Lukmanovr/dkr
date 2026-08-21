@@ -1,0 +1,24 @@
+```{=html}
+<div class="interactive-container" id="w5-qy-widget">
+  <div class="fig-label">Interactive · Two hops over an incomplete KG</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-mode="traversal" type="button">traversal</button>
+    <button class="pill-btn" data-mode="soft" type="button">soft completion</button>
+    <button class="pill-btn" id="w5-qy-hop" type="button">hop →</button>
+    <button class="pill-btn" id="w5-qy-reset" type="button">reset</button>
+  </div>
+  <div id="w5-qy-svg" role="img" aria-label="The drug-protein-disease toy graph with the two-hop Inflammation query stepped hop by hop, in strict traversal mode or with a trained model admitting the strongest unstated candidate"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: stepping the two-hop query finds Aspirin and Ibuprofen by traversal; soft
+    completion additionally recovers Naproxen through the unstated edge.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 1.</strong> The hero query, executed. Traversal
+  follows stated edges — the mode every database runs in. Soft mode admits, per hop, the
+  strongest <em>unstated</em> candidate, scored by a DistMult trained on this graph in
+  your browser. <strong>Try this:</strong> run both modes to hop 2 and compare answer
+  sets — Naproxen's recovery is computed, not scripted. Then ask the uncomfortable
+  question: in soft mode, what exactly would you tell a pharmacologist your confidence
+  is, and where would the errors compound if the query had five hops?</p>
+</div>
+```

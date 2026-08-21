@@ -1,0 +1,26 @@
+```{=html}
+<div class="interactive-container" id="w5-rg-widget">
+  <div class="fig-label">Interactive · Retrieval bake-off: similarity vs structure</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-q="0" type="button">2-hop question</button>
+    <button class="pill-btn" data-q="1" type="button">1-hop question</button>
+    <button class="pill-btn" data-q="2" type="button">fuzzy question</button>
+    <button class="pill-btn active" data-mode="vector" type="button">vector RAG</button>
+    <button class="pill-btn" data-mode="graph" type="button">GraphRAG</button>
+  </div>
+  <div id="w5-rg-svg" role="img" aria-label="Three questions against six documents under two retrieval strategies, with live cosine scores, retrieved context, and a coverage meter checking whether the gold supporting facts were retrieved"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: on the two-hop question, top-2 cosine retrieval covers one of two needed
+    facts while the entity-linked subgraph covers both; on the fuzzy question the
+    situation reverses.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 3.</strong> Six documents, three questions, two
+  strategies, one honest metric: does the retrieved context contain the facts a reader
+  would need? The cosine scores are computed live over bag-of-words — no strawman
+  retrieval. <strong>Try this:</strong> run all six combinations and fill a 3×2 mental
+  scorecard. The 2-hop question is GraphRAG's home turf; the fuzzy question — with no
+  linkable entity in it — is vector retrieval's. Production systems route between the
+  two, and now you can articulate the routing rule.</p>
+</div>
+```
