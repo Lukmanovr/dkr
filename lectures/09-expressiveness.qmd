@@ -116,8 +116,8 @@ interior); interior $c$ likewise; but $f$ — the middle of $P_3$ — sees $\{1,
 1\}$, *two leaves*, a signature no one else on either side can produce among
 interior nodes, because $P_5$'s interior nodes $q, r, s$ see $\{1,2\}$, $\{2,
 2\}$, $\{2, 1\}$ respectively, and $P_2$'s nodes $u, v$ are leaves seeing
-$\{1\}$ — another left-side exclusive in the other direction, since a leaf whose
-only neighbor is a *leaf* exists only in $P_2$. Two fresh colors appear on
+$\{1\}$ — an exclusive of the *right* side this time, since a leaf whose
+only neighbor is a leaf exists only in $P_2$. Two fresh colors appear on
 exactly one side each, the histograms diverge, and refinement has proved in two
 rounds what degrees alone never could. Notice also $r$, the center of $P_5$,
 collecting $\{2, 2\}$ — a third signature unique to the right side. The split
