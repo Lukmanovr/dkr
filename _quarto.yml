@@ -37,6 +37,8 @@ website:
             text: "1 · Why Graphs? Representing Relational Data"
           - href: lectures/02-classical-graph-ml.qmd
             text: "2 · Classical Graph ML: Structure as Features"
+          - href: lectures/03-embeddings.qmd
+            text: "3 · Shallow Node Embeddings"
           - href: lectures/06-gcn.qmd
             text: "6 · GNNs I: Message Passing & GCN"
       - section: Labs
@@ -45,6 +47,8 @@ website:
             text: "Lab 1 · Hello, graphs"
           - href: labs/lab02.qmd
             text: "Lab 2 · Structure as features"
+          - href: labs/lab03.qmd
+            text: "Lab 3 · DeepWalk from scratch"
           - href: labs/lab06.qmd
             text: "Lab 6 · GCN from scratch → PyG"
       - section: Course

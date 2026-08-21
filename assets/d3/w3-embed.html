@@ -1,0 +1,24 @@
+```{=html}
+<div class="interactive-container" id="w3-em-widget">
+  <div class="fig-label">Interactive · Watch embeddings learn</div>
+  <div class="widget-controls">
+    <button class="pill-btn" id="w3-em-train" type="button">train 500 pairs</button>
+    <button class="pill-btn" id="w3-em-auto" type="button">auto ▸</button>
+    <button class="pill-btn" id="w3-em-reset" type="button">reset</button>
+  </div>
+  <div id="w3-em-svg" role="img" aria-label="The 34 karate club members as points in a live two-dimensional embedding space, moving from random positions into two faction clusters as skip-gram training runs"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: 34 points at random positions; skip-gram training with negative sampling pulls
+    walk-co-occurring members together until the two factions form separate clusters.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 3.</strong> Actual SGNS running in your browser:
+  d = 2, so the plane you see <em>is</em> the embedding space — every frame, co-walking
+  members pull together and random negatives push apart. The training never sees the
+  faction labels; the separation readout probes them afterwards.
+  <strong>Try this:</strong> press <em>auto ▸</em> and watch the phase change: a shapeless
+  cloud, then two arms, then two clusters. Where do the ringed boundary members (2, 8)
+  settle, and does that match where Week 2's Fiedler vector put them? Press
+  <em>reset</em> and re-run — the run is seeded, so you will see the identical movie.</p>
+</div>
+```

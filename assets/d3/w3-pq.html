@@ -1,0 +1,29 @@
+```{=html}
+<div class="interactive-container" id="w3-pq-widget">
+  <div class="fig-label">Interactive · p and q steer the walker</div>
+  <div class="widget-controls">
+    <label style="font-size:0.85rem">return p
+      <input type="range" id="w3-pq-p" min="0" max="4" step="1" value="2" style="width:110px">
+      <span id="w3-pq-pval">1</span>
+    </label>
+    <label style="font-size:0.85rem">in-out q
+      <input type="range" id="w3-pq-q" min="0" max="4" step="1" value="2" style="width:110px">
+      <span id="w3-pq-qval">1</span>
+    </label>
+    <button class="pill-btn" id="w3-pq-go" type="button">launch 200 walks</button>
+  </div>
+  <div id="w3-pq-svg" role="img" aria-label="A lollipop graph — a four-clique with a four-node tail — where biased walks launched from the junction show their empirical visit distribution as node sizes"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: a four-node clique joined to a four-node tail; with low q the walks escape down
+    the tail, with high q they orbit the clique.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 2.</strong> The BFS↔DFS dial, measured rather
+  than asserted: 200 seeded walks from node 3, visit shares on the nodes.
+  <strong>Try this:</strong> (1) set p = 0.25, q = 4 and launch — the walker orbits the
+  clique like a BFS frontier; (2) set p = 4, q = 0.25 — it commits to the tail like a
+  DFS probe; (3) find settings where node 7, four hops out, gets over 5% of all visits.
+  Which regime would embed "nodes with the same role" close together, and which "nodes
+  in the same community"?</p>
+</div>
+```

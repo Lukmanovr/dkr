@@ -1,0 +1,23 @@
+```{=html}
+<div class="interactive-container" id="w3-wk-widget">
+  <div class="fig-label">Interactive · Walks become co-occurrence counts</div>
+  <div class="widget-controls">
+    <button class="pill-btn" id="w3-wk-step" type="button">step</button>
+    <button class="pill-btn" id="w3-wk-run" type="button">run 100 walks</button>
+    <button class="pill-btn" id="w3-wk-reset" type="button">reset</button>
+  </div>
+  <div id="w3-wk-svg" role="img" aria-label="The cast graph with a random walk growing step by step, and a live six-by-six co-occurrence matrix filling as each finished walk contributes its skip-gram pairs"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the cast graph beside a 6×6 co-occurrence matrix; repeated random walks fill
+    the matrix, with neighboring nodes accumulating the largest counts.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 1.</strong> The similarity S being manufactured:
+  every finished walk contributes its (center, context) pairs within a ±2 window, and
+  the counts matrix is all the "graph knowledge" training will ever see.
+  <strong>Try this:</strong> press <em>run 100 walks</em> and read the matrix like an
+  adjacency matrix — which non-adjacent pair has the largest count, and why does the
+  E–F–C triangle glow? Then answer: what graph object does row C of this matrix most
+  resemble, and what extra information does it carry that plain adjacency lacks?</p>
+</div>
+```

@@ -1,0 +1,23 @@
+```{=html}
+<div class="interactive-container" id="w3-lp-widget">
+  <div class="fig-label">Interactive · Label propagation, the no-learning baseline</div>
+  <div class="widget-controls">
+    <button class="pill-btn" id="w3-lp-step" type="button">sweep</button>
+    <button class="pill-btn" id="w3-lp-run" type="button">run to stable</button>
+    <button class="pill-btn" id="w3-lp-reset" type="button">reset</button>
+  </div>
+  <div id="w3-lp-svg" role="img" aria-label="The karate club with only the two leaders labeled; each sweep spreads labels to the majority of labeled neighbors until the coloring stabilizes"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the karate club, gray except the two labeled leaders; repeated majority-vote
+    sweeps color the whole club in a few iterations.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 4.</strong> The strongest thing you can do with
+  two labels and no learning: let them flood outward along edges.
+  <strong>Try this:</strong> sweep once and note who converts first (the leaders' inner
+  circles); run to stable and compare the accuracy with Widget 3's embedding probe.
+  Then articulate what this baseline <em>cannot</em> give you that embeddings can: a
+  score for "how A-like is this node?", features for a downstream model, or anything at
+  all for a node with no labeled path to a seed.</p>
+</div>
+```

@@ -11,7 +11,7 @@ weeks will follow.
 |:--:|------|---------|-----|------------|
 | 1 | Aug 27 | [Why graphs? Representing relational data](lectures/01-why-graphs.qmd) | [Hello, graphs — onboarding](labs/lab01.qmd) | |
 | 2 | Sep 3 | [Classical graph ML: structure as features](lectures/02-classical-graph-ml.qmd) | [Centralities, PageRank, communities, WL](labs/lab02.qmd) | |
-| 3 | Sep 10 | Shallow node embeddings: DeepWalk, node2vec, matrix-factorization view | DeepWalk from scratch; link-prediction evaluation | |
+| 3 | Sep 10 | [Shallow node embeddings](lectures/03-embeddings.qmd) | [DeepWalk from scratch](labs/lab03.qmd) | |
 | 4 | Sep 17 | Knowledge graphs I: triples, TransE → RotatE, negative sampling, MRR/Hits@K | TransE + RotatE from scratch on FB15k-237 | HW1 out |
 | 5 | Sep 24 | Knowledge graphs II: multi-hop reasoning, query embeddings, KGs + LLMs / GraphRAG | Multi-hop queries; mini-GraphRAG | Project topics out |
 | 6 | Oct 1 | [GNNs I: message passing and the GCN](lectures/06-gcn.qmd) | [GCN from scratch → PyG on Cora](labs/lab06.qmd) | HW1 due |

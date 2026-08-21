@@ -1,0 +1,502 @@
+---
+title: "Shallow Node Embeddings"
+subtitle: "Week 3 · Thursday, September 10, 2026 · 90 minutes"
+description: "Stop designing features, learn them: the encoder–decoder framework, random walks as similarity, the skip-gram objective from softmax to negative sampling, node2vec's BFS↔DFS dial, what these methods secretly factorize — and the four limitations that make GNNs necessary."
+date: 2026-09-10
+date-modified: last-modified
+format:
+  html:
+    toc-depth: 3
+---
+
+::: {.content-visible when-format="html"}
+
+::: {.callout-tip title="Learning objectives" icon="false"}
+After this lecture (and Lab 3) you can:
+
+1. **state** the encoder–decoder framework — encoder, decoder, similarity, loss — and place any embedding method inside it;
+2. **derive** the DeepWalk/node2vec objective from walk co-occurrence through the softmax to negative sampling, defining every symbol along the way;
+3. **explain** node2vec's $p$ and $q$ as a BFS↔DFS dial and predict their effect on a given graph;
+4. **connect** random-walk embeddings to matrix factorization (the NetMF result, statement only) and use it to reason about what they can and cannot capture;
+5. **enumerate** the four limitations of shallow embeddings — no sharing, transductive-only, feature-blind, $O(|\mathcal{V}|d)$ parameters — and match each to the scenario where it bites;
+6. **contrast** learned embeddings with label propagation on the same task, and say when the no-learning baseline wins.
+:::
+
+## The year the surfers learned to write
+
+In 2013, a small team at Google showed that if you feed a neural network billions of
+sentences and ask it to guess each word's neighbors, the network is forced to invent a
+**vector for every word** — and those vectors turn out to carry meaning: countries
+cluster, verb tenses align, and *king − man + woman* lands near *queen*. The system was
+called word2vec, and it rearranged natural language processing in about a year.
+
+Graph researchers read that paper with a specific kind of greed. Their problem was
+Week 2's cliffhanger: hand-crafted features had just hit a ceiling — statistics were
+topic-blind, and the informative thing, *position*, was being butchered into one-hot
+community ids. What they wanted was a **learned, continuous vector per node**. What
+word2vec needed to provide one per word was only a corpus of sentences.
+
+::: {.predict}
+**Commit before you look.** word2vec learns from sentences — linear sequences of
+tokens. If you had to manufacture "sentences" out of a graph so the same code runs
+unchanged, what would a sentence be?
+
+::: {.predict-answer}
+**A random walk.** Start anywhere, follow random edges, write down the nodes you visit:
+a linear sequence of tokens in which co-occurrence means proximity — exactly what a
+sentence is to word2vec. That one-line answer is the DeepWalk paper (2014), one of the
+most influential ideas in graph ML, and you already own every ingredient: you built the
+walk machinery for PageRank last week.
+:::
+:::
+
+{{< include ../assets/figures/fig-w3-hero.html >}}
+
+Notice what the pairs in the figure preserve and what they discard: the pair (E,C)
+appears twice — *frequency of co-occurrence* is the signal — while everything about
+edge identity, direction of travel, and global position is thrown away. This lecture is
+about what survives that compression, why it is enough to beat every feature you built
+last week, and where it runs out.
+
+**Roadmap.** (1) A template that organizes this week and the next three: encoder,
+decoder, similarity, loss. (2) Walks as similarity — watch the training data being
+manufactured. (3) The objective, derived honestly: softmax, why it is unaffordable, and
+the negative-sampling rescue. (4) node2vec: two knobs that steer what "nearby" means.
+(5) Training, watched live — and what the optimum secretly is (a matrix factorization).
+(6) Using embeddings: classification and link prediction done right. (7) The
+no-learning baseline, the four limitations, and the door to GNNs.
+
+::: {.callout-note title="Recap — what this lecture assumes" collapse="true"}
+- **Week 2**: random walks and PageRank's surfer; the Cora measurement — structural statistics 19%, + Louvain-community one-hots 62%; homophily (Week 1's glossary): connected nodes tend to be alike.
+- **From your ML course**: logistic regression / sigmoid $\sigma(x) = 1/(1+e^{-x})$; softmax; SGD; what a loss function is.
+- **From Week 1**: graphs as `edge_index`; the ordering trap — features must not depend on node numbering. (Today's encoder *looks like* it violates this; §5 resolves the tension.)
+:::
+
+## 1. One template for the next four weeks
+
+Strip any node-embedding method to its skeleton and four decisions remain:
+
+{{< include ../assets/figures/fig-w3-encdec.html >}}
+
+- the <span class="term" data-def="Encoder: the function mapping a node id to its vector. This week it is pure table lookup — ENC(u) = Z[u], one trainable row per node. In Week 6 the encoder becomes a neural network that computes the vector from features and neighbors.">**encoder**</span> maps each node to a vector. This week it is the simplest thing that could work: a **lookup table** $\mathbf{Z} \in \mathbb{R}^{|\mathcal{V}| \times d}$, one free row per node, $d \approx 64$–$256$. No computation — the parameters *are* the answer;
+- the **decoder** turns two vectors into a score for the pair. This week: the dot
+  product $\mathbf{z}_u^\top \mathbf{z}_v$ (sometimes passed through a sigmoid);
+- the **similarity** $S(u,v)$ is what the graph says the score *should* be — the
+  design decision that actually distinguishes methods;
+- the **loss** measures the disagreement and drives SGD on the table $\mathbf{Z}$.
+
+The filing cabinet, which we will keep filling until Week 6:
+
+| method | encoder | decoder | similarity $S(u,v)$ |
+|---|---|---|---|
+| adjacency factorization | lookup | $\mathbf{z}_u^\top\mathbf{z}_v$ | $\mathbf{A}[u,v]$ |
+| **DeepWalk** (2014) | lookup | softmax of dots | walk co-occurrence |
+| **node2vec** (2016) | lookup | softmax of dots | *biased*-walk co-occurrence |
+| TransE (Week 4) | lookup | $-\|\mathbf{z}_h + \mathbf{r} - \mathbf{z}_t\|$ | typed triples |
+| GCN (Week 6) | *a neural network* | task-dependent | task labels |
+
+Why prefer walk co-occurrence over the obvious $S = \mathbf{A}$? Because adjacency is
+brittle and shallow: it declares $u$ and $v$ "similar" only if they share an edge, and
+two members of the same tight community with no direct tie get $S = 0$ — the same
+score as total strangers. Walks fix this with the multi-hop, probabilistic notion of
+neighborhood you already trust from PageRank: nodes are similar if a short random walk
+from one *tends to reach* the other.
+
+## 2. Manufacturing the training data
+
+Everything the loss will ever know about the graph is produced by this pipeline: run
+walks, slide a window, count pairs. Watch the raw material being made:
+
+{{< include ../assets/d3/w3-walks.html >}}
+
+Formally: fix a walk length $\ell$ and a window size $w$. Run $r$ walks from every
+node. For each walk $(v_1, \ldots, v_\ell)$ and each position $i$, emit the pairs
+$(v_i, v_j)$ for all $j \neq i$ with $|i - j| \le w$. Call the multiset of emitted
+pairs $\mathcal{D}$, and write $\mathcal{N}_R(u)$ for the multiset of contexts emitted
+for center $u$. The empirical similarity is then simply
+$$
+S(u, v) \;=\; \#\{(u,v) \in \mathcal{D}\}
+$$
+— the matrix you watched fill up in Figure 1. It is a blurred, multi-hop version of
+adjacency: row $u$ resembles row $u$ of $\mathbf{A}$ smeared over $w$ hops, with counts
+where 0/1 entries used to be.
+
+## 3. The objective, derived honestly
+
+We want the embedding of a center node to *predict its contexts*. The maximum-likelihood
+way to say that: model the probability of seeing context $v$ given center $u$ as a
+softmax over all nodes, and maximize it over the observed pairs:
+
+$$
+\max_{\mathbf{Z}}\;
+\sum_{(u,v) \in \mathcal{D}} \log \Pr(v \mid u),
+\qquad
+\Pr(v \mid u) \;=\;
+\frac{\exp(\mathbf{z}_u^\top \mathbf{z}_v)}{\sum_{n \in \mathcal{V}} \exp(\mathbf{z}_u^\top \mathbf{z}_n)} .
+$$
+
+::: {.callout-important title="Every symbol, defined — read this box like a contract" icon="false"}
+This formula has appeared on this course's midterm before, written sloppily, and it
+cost everyone points. The precise inventory: $\mathcal{D}$ is the multiset of
+(center, context) pairs emitted by the walk-and-window pipeline of §2 — *it is data,
+fixed before training*. $\mathbf{z}_u \in \mathbb{R}^d$ is row $u$ of the trainable
+table $\mathbf{Z}$. The sum in the denominator runs over **all** $|\mathcal{V}|$ nodes
+— that is what makes it a probability, and what makes it unaffordable. (Faithful
+implementations keep *two* tables — a center table and a context table, $\mathbf{z}_u^\top \mathbf{z}'_v$
+— exactly as word2vec does; we suppress the prime until the NetMF box, where it
+matters.)
+:::
+
+The denominator is the whole problem: every SGD step on every pair touches all
+$|\mathcal{V}|$ embeddings — $O(|\mathcal{V}|)$ per pair, hopeless at
+$|\mathcal{V}| = 10^8$. word2vec's escape, inherited verbatim by DeepWalk and node2vec,
+is <span class="term" data-def="Negative sampling: replace the softmax's classify-against-everyone with a cheap binary discrimination — is this pair real, or one of k fakes drawn from a noise distribution? Cost drops from O(|V|) to O(k) per pair, k ≈ 5–20.">**negative sampling**</span>:
+stop normalizing, start discriminating. For each real pair, draw $k$ fake contexts from
+a noise distribution $P_n$ and train a logistic classifier to tell them apart:
+
+$$
+\mathcal{L} \;=\;
+\sum_{(u,v) \in \mathcal{D}}
+\Bigl[
+\log \sigma(\mathbf{z}_u^\top \mathbf{z}_v)
+\;+\;
+\sum_{i=1}^{k} \mathbb{E}_{n_i \sim P_n} \log \sigma(-\mathbf{z}_u^\top \mathbf{z}_{n_i})
+\Bigr]
+$$
+
+— maximize: pull real pairs together (first term), push $k$ random impostors apart
+(second). Cost per pair: $O(k)$, with $k \approx 5$–$20$. The noise distribution is
+*not* uniform in practice: word2vec's $P_n(v) \propto \deg(v)^{3/4}$ — sample
+frequent/high-degree nodes as negatives more often, or the model learns mostly that
+hubs exist (Pitfall 5 will return to this).
+
+Is negative sampling just a hack? No — it has a precise fixed point, and the fixed
+point is a familiar object:
+
+::: {#prp-netmf .proposition name="What SGNS secretly optimizes (Levy–Goldberg 2014; NetMF 2018 — statement only)"}
+With embedding dimension large enough, the SGNS objective is minimized when
+$$
+\mathbf{z}_u^\top \mathbf{z}'_v \;=\; \mathrm{PMI}(u, v) - \log k
+\;=\; \log \frac{\#(u,v)\,|\mathcal{D}|}{\#(u)\,\#(v)} - \log k,
+$$
+i.e. DeepWalk **implicitly factorizes** the (shifted) pointwise-mutual-information
+matrix of its walk co-occurrences. NetMF (Qiu et al., 2018) computes this matrix in
+closed form from $\mathbf{A}$ — powers of the transition matrix averaged over the
+window — and factorizing it directly ("DeepWalk without the walks") often *beats*
+DeepWalk. The optional reading has the derivation; on the exam you need the statement
+and its uses.
+:::
+
+The statement earns its keep as a reasoning tool. Two immediate consequences: walk
+embeddings see **only co-occurrence statistics** — two nodes with identical structural
+roles on opposite sides of a large graph never co-occur, so they get unrelated vectors
+(embeddings capture *homophily*, community-position, not *roles* — remember WL from
+Week 2 captured the opposite); and the whole method is **spectral in disguise** — a
+low-rank factorization of a fixed matrix, which is why the figure below could compute
+"DeepWalk's answer" exactly, with no SGD at all.
+
+## 4. node2vec: steering the walker
+
+If similarity = "where my walks go", then *biasing the walks changes the geometry of
+the embedding space*. node2vec (2016) adds exactly two knobs to the walker. Standing at
+$v$, having arrived from $t$, the unnormalized weight of each next step $x$ is:
+$1/p$ to return to $t$; $1$ to a common neighbor of $t$ and $v$ (staying in $t$'s
+orbit); $1/q$ to a node farther from $t$ (pushing outward).
+
+{{< include ../assets/figures/fig-w3-pq.html >}}
+
+Low $q$ makes walks range far — a depth-first temperament that makes co-occurrence
+mean "same region", grouping **communities** (homophily). High $q$ with low $p$ keeps
+walks orbiting their origin — breadth-first — so co-occurrence statistics fingerprint
+the *local* neighborhood shape, nudging embeddings toward **structural equivalence**
+(hubs near hubs, bridges near bridges), at least at small scales. Don't take the
+adjectives on faith — measure them:
+
+{{< include ../assets/d3/w3-pq.html >}}
+
+One honest caveat the original paper is often paraphrased past: the walker is
+second-order (it remembers one step back), so this is a nudge, not a guarantee — truly
+role-based embeddings need different machinery (struc2vec, GraphWave — mentioned, not
+examined). What *is* exam-fair: given a graph and a task, predict which $(p, q)$ regime
+helps, and defend it in the BFS/DFS vocabulary.
+
+## 5. Training, watched live
+
+You have now derived everything in the loop: sample a pair from $\mathcal{D}$, one
+sigmoid pull, $k$ sigmoid pushes, repeat. Here is that exact loop, running in your
+browser on the karate club, with $d = 2$ so that the embedding space needs no
+projection to be seen:
+
+{{< include ../assets/d3/w3-embed.html >}}
+
+Two things to notice while it runs. First, the training never sees labels — the
+factions emerge because walk co-occurrence *is* community structure (§3's consequence,
+live). Second, node ordering never enters: rename every member and the same pairs are
+sampled, the same geometry forms, merely with rows of $\mathbf{Z}$ permuted — the
+Week 1 trap is dodged because the table is *indexed* by node, not *shaped* by ordering.
+The permutation-invariance bill does come due — but at test time, not train time
+(limitation 2 below).
+
+And because @prp-netmf says the destination of all this SGD is a fixed factorization,
+we can skip the training entirely and compute where the points *must* end up:
+
+{{< include ../assets/figures/fig-w3-embedding.html >}}
+
+The static figure is the widget's asymptote: PPMI matrix of real walk co-occurrences,
+factorized, two dimensions kept. Compare where the ringed boundary members sit in both
+— training and factorization agree that members 2 and 8 live between the camps, which
+is the same verdict the Fiedler vector delivered last week. Three different algorithms,
+one geometric truth: **position in this graph is a low-dimensional, learnable thing.**
+
+## 6. Using the vectors
+
+Embeddings are middleware — their value is what the next model does with them.
+
+**Node classification.** Feed $\mathbf{z}_u$ to logistic regression. This is Lab 2's
+pipeline with the hand-crafted features swapped for learned ones, and it is the third
+rung of our running Cora measurement: statistics 19% → +community one-hots 62% →
+**walk embeddings ≈ 68%** (you will produce this number yourself in Lab 3). The jump
+over one-hots is exactly the value of *continuous, graded* position over hard
+membership: boundary papers get boundary coordinates instead of a forced binary id.
+(One practical rite of passage awaits you in the lab: the probe only clears ~64% until
+you L2-normalize the vectors — SGNS stores walk *frequency* in a vector's norm and
+*position* in its direction, and the probe wants the direction.)
+
+**Link prediction.** Score a candidate pair by $\mathbf{z}_u^\top \mathbf{z}_v$ (or
+build an edge feature from the pair — elementwise product works best in the node2vec
+paper's comparison — and classify it). This is the deployment shape of friend
+suggestion and co-purchase recommendation. But the evaluation has a trap that
+publishes wrong numbers every year, so learn the protocol as a reflex:
+
+::: {.callout-important title="Link prediction without lying to yourself" icon="false"}
+Held-out edges must be **invisible at every stage**: (1) remove the test edges *before*
+running any walks — walks that stroll across a test edge leak it straight into the
+similarity counts; (2) sample negative test pairs (non-edges) honestly, and report the
+positives-vs-negatives ranking quality (AUC here; Hits@K when Week 12 does this
+properly); (3) never tune on the test AUC. In Lab 3 you will run the leaky version and
+the clean version side by side: the clean pipeline earns an honest 0.82, while the
+leaky one "achieves" a near-perfect 0.997 — seventeen points of pure fiction you will
+remember whenever you review a paper.
+:::
+
+## 7. The baseline that learns nothing — and the four walls
+
+Before crediting embeddings with magic, meet the baseline every node-classification
+result must beat when labels are scarce. Two labeled members, majority-vote flooding,
+no vectors anywhere:
+
+{{< include ../assets/d3/w3-labelprop.html >}}
+
+Two labels and two sweeps recover almost the whole split — under strong homophily,
+*inference along edges* is devastatingly effective. Label propagation (and its smoothed
+descendants) remains the honest baseline: when it matches your embedding pipeline, the
+graph's labels were simply easy to spread, and no representation learning was needed.
+What it cannot do: produce a score, a feature vector, a ranking, or anything for a node
+with no labeled path — the moment the task is not "spread these labels", you need
+vectors again.
+
+Now the four walls of everything built today. They are structural — each one is a fact
+about the *lookup-table encoder*, not about training quality:
+
+1. **No parameter sharing.** Every node learns its row from scratch. Two structurally
+   identical nodes share nothing; regularities of graph structure are re-learned
+   $|\mathcal{V}|$ times. (Statistical inefficiency.)
+2. **Transductive only.** A node that was not in the table at training time *has no
+   embedding* — a new user, a new paper, tomorrow's graph. There is nothing to look
+   up. <span class="term" data-def="Transductive: the model only makes predictions for the exact nodes present at training time. Its opposite, inductive, means the model can embed nodes it has never seen — the property the lookup-table encoder structurally cannot have, and GNNs can.">Transductive</span>
+   failure is deployment failure: most production graphs grow every hour.
+3. **Feature-blind.** Cora's papers *have text*; molecules have atom types; users have
+   profiles. The lookup table cannot ingest any of it — the encoder's input is an id.
+   All of Lab 2's attribute information is still on the floor.
+4. **$O(|\mathcal{V}| \cdot d)$ parameters.** A billion nodes at $d = 128$ in float32
+   is half a terabyte of *parameters* — before you store the graph.
+
+Read the four again and notice they share a single cause: the encoder is a table. The
+fix, then, is a different encoder — one that *computes* $\mathbf{z}_u$ from $u$'s
+features and neighborhood instead of looking it up. Computed from neighbors means
+sharing (one network for all nodes), inductive (new node? run the network),
+feature-aware (features are the input), and constant-size. That encoder is the graph
+neural network, and Weeks 6–9 are its story.
+
+## Common pitfalls
+
+::: {.callout-warning title="Pitfall 1 · Walking across your test set" icon="false"}
+The most common broken graph-ML evaluation in the wild: split edges into train/test,
+but run the walks (or compute the PPMI matrix) on the *full* graph. The similarity
+counts now contain the answers. Always: remove test edges, *then* walk. If your link
+AUC is suspiciously high, this is the first thing to audit — Lab 3 quantifies the
+inflation.
+:::
+
+::: {.callout-warning title="Pitfall 2 · Comparing coordinates across runs" icon="false"}
+The loss depends on embeddings only through dot products, so any rotation of the whole
+cloud is an equally good optimum — coordinates are not identifiable, only geometry is.
+Never compare $\mathbf{z}_u$ from two runs dimension-by-dimension, never average
+embeddings across runs, never interpret "dimension 7". Within one run, distances and
+dot products are meaningful; across runs, only after alignment (orthogonal Procrustes —
+mentioned, not examined).
+:::
+
+::: {.callout-warning title="Pitfall 3 · Shipping a lookup table to a growing graph" icon="false"}
+The transductive trap in production: the model works in the notebook, then Monday's
+new users have no rows. Teams discover this at deploy time with impressive regularity.
+If entities arrive over time, a shallow embedding is a cache, not a model — plan for
+recomputation, folding-in heuristics, or an inductive encoder from day one.
+:::
+
+::: {.callout-warning title="Pitfall 4 · Believing the t-SNE plot" icon="false"}
+t-SNE/UMAP are for *seeing*, not for *concluding*: they manufacture visual clusters
+from continuous structure at some perplexities, and distances between far-apart blobs
+mean nothing. Lab 3's protocol: conclusions come from the downstream metric (accuracy,
+AUC); the 2-D plot is a debugging aid. If the plot looks great and the probe accuracy
+is mediocre, believe the probe.
+:::
+
+::: {.callout-warning title="Pitfall 5 · Negatives that are too easy" icon="false"}
+Uniform negative sampling mostly draws low-degree nodes (there are many) that the
+model easily rejects — training "succeeds" while learning little beyond degree. The
+$\deg^{3/4}$ noise distribution is the training-side fix; the evaluation-side twin is
+worse: reporting link-prediction metrics against uniformly random non-edges flatters
+every model, since real negatives (plausible-but-absent links) are hard. State your
+negative distribution when you report results; ask for it when you read them.
+:::
+
+## In this week's lab
+
+[Lab 3](../labs/lab03.qmd) builds the whole pipeline from scratch and then measures it
+honestly: generate walks and windowed pairs on the cast graph (checked against hand
+counts); implement the SGNS update in PyTorch and train real embeddings on the karate
+club, watching the loss and the faction separation; scale the same code to Cora and
+beat Lab 2's 62% baseline with learned vectors; run link prediction both leaky and
+clean and put a number on the leak; and close with the t-SNE ritual — plus its
+Pitfall-4 disclaimer — on your own trained embeddings.
+
+## Required reading
+
+**1 · Perozzi, Al-Rfou & Skiena — *DeepWalk: Online Learning of Social Representations* (KDD 2014).** [arXiv:1403.6652](https://arxiv.org/abs/1403.6652)
+
+::: {.reading-annotation}
+The hijack itself. Read §4 (the pipeline: truncated walks → SkipGram) closely, and
+Figure 1 — the karate club embedded in 2D, the exact experiment you ran in this
+lecture's Figure 3. Note §3.1's empirical argument that node-visit frequencies follow
+the same power law as words: that observation *is* the paper's license to borrow
+word2vec. Skim the hierarchical-softmax details (§4.2.2) — modern practice, and this
+course, use negative sampling instead.
+:::
+
+**2 · Grover & Leskovec — *node2vec: Scalable Feature Learning for Networks* (KDD 2016).** [arXiv:1607.00653](https://arxiv.org/abs/1607.00653)
+
+::: {.reading-annotation}
+One change to DeepWalk — the $(p, q)$-biased second-order walk — and a masterclass in
+evaluating it. Study Figure 2 and the search-bias equations in §3.2 until you can
+predict walk behavior at extreme $p$ and $q$; connect them to homophily vs. structural
+equivalence via the Les Misérables case study (Figure 3). Table 1's binary operators
+for edge features (Hadamard et al.) are still the standard recipe — Lab 3 uses them.
+Skim the parameter-sensitivity plots.
+:::
+
+**Also see:** Hamilton, *GRL book*, §3.1–3.3 (neighborhood reconstruction; our
+notation follows it) · CS224W, "Node Embeddings".
+
+**Optional:** Tang et al., [LINE](https://arxiv.org/abs/1503.03578) (WWW 2015) — walks
+dropped for two explicit objectives (first- and second-order proximity); read as an
+alternative similarity design · Qiu et al., [Network Embedding as Matrix
+Factorization](https://arxiv.org/abs/1710.02971) (WSDM 2018) — the NetMF derivation
+behind @prp-netmf; Table 1 is the paper in one page · Hamilton, Ying & Leskovec,
+[Representation Learning on Graphs](https://arxiv.org/abs/1709.05584) (2017) — reread
+§2.3's limitations list after this lecture and notice it is §7 in survey form.
+
+## Check your understanding
+
+<details><summary>Q1 · The template — Place these in the encoder/decoder/similarity/loss template: (a) factorizing A with squared error; (b) DeepWalk; (c) LINE's first-order objective (connected nodes should have similar vectors). Which single component changes across all three?</summary>
+All three: lookup-table encoder, dot-product-family decoder. (a) $S = \mathbf{A}[u,v]$,
+squared-error loss; (b) $S$ = walk co-occurrence counts, softmax/SGNS loss;
+(c) $S = \mathbf{A}[u,v]$ again but with a logistic loss on edges. The load-bearing
+difference is the **similarity** (and its paired loss) — the encoder and decoder are
+commodity parts this week. That is why the framework earns its place: it isolates the
+one decision that matters.
+</details>
+
+<details><summary>Q2 · Hand computation — The pipeline emits the walk (B, C, E, F) with window w = 1. List every pair in 𝒟, then write out the full SGNS term for the pair (C, E) with k = 2, naming each symbol and stating which vectors receive gradient.</summary>
+Pairs (center, context), $w=1$: (B,C), (C,B), (C,E), (E,C), (E,F), (F,E) — six pairs.
+For (C,E) with negatives $n_1, n_2 \sim P_n$:
+$\log\sigma(\mathbf{z}_C^\top\mathbf{z}_E) + \log\sigma(-\mathbf{z}_C^\top\mathbf{z}_{n_1}) + \log\sigma(-\mathbf{z}_C^\top\mathbf{z}_{n_2})$.
+Gradient flows into $\mathbf{z}_C$ (from all three terms), $\mathbf{z}_E$ (pulled
+toward $\mathbf{z}_C$), and $\mathbf{z}_{n_1}, \mathbf{z}_{n_2}$ (pushed away). No
+other rows of $\mathbf{Z}$ are touched — that locality is the entire point of negative
+sampling.
+</details>
+
+<details><summary>Q3 · p and q — A barbell graph: two 10-cliques joined by a 6-node path. Task A: embed so the two cliques form two clusters. Task B: embed so the path's bridge nodes cluster with each other. Choose (p, q) regimes for each and justify; state which task the method will do worse at even with ideal settings.</summary>
+Task A: low $q$ (DFS-flavored, e.g. $p=4, q=0.25$) — walks range within their side,
+co-occurrence = community, cliques separate. Task B wants *structural equivalence*:
+high $q$, low $p$ (BFS-flavored) keeps walks local so bridge nodes get
+bridge-fingerprint statistics — but the two bridges are far apart and rarely co-occur,
+so they cluster only weakly, via similar contexts rather than shared ones. Task B is
+the one node2vec does worse at: @prp-netmf says the optimum is a co-occurrence
+factorization, and distant role-twins have near-zero co-occurrence. Role embeddings
+need different machinery (struc2vec/GraphWave).
+</details>
+
+<details><summary>Q4 · The factorization lens — Use the NetMF statement to answer: (a) why does adding a second, disconnected copy of the graph leave every original embedding unchanged? (b) why can increasing d never hurt the training objective but can hurt downstream accuracy?</summary>
+(a) Walks never cross between components, so no cross-component pair enters
+$\mathcal{D}$: the PMI matrix is block-diagonal and each block factorizes
+independently — the copy adds rows but changes no original entries. (Corollary: a node
+with no path to labeled data gets an embedding, but one *unconstrained* relative to the
+labeled region — compare label propagation, which honestly gives it nothing.)
+(b) Larger $d$ can only lower reconstruction error of the shifted-PMI matrix (more
+rank), but the tail of that spectrum is walk-sampling noise; fitting it is
+memorization, and the downstream classifier inherits the noise. Choosing $d$ is
+choosing a rank cutoff — a bias-variance dial, not a "more is better" knob.
+</details>
+
+<details><summary>Q5 · The four walls — Match each scenario to the limitation that bites first: (a) a fraud model must score accounts created an hour ago; (b) embeddings for a 2·10⁹-node social graph; (c) two papers with near-identical abstracts get unrelated embeddings; (d) training on a small citation graph overfits although the same architecture worked on a large one.</summary>
+(a) transductive-only — new accounts have no row; (b) $O(|\mathcal{V}|d)$ parameters —
+a terabyte-scale table; (c) feature-blindness — text never enters the encoder;
+(d) no parameter sharing — each node's row is fit independently, so small graphs give
+few effective samples per parameter and nothing is amortized across structure. One
+cause underneath all four: the encoder is a table, not a function.
+</details>
+
+<details><summary>Q6 · Spot the leak — A student splits Cora's edges 90/10, trains node2vec on the full graph "since embeddings are unsupervised anyway", then evaluates dot-product link prediction on the held-out 10%. Name the flaw, predict the direction of the bias, and give the two-line fix.</summary>
+The walks crossed the held-out edges, so their endpoints co-occurred in $\mathcal{D}$
+— the test answers are inside the similarity statistics ("unsupervised" does not mean
+"can't leak"; the graph *is* the label here). Bias: AUC inflated, models ranked by how
+well they memorize rather than generalize. Fix: build the train graph *first* (test
+edges removed), run all walks and training on it, evaluate on the held-out edges
+against honestly sampled non-edges. Lab 3 measures the gap.
+</details>
+
+<details><summary>Q7 · Choosing the baseline — For each setting, say whether label propagation or shallow embeddings + classifier is the better first tool, and why: (a) 2 labels per class, strong homophily, one-off analysis; (b) labels needed as features for a downstream ranking model; (c) a heterophilous transaction graph (fraudsters transact with victims); (d) a graph with several components, labels all in one.</summary>
+(a) Label propagation — with almost no labels and high homophily it is near-optimal,
+free, and has no hyperparameters (today's Figure 4). (b) Embeddings — LP outputs
+labels, not vectors; the downstream model needs features. (c) Neither works as-is:
+LP's majority vote actively inverts under heterophily (Week 1's Q7), and walk
+co-occurrence also encodes "connected ⇒ similar". You need methods that learn the
+*sign* of the relation — a Week 7 topic. (d) LP gives the unlabeled components
+literally nothing; embeddings give them coordinates, but Q4(a) warns those coordinates
+are unanchored to the labeled region — so both need care, and saying *why* for each is
+the answer.
+</details>
+
+## Where this leaves us
+
+You can now learn a vector for anything that sits in a graph — no feature engineering,
+just walks, windows, and a sigmoid — and you know precisely what those vectors contain
+(co-occurrence, factorized) and what they miss (roles, features, unseen nodes). The
+cast graph, the karate club, and Cora have all surrendered their geometry.
+
+But look back at Lab 1's twelve Wikidata triples. *Innopolis University —
+located_in — Innopolis. Kazan — capital_of — Tatarstan.* Every edge today was a bare,
+anonymous link — while real knowledge comes as **typed, directed facts**, where
+*capital_of* and *flows_through* must not embed the same way, and where the interesting
+question is not "are these similar?" but "**is this fact true?**" Next week the
+decoder grows up: relations become geometric operations — translations, rotations —
+vectors start doing algebra, and we can ask a graph to *complete* itself. That is
+knowledge graphs, part I — the half of this course's title we have not touched yet.
+
+:::
+
+::: {.content-visible when-format="html"}
+{{< include ../assets/d3/w3-scripts.html >}}
+:::

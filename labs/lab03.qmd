@@ -1,0 +1,34 @@
+---
+title: "Lab 3 · DeepWalk from scratch"
+subtitle: "Week 3 · walks, skip-gram, SGNS — and honest evaluation"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab03_embeddings.ipynb)
+
+**≈ 25 minutes of compute · free Colab or any CPU · no GPU needed**
+
+The whole pipeline from the [Week 3 lecture](../lectures/03-embeddings.qmd), built with
+no embedding library anywhere:
+
+1. **Walks** (exercise 1): the corpus generator, with a determinism contract the
+   asserts depend on — same seed, same corpus, always.
+2. **Windows** (exercise 2): skip-gram pair extraction, checked against the lecture's
+   Q2 hand computation and the exact pair-count formula $2wL - w(w{+}1)$.
+3. **The SGNS loss** (exercise 3): the lecture's formula in PyTorch — two tables,
+   $k$ negatives, `logsigmoid` stability — trained on the karate club until the
+   factions separate (the assert knows how well).
+4. **Cora at scale** (exercise 4): wire *your own three functions* together, train
+   64-d embeddings, and extend the running measurement — statistics 18.5% →
+   +communities 61.7% → learned position ≈70%.
+5. **The leak, measured** (exercise 5): the same test edges scored by embeddings that
+   did and did not see them during walking — you will put an exact AUC number on the
+   most common evaluation bug in graph ML.
+
+Plus the t-SNE ritual (with its Pitfall-4 disclaimer) and stretch goals: a p/q-biased
+walker, Hadamard edge features, and a two-seeds experiment that shows why embedding
+coordinates are never results.
+
+**Submitting.** One executed notebook on Moodle: all five exercise checks ✓, both
+scatter plots, three reflection answers. Grading: assertions 70% · reflections 30%.
+*Restart and run all* before you submit. AI-assistant use is allowed with disclosure,
+per the honor code — the notebook's final cell restates the policy.
