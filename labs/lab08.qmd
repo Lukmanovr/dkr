@@ -1,0 +1,55 @@
+---
+title: "Lab 8 · Midterm debrief + project kickoff"
+subtitle: "Week 8 · the one lab slot with no notebook — bring your exam memory and your team"
+---
+
+**No graded notebook this week** (the lab grade takes your best 12 of the 14
+notebook labs, and this session is one of the two that don't produce one). The
+90 minutes go to two things you will not want to skip.
+
+## Part 1 · Midterm debrief (≈ 30 min)
+
+We walk the exam problem by problem, same order as on the paper:
+
+- For each question: the intended solution, the *most common* wrong answer from
+  the actual scripts, and which lecture section repairs it. (The
+  [sample exam](../exams/midterm-sample.qmd) solutions follow the same format if
+  you want a preview of the style.)
+- Grading transparency: how partial credit was assigned on the open questions.
+- Regrade process: one week from the day grades post, written request, the whole
+  script is re-marked (your score can move in either direction — this keeps
+  requests honest).
+
+Scores are typically posted to Moodle before this session; if grading runs long,
+the debrief still happens from the solution set and scores follow within days.
+
+## Part 2 · Project kickoff (≈ 60 min)
+
+Teams were formed in Week 6; the **proposal is due Week 9 (Oct 22)** — one page:
+task, dataset, method, evaluation plan, main risk. This session is a structured
+working hour to get your team from "topic" to "defensible plan":
+
+1. **Lightning statements (15 min).** Each team, 60 seconds, no slides: *what*
+   you predict/build, on *which* data, and how you'll know it worked. Saying it
+   aloud to the room is the fastest known detector of vague plans.
+2. **The four proposal questions (25 min, teams work, staff circulate).** Write
+   one crisp sentence each:
+   - the task, and why a *graph* method should help;
+   - the dataset — confirmed downloadable *today*, license checked, size stated;
+   - the baseline you must beat — per the course rule, at least one *non-graph*
+     baseline;
+   - the main risk, plus your fallback.
+3. **Risk exchange (15 min).** Teams pair up and attack each other's plans for
+   five minutes per side: leakage in the split? dataset too big for Colab?
+   evaluation that flatters memory over inference? Every attack that lands now
+   is a week saved in November.
+4. **Sign-off (5 min).** Each team leaves with its four sentences reviewed by a
+   staff member — that reviewed draft *is* the skeleton of your Week-9 proposal.
+
+Come with: your team decided (2–3 people — if you are still teamless, arrive
+early and we fix that first), a laptop per team, and the
+[topic list](../project/topics.qmd) open. The
+[project page](../project/index.qmd) has the full rubric and milestone calendar.
+
+**Also today:** [HW2](../homeworks/hw2.qmd) is released — due Thursday, Oct 29.
+It covers Weeks 5–7, so everything in it is fresh from the exam you just took.

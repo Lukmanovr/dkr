@@ -1,0 +1,58 @@
+---
+title: "Homework 2 · Deep models"
+subtitle: "Weeks 5–7 · out Oct 15 · due Thursday, Oct 29, 23:59"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/homeworks/hw02_deep_models.ipynb){target="_blank"}
+
+**≈ 5–10 hours · individual work · 10% of the course grade**
+
+One notebook, three parts, covering multi-hop reasoning, the GCN's spectral
+story, and the design space:
+
+- **Part A · Derivations (30 pts).** Four short proofs, answered in markdown
+  cells: boxes are closed under intersection (and points provably aren't enough);
+  the full eigenvalue computation of $\hat A$ on $C_4$, ending in "how many
+  layers until 1% of the signal is left"; the static-attention theorem on two
+  receivers; and which invariances mean/max aggregation buy — and when each is
+  fatal.
+- **Part B · Implementation (60 pts, autograded).** Three *deterministic*
+  exercises — no training, no seed lottery: answer a two-hop conjunctive query
+  with box geometry alone; measure the karate club's oversmoothing rate and
+  match it to $|\lambda_2|$ to two decimals; and catch static attention
+  experimentally — 100 random GATs, one constant argmax column each, then the
+  GATv2 parameters that break the pattern.
+- **Part C · Investigation (10 pts).** Extend the Week-7 ablation grid by one
+  axis (BatchNorm, DropEdge, width, GATv2, or jumping knowledge) on the provided
+  harness: hypothesis → cells with error bars → claims that cite them → scope.
+
+## Rubric
+
+| Part | Points | Graded by |
+|---|---|---|
+| A1 boxes · A2 spectrum · A3 static attention · A4 invariances | 8 + 10 + 6 + 6 | TA, per proof step |
+| B1 · B2 · B3 | 20 + 20 + 20 | autograder (visible + hidden variants) |
+| C axis isolated · seeds + error bars · claims cite cells · scope | 3 + 2 + 3 + 2 | TA |
+
+Late policy: −10% per day, up to 3 days; nothing accepted after solutions are
+released. Regrade window: one week after grades post.
+
+## FAQ
+
+**Can I hand-write Part A?** Yes — paste a *legible* photo into the markdown
+cell. Illegible scans are graded as blank.
+
+**Part B passes under SMOKE — is that enough?** The B checks are deterministic,
+so SMOKE vs full makes no difference *there* — but Part C must be run full
+(SMOKE shrinks epochs and seeds, and claims from SMOKE numbers score zero).
+
+**My B2 rate is off by 0.05.** Almost always one of two slips: the karate club's
+edges carry weights (`weight=None`!), or your $x^*$ projects onto the wrong
+eigenvector — you want the eigenvector of the *largest* eigenvalue.
+
+**May I use an AI assistant?** Yes, with disclosure in the final cell (tool +
+what for), per the honor code. You must be able to explain any line and any
+proof step in person; inability to explain is treated as undeclared use.
+
+**Something is broken / ambiguous.** Post in the course forum thread for HW2 —
+clarifications get pinned there, and everyone sees the same answers.

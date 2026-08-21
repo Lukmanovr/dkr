@@ -1,0 +1,88 @@
+---
+title: "Midterm · review & logistics"
+subtitle: "Thursday, October 15 · in the Week-8 lecture slot · 90 minutes · 15% of the course grade"
+---
+
+## Logistics
+
+| | |
+|---|---|
+| **When & where** | Thursday, Oct 15, usual lecture time and room — the exam *is* the Week-8 lecture slot |
+| **Format** | Written, on paper: ~20 questions of equal weight, roughly half multiple-choice, half open (hand computations and short explanations) |
+| **Covers** | Weeks 1–7: everything in the lecture pages and labs, through GNNs II |
+| **Aids** | None — closed book, no notes, no devices, no calculator; all arithmetic is pen-and-paper friendly |
+| **Weight** | 15% of the course grade |
+| **After** | Week-8 lab slot = exam debrief + [project kickoff](../labs/lab08.qmd); [HW2](../homeworks/hw2.qmd) releases the same day |
+
+The **[sample exam](midterm-sample.qmd)** is a full-length rehearsal with
+solutions — same length, same difficulty, same format, different questions. The
+single best predictor of your midterm score is sitting it *cold*, in one timed
+90-minute block, before reading any solution.
+
+## What "ready" means, week by week
+
+Each item below is something the exam can ask directly. Every one traces to a
+lecture section or lab exercise — follow the links when a box won't tick.
+
+**Week 1 · [Why graphs](../lectures/01-why-graphs.qmd).** Choose a representation
+(directed/undirected, weighted, bipartite, heterogeneous) for a described system
+and defend it; read an adjacency matrix or edge list; compute average degree and
+density; explain why a random test split can leak when data points are connected.
+
+**Week 2 · [Classical graph ML](../lectures/02-classical-graph-ml.qmd).** Compute
+degree, closeness, betweenness, and clustering coefficient on a ~5-node graph by
+hand; run 2–3 power iterations of simplified PageRank and find the fixed point;
+explain teleport (spider traps, dead ends); run WL color refinement on ~6-node
+graphs and state precisely what matching histograms do and do not prove;
+interpret modularity and the idea of the Louvain loop.
+
+**Week 3 · [Embeddings](../lectures/03-embeddings.qmd).** Write the skip-gram
+objective and explain negative sampling term by term (role of $k$, cost vs the
+full softmax, the shifted-PMI fixed point in one sentence); explain node2vec's
+$p$ and $q$ and match a regime to what it captures; name the four structural
+limitations that motivate GNNs (transductive, no features, no parameter sharing,
+$O(n)$ parameters); spot walk-based evaluation leaks.
+
+**Week 4 · [Knowledge graphs](../lectures/04-knowledge-graphs.qmd).** Score
+triples by hand for TransE and DistMult; prove one-line pattern results (TransE
+can't do symmetry; DistMult can't do asymmetry; why RotatE composes); compute raw
+vs filtered rank on a scored candidate list and justify filtering; state what a
+missing edge means under the open-world assumption.
+
+**Week 5 · [KG reasoning](../lectures/05-kg-reasoning.qmd).** Formalize a
+multi-hop question as a path/conjunctive query; explain why boxes (regions) are
+the right container for answer *sets* and what closure under intersection buys;
+contrast easy vs hard answers in evaluation; say when vector-RAG fails and what
+graph traversal adds.
+
+**Week 6 · [GCN](../lectures/06-gcn.qmd).** Build $\hat A = \tilde
+D^{-1/2}(A+I)\tilde D^{-1/2}$ for a tiny graph and propagate a feature vector one
+step by hand; explain each symbol's job in the GCN layer; state the low-pass /
+oversmoothing story in spectral terms; produce the uniform-features argument for
+why message passing can't separate WL-equivalent graphs.
+
+**Week 7 · [The design space](../lectures/07-gnn-design.qmd).** Fill the
+MSG/AGG/UPDATE template for GCN, SAGE, GAT, GIN; compute a SAGE, GIN, or GAT
+(softmax) update on given numbers; fill the mean/max/sum confusion table for
+one-hot multisets and say why GIN sums; state static attention and the GATv2
+fix; explain what residuals repair at depth; recall the ablation discipline (one
+factor, ≥3 seeds, error bars, claims cite cells).
+
+## How to study (in order of payoff)
+
+1. **Sit the [sample exam](midterm-sample.qmd) cold, timed.** Grade yourself with
+   its rubric. Your wrong answers are your syllabus for the remaining days.
+2. **Redo every lecture's "Check your understanding."** These self-checks were
+   written as exam-style questions; each answer links the section that teaches it.
+3. **Redo the hand-computation lab cells** (Lab 2 centralities/PageRank, Lab 6
+   propagation, Lab 7 exercise 1) *on paper* — the exam versions differ only in
+   numbers.
+4. **Rebuild the two big tables from memory**: the Week-4 relation-pattern cheat
+   sheet, and the Week-7 template table (model × MSG/AGG/UPDATE). Both are
+   standing exam material.
+5. Re-read the propositions you can't yet reprove — each proof on the exam, if
+   asked, is at most three lines.
+
+Questions before the exam go to the course forum — clarifications get pinned so
+everyone sees the same answers. On the day: bring a pen; scratch space is on the
+question paper itself.

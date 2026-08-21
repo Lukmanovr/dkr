@@ -1,0 +1,400 @@
+---
+title: "Midterm · sample exam"
+subtitle: "90 minutes · 20 questions · Weeks 1–7 — the real exam follows this format exactly"
+---
+
+This is a full-length practice exam **with solutions**. It mirrors the real midterm
+(Thursday, October 15, in the lecture slot) in length, difficulty, coverage, and
+format; the real exam asks *different* questions from the same topics. Print this
+page (solutions expand automatically in print), sit it in one honest 90-minute
+block with pen and paper, and only then read the solutions — see the
+[review page](midterm.qmd) for how to study from your mistakes.
+
+**Rules on the day** (same as printed on the real cover page): closed book, no
+notes, no devices, no calculator — every computation is designed for pen and
+paper. Multiple-choice questions have exactly one best answer. Open questions are
+graded for the reasoning, not just the final number. Each question is worth 2
+points; 20 questions, 40 points total.
+
+------------------------------------------------------------------------
+
+## Representations (Weeks 1–2)
+
+**Q1 (open).** The weighted adjacency matrix of an undirected graph is
+
+$$
+W = \begin{bmatrix}
+0 & 1.5 & 0 & 2.0\\
+1.5 & 0 & 0.5 & 0\\
+0 & 0.5 & 0 & 3.0\\
+2.0 & 0 & 3.0 & 0
+\end{bmatrix}.
+$$
+
+Draw the graph, and compute its **average degree** (degree = number of incident
+edges, ignoring weights).
+
+::: {.callout-note collapse="true" title="Solution"}
+Nonzero entries above the diagonal give the edge list: $(1,2)$ w 1.5, $(1,4)$ w
+2.0, $(2,3)$ w 0.5, $(3,4)$ w 3.0 — a 4-cycle $1\!-\!2\!-\!3\!-\!4\!-\!1$ with 4
+edges. Average degree $= 2E/N = 8/4 = \mathbf{2}$ (every node has degree exactly 2
+here). Common slip: counting each symmetric entry as its own edge and getting 4.
+:::
+
+**Q2 (MCQ).** Two adjacency matrices $A_1$ and $A_2$ of the same size have
+identical degree sequences but different entries. Which statement is correct?
+
+a. They necessarily describe the same graph, written in different node orders.
+b. They necessarily describe different graphs.
+c. They *may* describe the same graph under a node relabeling — matching degree
+   sequences are necessary but not sufficient evidence.
+d. They describe the same graph if and only if $A_1$ and $A_2$ have the same trace.
+
+::: {.callout-note collapse="true" title="Solution"}
+**(c).** A permutation $P$ relabels a graph as $PAP^\top$ without changing the
+degree multiset, so *same graph* is possible — but two genuinely different graphs
+can also share a degree sequence (a 6-cycle and two triangles both have all
+degrees 2), so it is not guaranteed. (a) and (b) each claim certainty the evidence
+cannot give; (d) is irrelevant — simple graphs all have trace 0.
+:::
+
+## Classical graph ML (Week 2)
+
+**Q3 (open).** For the graph below, compute: the **degree of every node**, the
+**clustering coefficient of C**, the **closeness centrality of C** (normalized,
+$\frac{n-1}{\sum_u d(C,u)}$), and the **betweenness of C** (unnormalized: the
+number of shortest paths between other pairs that pass through C, counting each
+pair once).
+
+{{< include ../assets/figures/fig-mt-centrality.html >}}
+
+::: {.callout-note collapse="true" title="Solution"}
+Degrees: A 2, B 2, **C 3**, D 2, E 1. Clustering of C: neighbors $\{A,B,D\}$ form
+$\binom{3}{2}=3$ possible pairs, of which one (A–B) is an edge → $\mathbf{1/3}$.
+Closeness of C: distances 1, 1, 1, 2 to A, B, D, E → $4/5 = \mathbf{0.8}$.
+Betweenness of C: the pairs (A,D), (A,E), (B,D), (B,E) each have a *unique*
+shortest path, and each runs through C → $\mathbf{4}$. (Pairs inside the triangle
+use their direct edge; (D,E) is an edge.)
+:::
+
+**Q4 (open).** For the directed graph below, run **two power iterations** of
+simplified PageRank (no teleport): start from $r^{(0)} = (\tfrac13, \tfrac13,
+\tfrac13)$ and split each node's rank equally over its out-links. Then find the
+**fixed point** — the ranks that no longer change.
+
+{{< include ../assets/figures/fig-mt-pagerank.html >}}
+
+::: {.callout-note collapse="true" title="Solution"}
+Out-degrees: X 1, Y 2, Z 1. Each round: X collects half of Y plus all of Z; Y
+collects all of X; Z collects half of Y.
+
+$$r^{(1)} = \left(\tfrac16+\tfrac13,\; \tfrac13,\; \tfrac16\right) = \left(\tfrac12, \tfrac13, \tfrac16\right), \qquad
+r^{(2)} = \left(\tfrac16+\tfrac16,\; \tfrac12,\; \tfrac16\right) = \left(\tfrac13, \tfrac12, \tfrac16\right).$$
+
+Fixed point: solve $r_X = \tfrac12 r_Y + r_Z$, $r_Y = r_X$, $r_Z = \tfrac12 r_Y$
+with $r_X+r_Y+r_Z=1$: $\mathbf{(2/5,\ 2/5,\ 1/5)}$ — check: $\tfrac15+\tfrac15 =
+\tfrac25$. ✓
+:::
+
+**Q5 (MCQ).** Real PageRank adds a teleport term, $r = \beta M r + (1-\beta)
+\frac{1}{n}\mathbf{1}$. What goes wrong *without* it?
+
+a. Power iteration diverges to infinity on any graph with a cycle.
+b. Spider traps (groups with no way out) absorb all rank, and dead ends (no
+   out-links) leak rank out of the system entirely.
+c. The computation becomes quadratic in the number of edges.
+d. Rank becomes proportional to in-degree, which is trivial.
+
+::: {.callout-note collapse="true" title="Solution"}
+**(b).** Both pathologies are absorption/leakage problems of the pure random walk;
+teleport makes the chain irreducible and aperiodic, guaranteeing one positive
+stationary distribution. (a) is impossible — the update conserves total rank
+(dead ends *shrink* it, never grow it); (c) confuses convergence with cost per
+iteration; (d) is false in general — PageRank on the Q4 graph is not ordered by
+in-degree alone.
+:::
+
+**Q6 (open).** Run **Weisfeiler–Leman color refinement** on the two graphs below,
+both starting from uniform colors. Give the color histograms after rounds 1
+and 2, state when refinement stabilizes, and say what the WL test concludes —
+and whether that conclusion is *correct*.
+
+{{< include ../assets/figures/fig-mt-wl.html >}}
+
+::: {.callout-note collapse="true" title="Solution"}
+Every node in both graphs has degree 2, so after round 1 every node has collected
+the same multiset $\{c_0, c_0\}$ and receives the same new color: histogram
+$\{6\}$ in both graphs. Round 2 repeats the situation — the partition never
+splits, so refinement is stable after one round. WL therefore reports **"possibly
+isomorphic."** That conclusion is *wrong*: $G_1$ is disconnected and $G_2$ is a
+single cycle. This is the standard demonstration that WL is **sound but not
+complete** — identical histograms prove nothing, only *different* histograms
+prove non-isomorphism.
+:::
+
+## Shallow embeddings (Week 3)
+
+**Q7 (MCQ).** In node2vec, walks are biased by the return parameter $p$ and
+in-out parameter $q$. Setting $q \ll 1$ (with $p$ moderate) produces walks that…
+
+a. …stay close to the start node, capturing local structural roles.
+b. …wander outward, DFS-style, so embeddings capture community membership.
+c. …revisit the previous node often, approximating breadth-first search.
+d. …become uniform random walks, recovering DeepWalk exactly.
+
+::: {.callout-note collapse="true" title="Solution"}
+**(b).** Small $q$ makes *moving away* from the previous node cheap, so walks
+range across the community — nodes far apart in the same region co-occur, and the
+embedding encodes homophily. (a)/(c) describe the opposite regime (small $p$,
+BFS-like); (d) requires $p = q = 1$, not $q \ll 1$.
+:::
+
+**Q8 (open).** The skip-gram objective replaces the full softmax with negative
+sampling:
+
+$$\log \sigma(z_u^\top z_v) + \sum_{i=1}^{k} \mathbb{E}_{n_i \sim P_n}\!\left[\log \sigma(-z_u^\top z_{n_i})\right].$$
+
+Explain the role of each of the two terms, why this approximates the softmax at a
+tiny fraction of its cost, and what role $k$ plays.
+
+::: {.callout-note collapse="true" title="Solution"}
+The first term pushes the embeddings of nodes that *do* co-occur on walks toward
+high inner product; the second pushes $u$ away from $k$ *sampled* non-neighbors.
+The full softmax normalizes over all $n$ nodes — $O(n)$ per update — precisely so
+that raising one similarity implicitly lowers the rest; negative sampling makes
+that competition explicit with $k$ sampled contrast points, at cost $O(k)$,
+$k \approx 5\text{–}20$. Larger $k$ gives a lower-variance gradient (and shifts
+the fixed point: SGNS factorizes PMI shifted by $\log k$); $k$ trades compute for
+statistical sharpness — it is not a regularizer, and $k=0$ collapses the loss
+(everything can be pushed to similarity 1).
+:::
+
+**Q9 (MCQ).** You learn DeepWalk embeddings on a co-authorship graph, then
+evaluate link prediction on a random 10% of edges you hid *after* learning. Your
+AUC is suspiciously excellent. The most likely explanation is:
+
+a. DeepWalk is simply an excellent link predictor on co-authorship data.
+b. The walks were generated on the full graph, so the "hidden" edges shaped the
+   embeddings — the evaluation leaks.
+c. AUC is the wrong metric for link prediction under class imbalance.
+d. The embedding dimension was too large, causing overfitting.
+
+::: {.callout-note collapse="true" title="Solution"}
+**(b).** Test edges must be removed *before* walk generation; walks that crossed
+a test edge deposit exactly the co-occurrence signal the evaluation then
+"predicts." In Lab 3 this leak inflated AUC from 0.824 to 0.997 on Cora — an
+effect far larger than any modeling choice. (a) explains nothing suspicious; (c)
+is a real concern but affects both honest and leaky pipelines equally; (d) would
+depress, not inflate, test performance.
+:::
+
+## Knowledge graphs (Week 4)
+
+**Q10 (open).** A TransE model has 2-dimensional embeddings: $e_{\text{Inno}} =
+(1,0)$, $e_{\text{Tat}} = (1,1)$, $e_{\text{Mos}} = (3,2)$, and
+$r_{\text{located\_in}} = (0,1)$. Using the score $-\lVert h + r - t\rVert$,
+which of the triples (Inno, located_in, Tat) and (Inno, located_in, Mos) does the
+model prefer, and by what distances? Then prove in one line: TransE with
+$r \neq 0$ cannot make a relation **symmetric** (both $(a,r,b)$ and $(b,r,a)$
+scoring perfectly).
+
+::: {.callout-note collapse="true" title="Solution"}
+$h + r = (1,1)$. Distance to Tat: $\lVert (1,1)-(1,1)\rVert = \mathbf{0}$
+(perfect). Distance to Mos: $\lVert (1,1)-(3,2)\rVert = \sqrt{4+1} =
+\mathbf{\sqrt5} \approx 2.24$. The model prefers (Inno, located_in, Tat).
+Symmetry proof: perfect scores mean $a + r = b$ and $b + r = a$; adding the two
+equations gives $2r = 0$, contradicting $r \neq 0$. $\square$
+:::
+
+**Q11 (MCQ).** DistMult scores a triple as $\langle h, r, t\rangle = \sum_i h_i
+r_i t_i$. Its structural limitation is that it…
+
+a. …cannot model any relation that is transitive.
+b. …assigns every relation the same score to $(h,r,t)$ and $(t,r,h)$, so it
+   cannot represent one-directional facts.
+c. …requires all embeddings to be non-negative.
+d. …cannot be trained with negative sampling.
+
+::: {.callout-note collapse="true" title="Solution"}
+**(b).** The trilinear product is unchanged by swapping $h$ and $t$, so every
+relation is forced symmetric — *supervises*, *capital_of*, *parent_of* are all
+beyond it, which is why ComplEx moves to complex conjugation. In HW1 you caught
+this on camera: after 1,500 training steps the forward/reverse score gap was
+$\sim 2\times10^{-7}$. (a) is false (symmetry, not transitivity, is the issue);
+(c) and (d) are simply untrue.
+:::
+
+**Q12 (open).** For the query $(h, r, ?)$ your model scores five candidate tails:
+$t_1: 0.9$, $t_2: 0.8$, $t_3: 0.7$, $t_4: 0.6$, $t_5: 0.5$ (higher is better).
+The correct answer is $t_3$. The training set also contains the true triple
+$(h, r, t_1)$. Compute the **raw rank** and the **filtered rank** of $t_3$, and
+say in one sentence why filtered is the honest one.
+
+::: {.callout-note collapse="true" title="Solution"}
+Raw: two candidates outscore $t_3$ → rank $\mathbf{3}$. Filtered: $t_1$ is a
+*known true answer*, so it is removed from the competition; only $t_2$ remains
+above → rank $\mathbf{2}$. Filtering is honest because the model should not be
+punished for ranking a *different correct answer* above the test answer — raw
+rank penalizes knowledge, filtered rank penalizes only genuine mistakes.
+:::
+
+## Multi-hop reasoning (Week 5)
+
+**Q13 (MCQ).** Query2box embeds queries as boxes rather than points chiefly
+because…
+
+a. …boxes have more parameters, so they fit the training data better.
+b. …a conjunction of queries becomes an intersection of regions, and boxes are
+   closed under intersection while points cannot represent an answer *set* at all.
+c. …box distance is faster to compute than point distance.
+d. …boxes eliminate the need for negative sampling.
+
+::: {.callout-note collapse="true" title="Solution"}
+**(b).** A query's answer is a *set* of entities; a region can contain a set, a
+point cannot. Conjunction ("drugs that target COX **and** treat inflammation")
+requires intersecting answer sets, and the intersection of axis-aligned boxes is
+again an axis-aligned box — representation closed under the operator the problem
+demands. That closure argument, not capacity (a) or speed (c), is the design
+principle of the whole Week 5 arc.
+:::
+
+**Q14 (open).** A user asks: *"Which mentor of our lab's founder also worked at
+Bell Labs?"* Explain why plain vector-similarity retrieval (embed the question,
+fetch nearest documents) tends to fail here, and what a GraphRAG-style system
+does instead. Two or three sentences.
+
+::: {.callout-note collapse="true" title="Solution"}
+The answer lives at the end of a *chain* — founder → mentor → employer — and no
+single document need be similar to the question text; similarity retrieval
+fetches documents about "our lab" or "Bell Labs" but the connecting entity may
+appear in neither. A GraphRAG system resolves the question to a starting entity,
+*traverses* typed edges (founded_by, mentored_by, worked_at) to assemble the
+chain, and hands the resulting subgraph to the language model as context — the
+graph supplies the multi-hop structure that embedding similarity cannot.
+:::
+
+## GCN (Week 6)
+
+**Q15 (open).** For the path graph $1 - 2 - 3$, form $\hat A =
+\tilde D^{-1/2}(A+I)\tilde D^{-1/2}$ and propagate the feature vector $x =
+(1, 0, 0)^\top$ one step (identity weights, no nonlinearity). Give all three
+output values exactly and interpret the zero.
+
+::: {.callout-note collapse="true" title="Solution"}
+Degrees with self-loops: $\tilde d = (2, 3, 2)$. The nonzero entries of $\hat A$:
+$\hat A_{11} = \tfrac12$, $\hat A_{12} = \hat A_{21} = \tfrac{1}{\sqrt6}$,
+$\hat A_{22} = \tfrac13$, $\hat A_{23} = \hat A_{32} = \tfrac1{\sqrt6}$,
+$\hat A_{33} = \tfrac12$. So
+
+$$\hat A x = \left(\tfrac12,\; \tfrac{1}{\sqrt6},\; 0\right) \approx (0.5,\; 0.408,\; 0).$$
+
+Node 3 stays at **0** because it is two hops from the signal and one layer moves
+information exactly one hop — the receptive-field fact that motivates stacking
+layers (and, at depth, invites oversmoothing).
+:::
+
+**Q16 (MCQ).** Stacking many plain GCN propagation layers (no residuals) makes
+node representations collapse toward each other. The mechanism is:
+
+a. Vanishing gradients prevent the deep layers from training.
+b. Repeated multiplication by $\hat A$ is a low-pass filter — components along
+   all non-dominant eigenvectors decay geometrically, leaving features
+   proportional to a single dominant direction.
+c. The ReLU nonlinearity saturates after ~4 layers.
+d. Self-loops accumulate, making every node its own dominant neighbor.
+
+::: {.callout-note collapse="true" title="Solution"}
+**(b).** $\hat A$'s spectrum lies in $(-1, 1]$ with the top eigenvector
+$\propto \tilde D^{1/2}\mathbf 1$; powers of $\hat A$ kill every other component
+at rate $|\lambda_i|^K$. This happens *even with no training at all* — it is a
+property of the propagation operator, which is why the Week 7 repair shop fixes
+it architecturally (residuals, restart) rather than with a better optimizer (a).
+:::
+
+**Q17 (MCQ).** Give both graphs of Q6 uniform node features (every node the
+vector $\mathbf 1$). A GCN of *any* depth produces node embeddings on $G_1$ (two
+triangles) and $G_2$ (hexagon) such that:
+
+a. Sufficient depth eventually separates the two graphs.
+b. Every node in both graphs gets the *same* embedding, so any pooled graph
+   representation is identical — the GCN provably cannot tell them apart.
+c. The graphs are separated if and only if mean pooling is replaced by max.
+d. The GCN separates them because their Laplacian spectra differ.
+
+::: {.callout-note collapse="true" title="Solution"}
+**(b).** With identical features and identical degrees everywhere, every node
+sees the same self-value and the same neighbor multiset at every layer — the
+computation graphs are indistinguishable, so all node embeddings stay equal
+(this is exactly the WL argument of Q6 in linear-algebra clothes: message
+passing is bounded by WL). Depth doesn't help (a), pooling can't separate equal
+multisets of equal vectors (c), and the GCN never sees the spectrum (d) —
+spectral *fingerprints* from HW1 do separate this pair, which is the point of
+contrasting them.
+:::
+
+## The design space (Week 7)
+
+**Q18 (open).** Two neighborhoods have one-hot features $t = (1,0)$, $g = (0,1)$.
+For each pair below, mark which of **mean / max / sum** aggregators are *confused*
+(produce identical outputs) and which *separate* the pair:
+
+| pair | mean | max | sum |
+|---|---|---|---|
+| $\{t\}$ vs $\{t, t\}$ | | | |
+| $\{t,t,g\}$ vs $\{t,g,g\}$ | | | |
+
+::: {.callout-note collapse="true" title="Solution"}
+Row 1: mean $(1,0)$ vs $(1,0)$ **confused**; max $(1,0)$ vs $(1,0)$ **confused**;
+sum $(1,0)$ vs $(2,0)$ **separates** — only sum sees multiplicity. Row 2: mean
+$(\tfrac23,\tfrac13)$ vs $(\tfrac13,\tfrac23)$ **separates**; max $(1,1)$ vs
+$(1,1)$ **confused**; sum $(2,1)$ vs $(1,2)$ **separates**. Moral: over one-hot
+(countable) features sum dominates — it recovers the exact multiset — which is
+why GIN aggregates with sum; mean keeps proportions, max keeps only support.
+:::
+
+**Q19 (open).** GAT scores an edge as $e_{vu} = \text{LeakyReLU}\!\left(
+\mathbf a^\top [\mathbf W h_v \,\Vert\, \mathbf W h_u]\right)$. State the
+**static attention** limitation this creates (one sentence identifying *what*
+cannot be expressed), and give the GATv2 repair (one line).
+
+::: {.callout-note collapse="true" title="Solution"}
+Split $\mathbf a^\top[\cdot\Vert\cdot]$ into a receiver term plus a sender term:
+for a fixed receiver, the *ranking* of senders is determined by the sender term
+$\mathbf a_2^\top \mathbf W h_u$ alone — the **same ranking for every receiver**
+— so no pattern where different receivers prefer different senders (e.g., "query
+$i$ attends to key $i$") is expressible. GATv2 moves the nonlinearity inside:
+$e_{vu} = \mathbf a^\top \text{LeakyReLU}\!\left(\mathbf W [h_v \Vert
+h_u]\right)$, letting receiver and sender interact before the score, which kills
+the separation argument.
+:::
+
+**Q20 (MCQ).** GraphSAGE can embed a node that did not exist during training;
+DeepWalk cannot. The reason is:
+
+a. GraphSAGE trains longer, so it generalizes better.
+b. DeepWalk's parameters *are* the per-node embedding table, while GraphSAGE
+   learns aggregation functions applied to node features — new node, same
+   functions.
+c. GraphSAGE stores the training graph and looks up the nearest known node.
+d. DeepWalk could do it too if the walks were long enough.
+
+::: {.callout-note collapse="true" title="Solution"}
+**(b).** This is the inductive/transductive divide: DeepWalk's only knowledge is
+a learned vector per training node — an unseen node has no row in the table and
+no walks behind it. GraphSAGE's knowledge is *how to compute* an embedding from a
+neighborhood's features, so it applies unchanged to nodes (or entire graphs)
+never seen in training. (d) is false in principle, not just in practice: no walk
+statistics exist for a node absent from the graph.
+:::
+
+------------------------------------------------------------------------
+
+## After you sit it
+
+Score yourself: 2 points per question, partial credit on open questions for
+correct method with arithmetic slips. **32+/40** — you are ready; review only
+what you missed. **24–31** — solid; redo the missed topics' lecture self-checks
+and the corresponding lab exercises. **Below 24** — work back through the
+[review page](midterm.qmd) checklist week by week, labs before lectures. Every
+solution above names the lecture concept it tests, so a wrong answer points at
+exactly one thing to re-read.

@@ -63,10 +63,18 @@ website:
             text: "Lab 6 · GCN from scratch → PyG"
           - href: labs/lab07.qmd
             text: "Lab 7 · The design-space ablation"
+          - href: labs/lab08.qmd
+            text: "Lab 8 · Debrief + project kickoff"
       - section: Assessments
         contents:
           - href: homeworks/hw1.qmd
             text: "HW1 · Foundations (due Oct 1)"
+          - href: exams/midterm.qmd
+            text: "Midterm · review & logistics (Oct 15)"
+          - href: exams/midterm-sample.qmd
+            text: "Midterm · sample exam + solutions"
+          - href: homeworks/hw2.qmd
+            text: "HW2 · Deep models (due Oct 29)"
       - section: Project
         contents:
           - href: project/index.qmd
