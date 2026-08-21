@@ -49,6 +49,20 @@ come with a story that good.
 
 {{< include ../assets/figures/fig-w1-hero.html >}}
 
+It is worth thirty seconds on *how* he did it, because the method is a fossil record
+of this whole course. Zachary modeled the club as a capacitated network — friendships
+as pipes, with capacities from how many settings each pair interacted in — declared
+Mr. Hi the source and the Officer the sink, and computed the **minimum cut**: the
+cheapest set of friendships whose removal disconnects the two leaders. His prediction:
+the club would tear along that cut, each member staying on their leader's side of it.
+No learning, no features, no probability — one combinatorial optimization on pure
+structure, and 33 of 34 members landed where the cut said they would. Hold the shape
+of that in mind: a quantity defined on edges (the cut), minimized over partitions,
+predicting node behavior. In §3 today you will meet the matrix that *measures* cuts;
+in Week 2 you will minimize it; by Week 6 a neural network will be descended from it.
+The karate club is not a cute example — it is the course's origin story, and we will
+recompute it with better tools at least three more times.
+
 That is the thesis of this course, in one 1977 result: **connections carry information
 that lives nowhere else.** No column in a spreadsheet about these 34 people — age, rank,
 years of membership — predicts the split like the friendships do. The information *is*
@@ -57,6 +71,21 @@ the structure.
 Half a century later, the systems around you run on the same idea at billion-node scale:
 
 {{< include ../assets/figures/fig-w1-systems.html >}}
+
+Put numbers on the panels, because the scale is the point. Google's Knowledge Graph
+reported five *billion* entities and five hundred billion facts back in 2020 — every
+search box query touches it. Pinterest's recommender propagates signals over a graph
+of billions of pins and boards; Google Maps' ETA system, in production since 2020,
+treats road networks as graphs and runs a graph neural network over them for a billion
+users. The molecule panel is the one with a Nobel-adjacent punchline: the 2020
+discovery of the antibiotic halicin came from a graph-level model screening millions
+of candidate molecular graphs — structure-based prediction finding, in hours, what
+bench chemistry had missed for decades. And the quietest panel is the most universal:
+every company's relational database *is* a graph wearing tables (foreign keys are
+edges), which is why Week 14's "relational deep learning" may be the most
+career-relevant session of the course. None of these systems could exist on
+spreadsheet features alone; all of them are Zachary's move — read the structure —
+industrialized.
 
 This course teaches you to **represent** such data (this week and next), to **learn**
 from it (embeddings, then graph neural networks), and to **reason** over it (knowledge
@@ -118,11 +147,83 @@ which we treat as a first-class citizen of this course starting Week 4; **multig
 when a pair can be connected more than once (two transactions between the same
 accounts).
 
+Each of those names deserves more than a parenthesis, because each one is a place
+where a real project quietly went right or wrong. Take them one at a time.
+
+**Directed graphs** are not "graphs with arrows added" — they are a different
+epistemic object. In an undirected graph, an edge is a fact about a *pair*; in a
+directed graph it is a fact about an *ordered* pair, and the two directions can carry
+opposite meanings. A paper with ten thousand incoming citations is a classic; a paper
+with ten thousand *outgoing* citations is a literature review. A Twitter account
+followed by millions is a celebrity; an account *following* millions is a bot. Every
+directed graph therefore has two degree notions — in-degree and out-degree — and two
+different neighborhood structures, and any analysis that conflates them has already
+made an error. When we reach PageRank in Week 2, the entire algorithm will turn out to
+be a machine for exploiting precisely this asymmetry.
+
+**Weighted graphs** attach a magnitude to each edge, and the modeling question is
+*what the magnitude means*, because downstream algorithms will take your answer
+literally. Is weight a **capacity** (road lanes, bandwidth), where algorithms should
+sum flows? A **cost** (travel time), where algorithms should minimize sums along
+paths? A **similarity** (correlation between stocks), where larger means closer? Or a
+**count** (messages exchanged), where the scale is heavy-tailed and probably wants a
+logarithm before any model sees it? The same number, interpreted four ways, feeds four
+different pipelines. The karate club, incidentally, ships with edge weights — the
+number of shared activities per friendship — and Lab 2 will step on this exact rake,
+on purpose: many library functions silently *use* weights if present.
+
+**Bipartite graphs** — two node sets, edges only across — are the quiet workhorse of
+industry, because "who bought what", "who rated what", "who clicked what" are all
+bipartite. One operation on them is so common it deserves its own warning label:
+**projection**. To get a "products bought together" graph from a users×products graph,
+you connect two products whenever some user bought both. Feel what that does to sizes:
+a single user with 100 purchases creates $\binom{100}{2} = 4{,}950$ product–product
+edges all by herself. Projections are dense, they weight hub users quadratically, and
+they *destroy information* — after projecting, you can no longer tell whether two
+products share one buyer or a thousand (unless you kept counts as weights, which you
+should). Rule of thumb: model bipartite data *as* bipartite whenever your tooling
+allows it (Week 14's recommender architectures do), and treat projection as a lossy
+export, not a neutral convenience.
+
+**Heterogeneous graphs and multigraphs** are what enterprise data actually looks
+like: patients, doctors, drugs, and diagnoses are not interchangeable node types, and
+"prescribed" and "diagnosed-with" are not interchangeable edges. You *can* flatten a
+heterogeneous graph into a homogeneous one — forget the types — and sometimes that is
+the right first baseline, but the types are signal: a path
+patient→drug→patient means "shared medication", while patient→doctor→patient means
+"shared physician", and a model that cannot tell those apart is averaging over
+meanings. Weeks 4–5 treat the fully-typed case (knowledge graphs), and Week 10 builds
+neural models that respect types natively. Multigraphs — several edges between one
+pair — appear whenever events repeat (transactions, messages, flights); collapsing
+them to a weighted single edge is the standard move, and the standard information
+loss: the *timing pattern* of a hundred transfers between two accounts is exactly
+what a fraud model wants, and a weight of 100 has thrown it away. Which brings us to
+**temporal graphs**, where edges carry timestamps and the graph is really a process;
+we defer them to Week 14, but plant the flag now: whenever your edges have
+timestamps, splitting data randomly instead of by time is a leakage machine (you will
+hear this warning again, with numbers).
+
 One modeling honesty note before moving on: sometimes there is no graph until *you*
 build one — practitioners routinely create k-nearest-neighbor graphs over plain
 vectors, co-occurrence graphs over text, correlation graphs over time series. The graph
-is then a lens you chose, and every conclusion downstream inherits that choice. We will
-return to this in the pitfalls.
+is then a lens you chose, and every conclusion downstream inherits that choice: a
+k-NN graph with $k=5$ and one with $k=50$ can give *opposite* answers about community
+structure, and a correlation graph thresholded at 0.5 versus 0.7 can change which
+assets look "central" in a portfolio. None of these graphs is wrong; all of them are
+decisions. We will return to this in the pitfalls.
+
+::: {.callout-note title="A three-minute history: seven bridges, one abstraction" collapse="true"}
+The founding move of graph theory was itself a *modeling* act. Königsberg, 1736: can
+one walk crossing each of the city's seven bridges exactly once? Euler's insight was
+not the answer but the representation — the landmasses matter only as meeting points,
+the bridges only as connections; shape, size, and geography are noise. Two centuries
+before the word "graph" existed, that is precisely the act you perform every time you
+turn a database into `edge_index`: deciding which of reality's details are structure
+and which are noise. (Euler's answer, using nothing but degrees — the first graph
+statistic, three sections early: an Eulerian walk exists only if zero or two
+landmasses touch an odd number of bridges. Königsberg had four odd ones; the walk is
+impossible. Degrees will start earning their keep for us in §3.)
+:::
 
 ## 2. Handing a graph to a computer
 
@@ -167,11 +268,87 @@ without ever materializing the matrix — you will meet this trick as "sparse ma
 Week 6 and live inside it from then on.
 :::
 
+Since we are following the money, follow it one level deeper — into what each
+representation makes *fast*, because that, not storage alone, decides what production
+systems use. Four operations cover most of graph computing: **edge query** ("are $u$
+and $v$ connected?"), **neighbor iteration** ("give me all of $u$'s neighbors"),
+**edge iteration** ("stream every edge once"), and **matrix products** ("propagate a
+signal one hop"). The dense matrix answers edge queries in $O(1)$ and multiplies
+natively, but neighbor iteration costs $O(n)$ per node — you scan a whole row of
+mostly zeros, which for a sparse graph is almost all wasted work. The adjacency list
+iterates neighbors in $O(d_u)$ — optimal — but answers edge queries in $O(d_u)$ too
+(scan the list), which is why systems that need fast membership add a hash set on the
+side. The raw edge list is unbeatable for streaming and for building the *others*,
+but supports neither query efficiently. And the format the fine print of every graph
+library actually runs on is a fourth one you should recognize on sight: **CSR**
+(compressed sparse row) — the adjacency list flattened into two arrays, one holding
+all neighbors consecutively, one holding each node's offset into it. CSR is the
+adjacency list with the pointer-chasing removed: contiguous memory, cache-friendly,
+and the input format of every serious sparse-matrix multiply. PyG's `edge_index` is
+COO because COO is easy to *edit* and batch; the moment heavy computation starts,
+frameworks convert to CSR behind your back. Knowing this saves you real debugging
+hours later: "why did my model get faster when I sorted the edge list?" has a
+one-word answer, and the word is CSR.
+
+Two memory calculations to internalize, because they come up in interviews and in
+capacity planning alike. First: Cora, $n = 2{,}708$. Dense $\mathbf{A}$ at 4 bytes:
+$2{,}708^2 \times 4 \approx 29$ MB — fits anywhere, dense is *fine* at this scale,
+and pretending otherwise is cargo-culting. Second: a mid-size industrial graph,
+$n = 10^8$ users. Dense: $10^{16} \times 4$ bytes = 40 **petabytes** — not "slow",
+nonexistent. Edge list at 50 friends each: $2 \times 50 \times 10^8 \times 8$ bytes
+≈ 80 GB — a large but shippable artifact. The boundary between the two regimes sits
+around $n \sim 10^5$, and "sparse or nothing" is a statement about which side of it
+you are on, not an ideology.
+
 Real graphs are dramatically sparse: Cora averages under 4 citations per paper;
 ogbn-products, with 2.4 million products, averages ~50 co-purchases — meaning its
-adjacency matrix would be **99.998% zeros**. Feel the scaling yourself:
+adjacency matrix would be **99.998% zeros**. Sparsity is not an inconvenience to
+engineer around; it is a *fact about the world* (a person maintains ~150
+relationships whether the platform has a thousand users or a billion), which is why
+$m = O(n)$ — not $O(n^2)$ — is the safe default assumption for every complexity
+estimate you will make in this course. Feel the scaling yourself:
 
 {{< include ../assets/d3/w1-cost.html >}}
+
+### The shape of the real thing
+
+Sparsity is the first fact about real networks; three more will shape every method in
+this course, and you should meet them before any of those methods, so that later
+design choices read as responses rather than conventions.
+
+**Degrees are wildly unequal.** Plot the degree distribution of almost any real
+network and you will not see a bell curve — you will see a heavy tail: most nodes
+have a handful of edges, and a tiny minority have thousands. In the karate club,
+degrees run from 1 to 17 across just 34 members; on the web, from zero to hundreds of
+millions. The practical consequences arrive immediately and never leave. A random
+edge is far more likely to touch a hub than a random node is *to be* one — so
+anything that samples edges (walks, Week 3; message passing, Week 6) over-represents
+hubs unless corrected. Averages mislead: "the average paper has 4 citations" is true
+of Cora and describes almost no individual paper. And hubs are single points of both
+efficiency and failure — remove the top 1% of nodes by degree and many real networks
+shatter, which is either a vulnerability (infrastructure) or a strategy
+(immunization), depending on which side you are on. You will meet this tail again as
+"degree bias" in at least four different costumes this semester; it is worth one
+minute now to see that they are all the same animal.
+
+**Distances are absurdly short.** In a graph with heavy-tailed degrees and a little
+randomness, almost everyone is within a few hops of almost everyone — six degrees of
+separation is the folklore version; measured values on billion-user social graphs
+come out near four and a half. For us this is a *warning* dressed as a marvel: any
+procedure that expands neighborhoods hop by hop (BFS, message passing) reaches an
+enormous fraction of the graph within 3–4 steps. "Look three hops out" sounds local
+and is not — on Cora, three hops from a typical paper already touches thousands. When
+Week 6 builds models out of hops, the small-world fact is why *depth* will behave
+strangely there.
+
+**Closure is everywhere.** Real networks have far more triangles than chance would
+give them — your friends tend to know each other. The karate club's members cluster
+into tight knots; citation networks close triangles every time a paper cites two
+papers that cite each other. Week 2 turns this into a number (the clustering
+coefficient) and into features; for now it is one more entry in the growing case that
+*structure is informative*: a random graph with Cora's size and density would look
+nothing like Cora, and everything this course does is, in one way or another, a
+machine for cashing in that difference.
 
 ## 3. First numbers from pure structure
 
@@ -181,7 +358,32 @@ objects, all built from $\mathbf{A}$, will follow us to Week 15.
 **Degree.** $d_u = \sum_v \mathbf{A}[u,v]$ — how connected a node is; collected into the
 diagonal **degree matrix** $\mathbf{D}$. In the karate club, Mr. Hi and the Officer are
 the two highest-degree nodes — the hubs the factions formed around. (Degree is the first
-and crudest of the *centralities*; Week 2 builds the full toolbox.)
+and crudest of the *centralities*; Week 2 builds the full toolbox.) Two bookkeeping
+facts and one genuine theorem come free with the definition. Bookkeeping first: summing
+degrees counts each edge twice, so $\sum_u d_u = 2m$ always — the **handshake lemma**,
+and your fastest sanity check on any loaded dataset ("does the degree sum match twice
+my edge count? no? your loader symmetrized, or didn't"). And a convention warning that
+costs real debugging time: for directed graphs, some books define $\mathbf{A}[u,v]=1$
+for an edge $u \to v$ and some for $v \to u$; row sums are then out-degrees in one
+convention and in-degrees in the other. This course fixes $\mathbf{A}[u,v] = 1 \iff
+(u,v) \in \mathcal{E}$, rows = sources; check any other source's fine print before
+copying its formulas.
+
+The theorem is the **friendship paradox**, and it is the heavy tail of §2 biting for
+the first time: *on average, your friends have more friends than you do.* Precisely —
+pick a random node and ask for its degree: expected value $\bar d = 2m/n$. Pick a
+random *edge* and ask an endpoint's degree: expected value
+$\frac{\sum_u d_u^2}{\sum_u d_u} = \bar d + \frac{\mathrm{Var}(d)}{\bar d} \ge \bar d$,
+with equality only when every degree is equal. The proof is one rearrangement — a node
+of degree $d$ is an endpoint of $d$ edges, so edge-sampling weights each node by its
+own degree, and high-degree nodes are oversampled by exactly their excess. On the
+karate club: $\bar d = 2 \cdot 78/34 \approx 4.6$, while the mean degree of a random
+friendship's endpoint works out to $\approx 7.8$ — your average club-mate's friend is
+nearly twice as connected as the average club-mate. This is not a party trick: it is
+the mathematical core of why random walks oversample hubs (Week 3 corrects for it),
+why sampling neighbors is not sampling nodes (Week 6's SAGE must care), and why
+immunizing the *friends of* random people beats immunizing random people. One
+inequality, four weeks of consequences.
 
 **Walks, by matrix power.** Here is the first genuinely surprising payoff of the matrix
 representation:
@@ -243,6 +445,42 @@ once (via $d_v$); so both sums range over edges:
 $\sum_{(u,v) \in \mathcal{E}} (x_u^2 + x_v^2 - 2x_u x_v) = \sum_{(u,v) \in \mathcal{E}} (x_u - x_v)^2$. $\square$
 </details>
 
+There is a fourth representation we skipped in §2 because it earns its keep only now:
+the **incidence matrix** $\mathbf{B} \in \mathbb{R}^{n \times m}$, one column per
+edge. Orient each undirected edge arbitrarily and put $+1$ at its head row, $-1$ at
+its tail row, zeros elsewhere — each column is a little "difference operator" for one
+edge. It is rarely how you *store* a graph (it is even bigger than the dense
+adjacency for $m > n$), but it explains the Laplacian in one identity:
+
+::: {#prp-incidence .proposition name="The Laplacian factorizes"}
+$\mathbf{L} = \mathbf{B}\mathbf{B}^\top$, for any choice of edge orientations. In
+particular $\mathbf{x}^\top \mathbf{L} \mathbf{x} = \|\mathbf{B}^\top \mathbf{x}\|^2$,
+which re-proves both PSD-ness and the quadratic form at a glance:
+$\mathbf{B}^\top \mathbf{x}$ is the vector of per-edge differences $(x_u - x_v)$, and
+its squared norm is their sum of squares.
+:::
+
+<details><summary>Proof (multiply one entry)</summary>
+$(\mathbf{B}\mathbf{B}^\top)_{uv} = \sum_{e} B_{ue} B_{ve}$. For $u = v$: each edge at
+$u$ contributes $(\pm 1)^2 = 1$, totaling $d_u$. For $u \neq v$: only the edge $(u,v)$
+(if present) has both rows nonzero, contributing $(+1)(-1) = -1$ regardless of the
+orientation chosen. That is exactly $\mathbf{D} - \mathbf{A}$. $\square$
+</details>
+
+So the Laplacian is literally "difference, then aggregate" — the square of a
+derivative-like operator — which is why it measures variation, why its kernel is the
+constants (differences all zero ⟺ constant per connected piece), and why physicists
+keep finding it in diffusion and electricity: it *is* the discrete second derivative.
+The factorization also hands us a structural fact for free: the number of **connected
+components** equals $n - \operatorname{rank}(\mathbf{B})$, and your BFS from
+algorithms class computes it in $O(n + m)$ — always the first statistic to check on a
+new dataset, because many "mysterious" results (isolated test nodes scoring at
+chance; embeddings drifting for one cluster) are just an unnoticed second component.
+Real networks typically have one **giant component** holding most nodes and a dust of
+tiny ones; Cora's giant component covers ~92% of papers, and the other 8% are exactly
+the nodes structure-based methods can say least about — remember them when they
+reappear as outliers in Week 3.
+
 Why care, this week? Because "how much does a quantity vary across edges" is the
 mathematical form of the question the karate club answered: allegiance varied *little*
 across friendships — friends chose the same side. That tendency has a name you will use
@@ -251,6 +489,45 @@ and the Laplacian is the instrument that measures it. Next week $\mathbf{L}$ fin
 communities; in Week 6 its eigenvectors become the *frequencies* of a graph and explain
 what "convolutional" means in GCN. When a matrix keeps showing up like that, learn its
 face early.
+
+**The Laplacian's normalized cousins.** One refinement now, because it costs two
+lines today and saves confusion in three separate future weeks. The plain
+$\mathbf{L} = \mathbf{D} - \mathbf{A}$ treats a disagreement across an edge the same
+whether the endpoints have two neighbors or two thousand — and in heavy-tailed graphs
+(see §2) that lets hubs dominate every sum. The standard repair is to normalize by
+degrees, and there are two conventional ways:
+
+$$
+\mathbf{L}_{\text{sym}} = \mathbf{I} - \mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2},
+\qquad
+\mathbf{L}_{\text{rw}} = \mathbf{I} - \mathbf{D}^{-1}\mathbf{A}.
+$$
+
+Read the objects being subtracted, because both will headline later weeks:
+$\mathbf{D}^{-1}\mathbf{A}$ has rows summing to one — it is a **transition matrix**,
+"average over my neighbors", the exact operator a random walker uses (Week 2's
+PageRank walks on it, Week 3's DeepWalk samples from it). The symmetric version
+$\mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2}$ splits the degree correction evenly
+between both endpoints, stays symmetric (so its eigenvectors behave, Week 6), and —
+with one small modification you will meet as the "renormalization trick" — is
+*literally the matrix inside the GCN layer*. Hand-check on the cast graph, row $A$:
+$d_A = 3$, its neighbors $B, C, D$ have degrees $2, 4, 1$, so row $A$ of
+$\mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2}$ has entries
+$1/\sqrt{3 \cdot 2} \approx 0.41$ toward $B$, $1/\sqrt{3 \cdot 4} \approx 0.29$
+toward $C$, and $1/\sqrt{3 \cdot 1} \approx 0.58$ toward $D$ — the hub $C$
+contributes with the *smallest* coefficient, the leaf $D$ with the largest. That
+inversion — normalization deliberately quieting hubs — is a design decision you now
+understand three weeks before the papers that made it famous.
+
+**What walk-counting is for.** Lest $(\mathbf{A}^k)$ read as an algebra exercise:
+common-neighbor counts ($\mathbf{A}^2$) are the baseline behind friend suggestion;
+$(\mathbf{A}^3)$'s diagonal counts triangles, which Week 2 turns into clustering
+features; damped sums $\sum_k \beta^k \mathbf{A}^k$ — "walks of all lengths, long
+ones discounted" — are Katz centrality, a Week 2 protagonist and the conceptual
+grandparent of PageRank; and the matrices whose products a GCN computes are, as we
+just saw, normalized relatives of $\mathbf{A}$, so a $k$-layer GCN's receptive field
+is exactly the length-$k$ walk structure you can now count. One proposition, five
+weeks of dividends.
 
 ## 4. Three levels of asking
 
@@ -272,6 +549,38 @@ Semi-supervised framing, which will be our default: in the karate club, imagine 
 observed the choices of only *four* members and had to fill in the other thirty from
 the friendship structure. That — few labels, full structure — is exactly the setting of
 Cora and of Week 6.
+
+The level you pick dictates three engineering decisions, and it is worth previewing
+them now so that when they recur weekly they feel like old acquaintances.
+
+**What a "data point" is.** At node level, examples share one graph — they are *not*
+independent, since neighbors leak information to each other, and that non-independence
+is simultaneously the signal you want and the leakage you must control. At graph
+level, each graph is a genuinely independent example, and classical ML intuitions
+(i.i.d. splits, cross-validation) apply almost unchanged. Edge level is the strange
+middle: your examples are pairs, your negatives are *absences* (which, as Week 4 will
+make painfully precise, are not the same as falsehoods), and the number of potential
+examples is $O(n^2)$ while the positives are $O(n)$ — extreme class imbalance is the
+default, not the exception.
+
+**How to split honestly.** Node level: you hide *labels*, not nodes — the structure
+stays visible, which is the point of semi-supervised learning, but it means a careless
+feature pipeline can smuggle test labels through the graph (a theme with its own
+dramatic episodes in Weeks 3 and 5). Edge level: you must hide *edges*, and every
+upstream computation — walks, features, anything touching adjacency — must run on the
+train graph only; violating this is the single most common broken evaluation in graph
+ML, and Lab 3 will make you measure its cost in AUC points. Graph level: split by
+graphs, but watch for near-duplicates (the same molecule under two IDs) and for
+covariate shift between collections. If your split has timestamps available, split by
+time; the future does not leak into the past, and models deployed in production live
+in forward-time whether your benchmark did or not.
+
+**What to report.** Node level under class imbalance: accuracy flatters, use
+per-class metrics. Edge level: ranking metrics (AUC now; Hits@K and MRR when we reach
+KGs) because the task is "rank the true pair above the absent ones". Graph level:
+whatever the domain demands — chemistry cares about ROC-AUC on rare actives. The
+common thread: the level defines the population you are averaging over, and most
+metric disputes are secretly disputes about that population.
 
 ## 5. The ordering trap
 
@@ -296,6 +605,26 @@ now, carry the warning: **node order is storage, not information.**
 :::
 :::
 
+Let us make the demand precise enough to use, because it will quietly grade every
+method in this course. Write $\mathbf{P}$ for the permutation matrix of a renumbering.
+A function that outputs one value per *graph* — "is this molecule toxic?" — must be
+**permutation-invariant**:
+$f(\mathbf{P}\mathbf{A}\mathbf{P}^\top,\, \mathbf{P}\mathbf{X}) = f(\mathbf{A}, \mathbf{X})$;
+renumber the atoms, same verdict. A function that outputs one value per *node* —
+"which members join Mr. Hi?" — cannot be invariant (its output has an order too);
+instead it must be **permutation-equivariant**: renumber the inputs and the outputs
+renumber the same way,
+$f(\mathbf{P}\mathbf{A}\mathbf{P}^\top,\, \mathbf{P}\mathbf{X}) = \mathbf{P}\, f(\mathbf{A}, \mathbf{X})$
+— predictions travel *with* their nodes. Two sanity checks you can run in your head:
+the degree vector is equivariant (renumber nodes, degrees follow), and the sorted
+degree sequence is invariant (renumbering cannot touch it) — so both are legitimate
+features, which is why Week 2 can build on them. The flattened adjacency matrix fed
+to an MLP is neither, which is the theorem-shaped version of the trap above. Every
+representation this course constructs — centralities, WL colors, walk embeddings (up
+to a subtlety Week 3 will confess), message passing — earns its place by passing this
+test, and the one method that fails it will fail it in public, in Week 6, with a
+seven-hundred-twenty-way contradiction as the exhibit.
+
 ## Common pitfalls
 
 ::: {.callout-warning title="Pitfall 1 · Reaching for the dense matrix because the formula has an A in it" icon="false"}
@@ -316,7 +645,9 @@ which of your relations are truly symmetric; it is a modeling claim, not a defau
 Someone chose those edges — a logging pipeline, a thresholded similarity, a k-NN
 builder, a business rule. Different choice, different graph, different conclusions.
 Interrogate the edge definition of any dataset before trusting results on it; when
-*you* build the graph, report the recipe as part of the model.
+*you* build the graph, report the recipe as part of the model. Even Cora — the
+field's fruit fly — is a set of curatorial choices about which citations count, and
+its several circulating versions differ enough to move published numbers by a point.
 :::
 
 ::: {.callout-warning title="Pitfall 4 · Judging a graph by its hairball" icon="false"}
@@ -343,6 +674,17 @@ against assertions), compute degrees, $\mathbf{A}^2$, and the Laplacian in torch
 verifying @exm-walks numerically — and take a first look at Cora, the dataset that
 returns in Week 6. Plus a two-minute detour into a real Wikidata fragment, so knowledge
 graphs are concrete objects before Week 4 formalizes them.
+
+A note on how labs work in this course, since this is the first: every lab is a single
+Colab notebook with a pinned environment (the same one, all fifteen weeks — the setup
+cell *is* the contract), exercises guarded by assertion ladders whose failure messages
+tell you *what to check* rather than merely that you failed, and a couple of
+predict-before-you-run prompts that are worth taking seriously — the thirty seconds of
+commitment before executing a cell is where most of the learning condenses. The
+assertions you see are the graded contract; run them as often as you like. Nothing in
+any lab requires a GPU until deep into the GNN weeks, and even then free Colab
+suffices — a deliberate constraint, because a method you can only afford to run once
+is a method you cannot debug.
 
 ## Required reading
 
@@ -427,7 +769,21 @@ one-hot-neighborhood vector: it cannot transfer to graphs of other sizes and tre
 are cured by the permutation-invariant machinery this course builds.
 </details>
 
-<details><summary>Q7 · Transfer — Zachary's model predicted the split from structure. State the assumption that made this possible, and describe a real network where the same method would fail badly.</summary>
+<details><summary>Q7 · Projection — A streaming service has 10⁶ users and 10⁴ films. An analyst projects the bipartite watch-graph onto films ("watched by a common user") to cluster them. One power-user has watched 8,000 films. Estimate that single user's contribution to the projection, name the two distortions this causes, and propose the cheap fix.</summary>
+One user watching $8{,}000$ films contributes $\binom{8000}{2} \approx 3.2 \times 10^7$
+film–film edges — likely more than the rest of the users combined, welding a near-clique
+across almost the whole catalogue. Distortions: (1) density explosion — the projection
+can approach $\binom{10^4}{2} \approx 5 \times 10^7$ edges, destroying the sparsity
+every algorithm in §2 depends on; (2) semantic drowning — every film pair this one
+account touched becomes "related", so clusters reflect power-user behavior, not taste
+structure. Cheap fixes: keep co-watch *counts* as weights and threshold them; down-weight
+users by $1/\binom{d_u}{2}$ or simply cap/drop extreme-degree users before projecting;
+or best, skip projection and model the bipartite graph directly (Week 14). The general
+lesson is the friendship paradox in disguise: pair-counting weights users
+quadratically in degree, so the tail runs the result.
+</details>
+
+<details><summary>Q8 · Transfer — Zachary's model predicted the split from structure. State the assumption that made this possible, and describe a real network where the same method would fail badly.</summary>
 Homophily: allegiance varied smoothly across friendships (small $\mathbf{x}^\top \mathbf{L}\mathbf{x}$
 for the allegiance signal). A heterophilous counterexample: a bipartite
 fraudster–victim transaction network — connected nodes are systematically *opposite*,
@@ -445,6 +801,13 @@ centralities that found search engines, a relabeling trick from 1968 that will t
 to bound what neural networks can ever see on a graph, and the community-finding
 machinery that Zachary's little club launched. That is Week 2: **classical graph ML —
 structure as features.** Bring the Laplacian; it works there too.
+
+And keep today's three quiet theorems within reach as you go, because the whole
+semester leans on them: the handshake lemma (your data-sanity reflex), walks-by-powers
+(the counting device under every propagation method to come), and the quadratic form
+(the cut-meter that connects a 1977 anthropologist to a 2017 neural architecture). A
+course is mostly a small number of ideas wearing increasingly good clothes; you have
+now met most of the ideas.
 
 :::
 

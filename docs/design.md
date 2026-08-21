@@ -575,7 +575,11 @@ it", ≥4 manipulable widgets with suggested experiments, details-on-demand (hov
 glossary, collapsibles); (18–20) rigor with scaffolding: complete derivations, notation
 discipline, honest failures; (21–24) memory & transfer: cross-week callbacks, takeaway
 anchors, pitfalls-as-inoculation, a production touchpoint; (25) conversational
-second-person voice.
+second-person voice; (26) **depth target: 8,000–9,000 visible words per lecture**
+(instructor decision 2026-08-21; measured by the site's reading-time counter, i.e.
+visible prose — collapsed proofs/details do not count toward it). The words must be
+substance — worked examples, derivations, practice/deployment context — never padding;
+the Week-6 pilot (~8.4k) is the calibration reference.
 
 *Measured 2026-08-21 (Lighthouse, localhost, simulated slow-4G): Accessibility 100 ·
 Best-practices 100 · Performance 55.* The performance score is dominated by ~2 MB of

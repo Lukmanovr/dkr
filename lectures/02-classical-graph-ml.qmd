@@ -113,6 +113,32 @@ leading eigenvector of $\mathbf{A}$, computable by repeated multiplication (powe
 iteration — sum your neighbors, normalize, repeat until it stops changing). This is the
 recursion from the hero figure, one teleport short of PageRank.
 
+Two footnotes on the computations, for the reader who wants the machinery rather than
+the library call. Betweenness looks like it needs all-pairs shortest paths, and
+naively it does; the algorithm everyone uses — **Brandes (2001)** — gets the same
+numbers in $O(nm)$ by a two-pass trick per source: a BFS forward pass counts, for
+every node, *how many* shortest paths from the source reach it, and a reverse pass
+accumulates each node's share of the paths flowing through it (a "dependency" that
+telescopes down the BFS tree). One BFS-shaped computation per source instead of one
+per pair — it is the reason betweenness is computable at all on graphs of a few
+hundred thousand nodes, and the reason it still is *not* at web scale, where sampled
+approximations (run Brandes from a few hundred random sources) are standard. Second
+footnote: between plain degree and full eigenvector centrality sits **Katz
+centrality**, and Week 1's walk-counting proposition makes it transparent:
+$$
+\mathbf{x}_{\text{Katz}} \;=\; \sum_{k=1}^{\infty} \beta^k \mathbf{A}^k \mathbf{1}
+\;=\; \bigl((\mathbf{I} - \beta\mathbf{A})^{-1} - \mathbf{I}\bigr)\,\mathbf{1},
+$$
+"count every walk that ends at me, discounting length-$k$ walks by $\beta^k$." Small
+$\beta$: degree, essentially. Large $\beta$ (approaching $1/\lambda_{\max}$, where the
+series stops converging): the leading eigenvector takes over. Katz matters to us for
+two reasons — it fixes eigenvector centrality's zero-score problem on directed graphs
+(a node with no inlinks still gets its $\beta \cdot d$ baseline… and in the original
+formulation every node gets a constant boost), and its "damped walks plus a baseline"
+design is one small step from the fixed point we derive next. The conceptual sequence
+degree → Katz → PageRank is one dial being turned, and knowing it turns exam questions
+about "compare these centralities" into recitations of a single idea.
+
 Now stop reading definitions and *push on them* — every score below recomputes live as
 you edit the graph:
 
@@ -141,7 +167,13 @@ The selection discipline, in one table:
 A warning that saves exam points and real projects: centrality scores are
 *graph-relative*. A betweenness of $6$ means nothing across graphs of different sizes;
 comparisons are only meaningful within one graph (or after normalization, which every
-library offers and every paper forgets to state).
+library offers and every paper forgets to state). And a habit worth forming now:
+whenever a centrality drives a *decision* — who to vaccinate, which server to harden,
+whose account to review — compute at least two of them and look at where they
+disagree. The disagreements are not noise; they are the two definitions answering
+different questions, and the disagreement set is usually where the interesting cases
+live. The kite's Heather — invisible to degree, indispensable to betweenness — has a
+counterpart in every real network you will ever analyze.
 
 ## 2. PageRank: importance as a fixed point
 
@@ -171,8 +203,8 @@ $1-\beta$ jump to a uniformly random page:
 $$
 \mathbf{r} \;=\; \beta M \mathbf{r} \;+\; (1-\beta)\,\tfrac{1}{n}\mathbf{1}.
 $$
-The damping factor $\beta$ is traditionally $0.85$ — roughly, five or six clicks before
-boredom. Teleporting rescues dead ends (mass reappears everywhere) and drains spider
+The damping factor $\beta$ is traditionally $0.85$ — roughly, five or six clicks
+before boredom, a number chosen empirically in 1998 and never seriously dethroned. Teleporting rescues dead ends (mass reappears everywhere) and drains spider
 traps (the trap leaks $1-\beta$ of its mass per step).
 
 ::: {#prp-pagerank .proposition name="PageRank exists, is unique, and power iteration finds it"}
@@ -211,6 +243,20 @@ $\mathbf{r} = (0.4, 0.4, 0.2)$. Notice $X$ and $Y$ tie — $Y$ has fewer inlinks
 single inlink carries half of a big page's mass. This is the midterm's favorite
 computation; practice until the update is mechanical.
 :::
+
+Three practicalities separate the formula from a deployment, and each is a known
+interview question. **Dead ends, properly:** the teleport fixes their *convergence*
+problem, but implementations must still decide where a dangling page's $\beta$-mass
+goes each step — the standard choice redistributes it uniformly (equivalent to adding
+outlinks to everywhere), and forgetting this makes rank totals drift below one, a bug
+you can detect with a single `sum()` assertion (Lab 2's does). **Stopping:** the
+contraction guarantees error shrinks by $\beta$ per step, so to reach tolerance
+$\varepsilon$ you need $\log \varepsilon / \log \beta$ iterations — about 90 for
+$\varepsilon = 10^{-6}$ at $\beta = 0.85$; note the *ranking* usually stabilizes far
+earlier than the values, which matters when the ranking is all you ship. **Scale:**
+each iteration is one sparse matrix–vector product, $O(m)$ — PageRank on the full web
+was, and remains, a triumph of exactly the sparse-representation discipline Week 1
+preached; nobody has ever materialized the web's adjacency matrix.
 
 **Personalized PageRank.** One word in the story is load-bearing: teleport to a
 *uniformly random* page. Change the teleport distribution to a single page $q$ — or a
@@ -262,6 +308,19 @@ A closed 3-walk cannot repeat a vertex (it would need a self-loop), so it is exa
 triangle at $u$ traversed in one of its 2 orientations. The trace then counts each
 triangle twice at each of its 3 vertices. $\square$
 </details>
+
+Two versions of "the graph's clustering" circulate, and they disagree often enough to
+cause real confusion in papers. The **average clustering coefficient**
+$\bar C = \frac{1}{n}\sum_u C_u$ gives every node one vote — so a million tight
+little triangles among degree-2 nodes dominate it. The **global transitivity**
+$T = \frac{3 \times \#\text{triangles}}{\#\text{wedges}}$ (a *wedge* being a path of
+two edges — a potential triangle) gives every wedge one vote — so hubs, who own most
+wedges, dominate it. Hand-check both on the cast graph: wedges from the degree
+formula, $\sum_u \binom{d_u}{2} = 3 + 1 + 6 + 0 + 1 + 1 = 12$; triangles, two ($ABC$
+and $CEF$); so $T = 3 \cdot 2 / 12 = 0.5$, while $\bar C$ averages the six local
+values from above. On heavy-tailed graphs the two can differ by an order of magnitude, and
+"clustering coefficient = 0.6" is not a claim until you say which one. When reading
+any network paper, this is the first definition to check; when writing one, state it.
 
 **Graphlets.** Triangles are one member of a family: count *all* small subgraph shapes
 — the wedge, the triangle, the 4-path, the 4-star, the square, and so on — around each
@@ -352,9 +411,12 @@ random while preserving all degrees.
 :::
 
 The null model is the load-bearing wall. $d_u d_v / 2m$ is the expected number of edges
-between $u$ and $v$ under degree-preserving random rewiring — so two hubs being
-connected earns a community almost no credit (hubs connect to everyone), while two
-low-degree nodes being connected is genuine evidence of togetherness. $Q$ ranges over
+between $u$ and $v$ under degree-preserving random rewiring — picture cutting every
+edge in half and re-splicing the $2m$ loose ends uniformly at random: a stub of $u$'s
+meets a stub of $v$'s with probability $d_u d_v / 2m$-ish, and that is the baseline
+$Q$ subtracts. So two hubs being connected earns a community almost no credit (hubs
+connect to everyone under the null anyway), while two low-degree nodes being connected
+is genuine evidence of togetherness. $Q$ ranges over
 roughly $[-\tfrac12, 1)$; hand-waving calibration: real community structure typically
 lands in $0.3$–$0.7$.
 
@@ -401,6 +463,28 @@ precisely to escape such plateaus by moving whole groups at once. One caution be
 you trust any $Q$: Louvain can produce internally *disconnected* communities as moves
 interact; the **Leiden** algorithm (2019, optional reading) repairs this with a
 refinement step and is what you should reach for in production. `networkx` ships both.
+
+Two more facts complete your modularity education. First, the objective connects back
+to §4.1's spectra: Newman showed that maximizing $Q$ over bisections relaxes to an
+eigenvector problem for the **modularity matrix**
+$\mathbf{B} = \mathbf{A} - \frac{\mathbf{d}\mathbf{d}^\top}{2m}$ (observed minus
+expected, entrywise — the null model as a matrix), whose *leading* eigenvector's signs
+propose the split, exactly as the Laplacian's *Fiedler* eigenvector did for cuts. Two
+different objectives, one spectral escape hatch; recognizing the pattern is worth more
+than either instance. Second, the famous **resolution limit**, with numbers instead of
+folklore. Take a ring of $c$ cliques, each of $k$ nodes, joined by single edges — an
+unambiguous ground truth if there ever was one. Merging two adjacent cliques changes
+modularity by $\Delta Q = \frac{1}{m} - \left(\frac{k(k-1)+2}{2m}\right)^{\!2} \cdot 2 + \cdots$
+— the exact algebra is Lab 2's stretch goal, but the punchline is checkable: once the
+graph is big enough that $m \gtrsim k^2 c$-ish (precisely: when cliques have fewer
+than $\sim\sqrt{2m}$ internal edges), the merge *increases* $Q$, and the optimizer
+happily fuses perfect communities into pairs. On a ring of 24 triangles ($m = 96$),
+maximum-modularity solutions merge neighbors — the ground truth is not the optimum.
+Moral: $Q$ compares partitions *at a scale set by the whole graph's* $m$; small
+structure is invisible to it by design, not by accident. When small communities are
+the object of interest — fraud rings, protein complexes — use a resolution parameter
+(both `networkx` implementations accept one) and scan it, or use methods with a
+different null.
 
 ## 5. The 1968 relabeling trick
 
@@ -457,7 +541,25 @@ $O(hm)$ — linear in edges — while beating the combinatorially expensive grap
 kernels on most chemistry benchmarks. For a decade this was *the* way to classify
 graphs, and it is the classifier you will build for protein graphs in the lab.
 
-File one sentence away for later: **in Week 9 we will prove that message-passing GNNs
+Compute one kernel value by hand, because the mechanism is simpler than the notation
+suggests. Let $G_1$ be our cast graph and $G_2$ the cast graph with edge $EF$ deleted.
+Round 0: both graphs are all one color — six nodes each, so the round-0 histograms
+contribute $6 \times 6 = 36$ to the inner product. Round 1 refines by degree. $G_1$:
+degrees $(3,2,4,1,2,2)$ → color counts $\{$deg-1: 1, deg-2: 3, deg-3: 1, deg-4: 1$\}$.
+$G_2$: deleting $EF$ drops $E$ and $F$ to degree 1 → counts
+$\{$deg-1: 3, deg-2: 1, deg-3: 1, deg-4: 1$\}$. Shared colors multiply:
+$1{\cdot}3 + 3{\cdot}1 + 1{\cdot}1 + 1{\cdot}1 = 8$. Running total
+$K(G_1, G_2) = 36 + 8 + \cdots$, with later rounds adding less and less as the
+partitions diverge — while $K(G_1, G_1)$ racks up $36 + 12 + \cdots$. One deleted
+edge, and the kernel already sees the two graphs drifting apart at round 1: that
+sensitivity, at $O(hm)$ prices, is the entire sales pitch. (Two library-shaped
+footnotes: real implementations hash signatures into a shared global table so
+feature vectors align across a whole dataset — your Lab 2 `wl_refine` already does
+this; and the counts are usually normalized per graph before the SVM, or big
+molecules dominate simply by having more nodes to count.)
+
+File one sentence away for later — arguably the most consequential sentence of the
+first half of this course: **in Week 9 we will prove that message-passing GNNs
 can never distinguish two graphs that WL cannot distinguish.** The 1968 trick is not
 just a feature extractor — it is the ceiling of an entire architecture class you have
 not met yet. When the hexagon returns, remember it fooled us honestly today.
@@ -502,6 +604,19 @@ engineering:
 Hold on to the baseline numbers, though. A GNN that cannot beat "logistic regression on
 seven structural features" is not a deep insight — it is a bug report, and in this
 course you will treat it as one.
+
+A closing word on the word "classical", because it is often mistaken for "obsolete".
+The methods of this lecture run today, at scale, in production: PageRank variants
+rank far more than web pages (papers, proteins, transaction risk); Louvain/Leiden is
+the workhorse inside modern LLM-retrieval systems you will meet in Week 5; WL is,
+verbatim, the preprocessing step of the strongest graph-classification baselines and
+— as Week 9 proves — the *ceiling* of an entire neural architecture family. What
+"classical" actually means here is *cheap, interpretable, and assumption-explicit*:
+you can compute these features on a laptop, explain each one to a regulator, and say
+precisely which structural regularity each exploits. The deep methods coming next
+trade away all three properties for adaptivity. Professionals keep both toolboxes
+and know the exchange rate; that exchange rate is, in a sentence, what the rest of
+this course teaches.
 
 ## Common pitfalls
 
@@ -678,7 +793,7 @@ vector of free parameters, and the graph itself — through random walks that yo
 understand as PageRank's cousins — trains those vectors so that nearby nodes land
 nearby in space. The method arrives from an unexpected direction: a 2013 breakthrough
 about *words* that graph people hijacked within a year. Bring your intuition about
-random surfers; in Week 3 they learn to write.
+random surfers with you on Thursday; in Week 3, they learn to write.
 
 :::
 

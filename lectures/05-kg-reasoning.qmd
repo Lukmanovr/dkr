@@ -23,12 +23,24 @@ After this lecture (and Lab 5) you can:
 
 ## The question that is a path
 
-A pharmacologist asks: *"which drugs target a protein associated with this
-inflammation pathway?"* An analyst asks: *"which companies are owned by subsidiaries
-of sanctioned entities?"* A student asks: *"which courses are prerequisites of
-prerequisites of this one?"* None of these is a fact — each is a **path with a
-variable in the middle**, marching through a knowledge graph that Week 4 taught you
-to regard with suspicion: incomplete at every single hop.
+Begin with the questions this week exists to answer. A pharmacologist asks:
+*"which drugs target a protein associated with this inflammation pathway?"* A compliance analyst asks: *"which companies are owned by subsidiaries
+of sanctioned entities?"* A student registering for next semester asks: *"which
+courses are prerequisites of prerequisites of this one?"* None of these questions is a fact — each is a **path with a
+variable in the middle**, marching hop by hop through a knowledge graph that Week 4
+taught you to regard with suspicion: incomplete at every single hop.
+
+Notice also what kind of questions these are, sociologically: they are the
+*valuable* ones. Single-fact lookups — a capital, a birth year — are cheap precisely
+because they are stated somewhere; multi-hop questions are where analysis happens,
+because their answers are *implied* by the record without appearing in it — no
+document lists "companies owned by subsidiaries of sanctioned entities", which is
+exactly why a compliance analyst is paid to derive the list. The pattern generalizes:
+drug discovery, intelligence analysis, supply-chain risk, curriculum planning — in
+each, the question's worth is proportional to the number of hops between what is
+written and what is asked. Week 4 built a machine for one hop. Today's problem is
+that value lives at two hops and beyond, and one-hop machines, chained naively,
+decay there — by exactly how much, you are about to predict.
 
 ::: {.predict}
 **Commit before you look.** Suppose single-hop completion is quite good: each hop of a
@@ -49,16 +61,19 @@ week's idea: don't chain answers, **embed the question**.
 {{< include ../assets/figures/fig-w5-hero.html >}}
 
 The figure's dashed edge is Week 4's open-world assumption coming home: Naproxen *does*
-target COX-2 in the world, but nobody wrote it down — so the traversal answer is not
-wrong, it is *incomplete in exactly the way the graph is*. A query answerer worth
-deploying must complete *while it walks*.
+target COX-2 in the world (it is an NSAID like its neighbors), but nobody wrote it
+down — so the traversal answer is not wrong, it is *incomplete in exactly the way the
+graph is*, and it fails silently: nothing about the returned set announces a member
+is missing. A query answerer worth deploying must complete *while it walks*.
 
-**Roadmap.** (1) Queries, formalized — and the two ways chaining dies. (2) The week's
-big idea: queries as geometric regions, Query2box's operators, and what boxes can and
-cannot close over. (3) Evaluation that separates inference from memorization. (4) The
-LLM era, part one: GraphRAG — structure as a retrieval index for language models.
-(5) Part two: language models as KG builders, and the three failures to engineer
-against. Plus: the **course project launches today**.
+**Roadmap.** (1) Queries, formalized — the shape taxonomy, and the two quantitative
+ways chaining dies. (2) The week's big idea: queries as geometric regions,
+Query2box's operators with worked numbers, what boxes can and cannot close over, and
+the search-based rival. (3) Evaluation that separates inference from memorization.
+(4) The LLM era, part one: GraphRAG — structure as a retrieval index for language
+models, with the full pipeline anatomy. (5) Part two: language models as KG
+builders, the three failures, and the three-pattern map of the whole KG×LLM space.
+Plus: the **course project launches today**.
 
 ::: {.callout-note title="Recap — what this lecture assumes" collapse="true"}
 - **Week 4**: triples, the open-world assumption, completion-as-ranking, filtered
@@ -79,9 +94,54 @@ answers. Write the hero query as
 $$
 q(D) \;=\; \exists P:\; \textit{assoc}(P, \text{Inflammation}) \,\wedge\, \textit{targets}(D, P),
 $$
-and draw it as a **computation DAG**: anchor → relation edge → variable → relation
-edge → answer variable. Intersections appear when two branches constrain the same
-variable; unions and negation extend the language (and will stress our geometry).
+and read it aloud once, because the notation earns its keep only if it stays
+attached to meaning: "the answers are the drugs $D$ for which *there exists* some
+protein $P$ — we do not care which — that is associated with Inflammation and
+targeted by $D$." The existential is the crux: the query never asks you to *name*
+the intermediate protein, only to be confident one exists, and that is exactly the
+looseness that lets embedding methods skip enumerating it. Draw the query as a
+**computation DAG**: anchor → relation edge → variable → relation edge → answer
+variable. Intersections appear when two branches constrain the same variable; unions
+and negation extend the language (and will stress our geometry). Databases have
+answered such queries for fifty years — SPARQL would dispatch the hero query in
+milliseconds — so be precise about what is *new* here: the database's contract is
+"answers entailed by stored facts", flawless and complete relative to the store,
+and mute about everything the store forgot. Our contract is "answers plausible
+given the stored facts" — weaker, riskier, and the only one that can say
+*Naproxen*. Both contracts have customers; this lecture is about serving the second
+without lying about which contract you are under.
+
+The query language this machinery targets has a name and a taxonomy, and both are
+worth owning because every paper in this literature speaks them. The class is
+**EPFO** queries — Existential Positive First-Order: conjunction, disjunction, and
+$\exists$, but no negation and no universal quantifier (each exclusion will earn its
+explanation today). Within it, the field standardized on nine query *shapes*, named
+by their DAGs: the **path family** — `1p` (plain completion: one anchor, one hop —
+all of Week 4 was this shape), `2p`, `3p` (longer chains, our hero is a `2p`); the
+**intersection family** — `2i`, `3i` (two or three 1-hop branches meeting at the
+answer: "proteins associated with Inflammation AND targeted by Aspirin"); the
+**mixed shapes** — `ip` (intersect, then project onward: "drugs targeting [the
+proteins in both pathways]") and `pi` (project along one branch, intersect with
+another); and the **union shapes** `2u`, `up`. Training conventionally sees only
+five shapes (`1p 2p 3p 2i 3i`); the rest are evaluated zero-shot, because the entire
+bet of query embedding is that *operators*, not query shapes, are what gets learned
+— learn projection and intersection well, and `ip` compiles out of parts the model
+has never seen assembled. That compositional bet, incidentally, is the same one
+language modeling makes about syntax, and its success here predates its fame there.
+
+Unions deserve their promised one paragraph now rather than a footnote later,
+because the trick is used verbatim in production systems. Any EPFO query can be
+rewritten into **disjunctive normal form** — a union of purely conjunctive queries —
+by the distributive law, so a system that handles conjunctive shapes handles unions
+by embedding each branch separately and scoring an entity by its *best* branch
+(minimum distance over branches). Worked micro-example: "drugs for Inflammation
+**or** Diabetes" becomes two `2p` branches — one anchored at each disease — and
+Metformin, hopeless in the Inflammation branch, enters the answer set through the
+Diabetes branch's box. The costs are honest: DNF can blow up exponentially for
+deeply nested unions (rare in practice), and "min over branches" quietly assumes
+branch scores are comparable — which trained models mostly deliver and nothing
+guarantees. Keep the rewrite in your pocket; it converts every union question about
+this lecture into a conjunction question.
 
 On a *complete* graph, answering is database technology — subgraph matching, done.
 On a real KG, chaining one-hop steps dies twice, as your prediction computed:
@@ -95,6 +155,17 @@ Watch both modes run — strict traversal, then completion-aware answering:
 
 {{< include ../assets/d3/w5-query.html >}}
 
+The widget's soft mode is deliberately the *crudest* possible completion-aware
+answerer — threshold a Week-4 scorer per hop — and it already surfaces the design
+questions the rest of the lecture answers properly. How confident must an unstated
+edge be to cross the threshold, and who calibrates that? (Nobody can, under the open
+world — §2 sidesteps thresholds entirely by ranking.) Should hop two trust hop one's
+soft additions as firmly as its stated facts? (The widget does; principled methods
+carry the softness forward instead.) And where does the compute go as queries deepen?
+(The widget scores candidates per hop — the frontier again; §2's whole point is
+refusing to do that.) A crude baseline that provokes the right questions is worth
+more than a polished one that hides them; keep this trick for your own projects.
+
 ## 2. Queries as regions: Query2box
 
 Here is the move, and it is Week 3's move aimed at a new target: we embedded nodes,
@@ -105,6 +176,22 @@ is consumed, the answers are simply *the entities near the final representation*
 intermediate entities are ever enumerated — depth costs a matrix op, not a
 combinatorial frontier.
 
+Pause on how strange and how disciplined this is. Strange: the object being embedded
+is not a thing in the world but a *sentence about* the world — a logical formula gets
+coordinates, and its geometric neighborhood *is* its answer set. Disciplined: it is
+still nothing but the filing cabinet, filled in one more time. Encoder: anchor
+lookup composed with learned operators (the first non-table encoder of the semester,
+one week before GNNs make that upgrade everywhere). Decoder: distance from an entity
+to the query's region. Similarity: query–answer pairs sampled from the graph. Loss:
+the same margin-vs-corruption shape as Week 4, with corrupted *answers* as
+negatives. Every skill you have — negative-sampling hygiene, filtered ranking,
+leakage paranoia — transfers without modification, which is exactly why the course
+built the cabinet before building this. And note what trained operators buy that
+Week 4's per-fact scores cannot: the *composition* of two projections is computed
+inside the space, so the error of hop two conditions on the *soft* output of hop
+one rather than on a hard, possibly-wrong intermediate decision — the arithmetic
+reason the $0.9^3$ compounding from the predict block does not apply.
+
 One design question remains: what *kind* of object should a query's representation be?
 A point fails for a reason you can state precisely: a query with many answers needs a
 representation that many entities can be simultaneously close to — and a point picks
@@ -114,11 +201,29 @@ coordinatewise:
 
 - **Projection** (apply relation $r$): $\mathbf{c} \mathrel{+}= \mathbf{c}_r$,
   $\mathbf{o} \mathrel{+}= \mathbf{o}_r$ — the box *translates* (Week 4's TransE
-  instinct) and *grows* (following a relation can only widen the answer set);
+  instinct) and *grows* (following a relation can only widen the answer set: a
+  disease has some associated proteins, those proteins have *more* targeting drugs —
+  monotone growth is a logical fact about existential queries, and the operator
+  hard-codes it);
 - **Intersection** (two branches meet): the new center is an attention-weighted
-  average, the new offset shrinks below each input's — answer sets can only narrow;
+  average, the new offset shrinks below each input's — answer sets can only narrow.
+  Why attention rather than the plain mean? Branches are not equally informative — a
+  tight box ("proteins in this rare pathway") should pull the meet toward itself
+  against a loose one ("things associated with Inflammation") — so the weights are
+  computed from the branch representations, the first self-attention this course has
+  met, one week before it becomes a habit;
 - **Score**: distance from an entity to the box — zero-ish inside, growing outside,
-  with the inside term down-weighted so the box interior is genuinely "in".
+  with the inside term down-weighted so the box interior is genuinely "in" (the
+  worked numbers below make both regimes concrete).
+
+Training mirrors Week 4 so closely you could write it from memory: sample queries
+from the training graph by instantiating the shape templates, take their
+training-reachable answers as positives, corrupt answers into negatives, apply a
+margin. The one novelty is what "parameters" means now — besides the entity table,
+each relation owns its projection vectors, and the intersection network is *shared
+across all queries* — so the operator learns from every intersection in the corpus,
+a first taste of the parameter-sharing medicine that Week 6 prescribes for
+everything.
 
 {{< include ../assets/figures/fig-w5-boxes.html >}}
 
@@ -126,6 +231,23 @@ The figure's quiet miracle deserves noise: **Naproxen is inside the answer box**
 though its edge was never stated. Training placed Naproxen near the other COX drugs
 (their stated edges overlap), and the region swallowed it. The box did not *look up*
 the answer — it *generalized* to it, which is precisely what §1 demanded.
+
+Run the scoring arithmetic once on the figure's actual coordinates, because "distance
+to a box" hides two regimes worth feeling in your fingers. The distance is
+$d(\mathbf{v}) = \|\max(|\mathbf{v}-\mathbf{c}| - \mathbf{o},\, 0)\|_1 + \alpha\,\|\min(|\mathbf{v}-\mathbf{c}|,\, \mathbf{o})\|_1$
+— an *outside* term that only fires beyond the walls, plus a discounted *inside*
+term that gently ranks the interior. Take the answer box at center
+$\mathbf{c} = (5.7, 5.6)$ with offsets $\mathbf{o} = (1.3, 1.4)$, and $\alpha = 0.2$.
+Ibuprofen at $(6.1, 4.9)$: deviations $(0.4, 0.7)$, both under the offsets — outside
+term $0$, inside term $0.2 \times 1.1 = 0.22$. Metformin at $(1.5, 1.6)$: deviations
+$(4.2, 4.0)$, exceeding the offsets by $(2.9, 2.6)$ — outside term $5.5$, plus the
+saturated inside term $0.2 \times 2.7 = 0.54$, total $6.04$. A twenty-seven-fold
+score separation between an inside answer and an outside non-answer, produced by a
+formula you can differentiate — and the reason $\alpha < 1$ exists is now visible:
+with $\alpha = 0$ every interior point ties at zero and training gets no signal to
+center the box on its answers; with $\alpha = 1$ the walls stop mattering and the
+box degenerates back into a point scorer. The lab's first exercise makes you compute
+exactly these two cases by hand before any training happens.
 
 ::: {#prp-closure .proposition name="What boxes close over — and what they don't"}
 The intersection of two axis-aligned boxes is an axis-aligned box (possibly empty),
@@ -149,6 +271,34 @@ outlives both papers: pick the geometry after you list the operators. $\square$
 
 {{< include ../assets/d3/w5-boxes.html >}}
 
+Two postscripts complete the query-embedding picture — one geometric, one
+contrarian. The geometric one: BetaE's move deserves a concrete image beyond
+"parameter swap". Each coordinate of a query becomes a **Beta distribution** on
+$[0, 1]$ — a bump whose shape two parameters $(\alpha, \beta)$ control — and an
+entity is scored by how well its own per-coordinate bumps align (KL divergence).
+Negation flips $(\alpha, \beta)$ to $(\beta, \alpha)$, which literally mirrors the
+bump: mass near 0 becomes mass near 1 — "definitely has this property" becomes
+"definitely lacks it" — and, unlike the complement of a box, the mirror of a Beta
+*is* a Beta. Intersection multiplies densities (both constraints must be probable),
+which is again closed. The uniform distribution is a fixed point of negation —
+"unknown" negated is "unknown" — an elegant little homage to the open-world
+assumption baked into the geometry itself. That is twice now that this lecture's
+slogan has cashed out: *list your operators, then buy the geometry that closes over
+them.*
+
+The contrarian postscript: query embedding is not the only survivor of §1's
+massacre, and the strongest alternative — **CQD** (continuous query decomposition) —
+is philosophically its opposite. CQD keeps Week 4's plain one-hop scorer and answers
+multi-hop queries at *inference time* by treating the query as a fuzzy-logic
+optimization: find intermediate entities maximizing a t-norm combination (soft AND)
+of the one-hop scores, via beam search over top-$k$ candidates per hop. No query
+training at all — and on many benchmarks it *beats* trained query embeddings, at the
+price of the beam's exponential appetite for deep queries. The design tension is a
+useful permanent lens: Query2box amortizes reasoning into geometry (train hard,
+answer in one distance computation); CQD spends at query time and keeps the model
+simple. Amortize versus search — you will meet this trade again in every corner of
+ML systems, usually with worse names.
+
 ## 3. Grading a reasoner without grading its memory
 
 Multi-hop evaluation has a failure mode beyond Week 4's, and most published numbers
@@ -160,13 +310,32 @@ have stepped in it at least once. For a test query, split its true answers:
   measure generalization.
 
 Report metrics on **hard answers only** (this is the Query2box protocol), and
-filtered, as always. The leakage flavor du jour: sampling test queries by running
-templates over the *full* graph, so most sampled answers happen to be easy — your
-"reasoning benchmark" quietly became a recall benchmark, and a plain database would
-score honorably on it. Same disease as Week 3's walks-across-test-edges and Week 4's
-inverse relations; third costume. In Lab 5 you will compute the easy/hard gap yourself
-— expect it to be embarrassingly large, and to permanently change how you read
-reasoning leaderboards.
+filtered, as always — where filtering for queries means masking *all other known
+answers* (easy and hard alike) when ranking each one. Work one query through the full
+protocol, because the bookkeeping is exactly where implementations go wrong. Suppose
+a `2p` test query has easy answers $\{e_1, e_2\}$ and hard answers $\{h_1, h_2\}$, and
+the model's ranking of all entities places them at raw positions
+$e_1{=}1,\, e_2{=}3,\, h_1{=}4,\, h_2{=}9$. Scoring $h_1$: mask $e_1, e_2, h_2$ —
+three known answers sit at positions above or below — leaving $h_1$ at filtered rank
+$2$ (only the position-2 non-answer outranks it). Scoring $h_2$: mask the other
+three, filtered rank $6$. Hard-answer MRR: $\tfrac12(\tfrac12 + \tfrac16) = \tfrac13$;
+the easy answers contribute *nothing* to the headline — they are graded separately,
+as the sanity channel. Two conventions to notice: every hard answer is scored (not
+just the best one — a query with many hard answers is many test items), and the
+easy/hard label is a property of the *answer*, not the query, since one query
+routinely has both kinds (ours did).
+
+The literature's vocabulary for the two channels is worth adopting:
+**entailment** — retrieving answers the training graph logically contains (easy) —
+versus **generalization** — inferring answers it does not (hard). A deployed system
+needs both: entailment is your regression test (a model that cannot even traverse
+what it was shown is broken plumbing), generalization is the product. The leakage
+flavor du jour: sampling test queries by running templates over the *full* graph, so
+most sampled answers happen to be easy — your "reasoning benchmark" quietly became a
+recall benchmark, and a plain database would score honorably on it. Same disease as
+Week 3's walks-across-test-edges and Week 4's inverse relations; third costume. In
+Lab 5 you will compute the easy/hard gap yourself — expect it to be embarrassingly
+large, and to permanently change how you read reasoning leaderboards.
 
 ## 4. The LLM era, part one: structure as a retrieval index
 
@@ -178,11 +347,29 @@ about, it fails structurally — resemblance is not connection:
 
 {{< include ../assets/figures/fig-w5-graphrag.html >}}
 
+Before the fix, be precise about the disease, because "RAG fails on multi-hop" is
+folklore until you can name the mechanism. Vector retrieval embeds the *whole
+question* as one point and returns chunks near it. A two-hop question's evidence
+lives in two chunks, each containing *half* the question's vocabulary — so each
+scores mediocre similarity, while some single chunk that superficially resembles the
+full question (same entities, same register, wrong facts) outscores both. The
+failure is architectural, not a matter of better embeddings: one query point cannot
+be simultaneously near two texts that are not near each other — the exact geometry
+lesson as "why not points" in §2, replayed at the document level. (You could retrieve
+more chunks and hope; $k$ large enough to catch hop two also drowns the context in
+lookalikes, and the model's attention becomes your retrieval system — expensively.)
+Decomposing the question into sub-queries helps and is widely done; but sub-query
+decomposition over text is just multi-hop traversal with extra steps and no
+guarantees — at which point one asks for the structure explicitly.
+
 **GraphRAG** is the family of fixes that put a KG between the corpus and the model:
 <span class="term" data-def="Entity linking: mapping a mention in text ('IU', 'the university') to the KG node it denotes. The entry point of every GraphRAG query — and its most common point of failure.">link
 the question's entities</span>, retrieve the relevant *subgraph* (neighborhoods,
 paths between linked entities), and hand the LLM **facts with provenance** instead of
-lookalike paragraphs. Microsoft's GraphRAG — this week's required reading — goes
+lookalike paragraphs. Everything you learned this fortnight slots into that sentence:
+the subgraph retrieval is Week 5 §1's traversal (with completion optionally
+sweetening it), the KG's quality is Week 4's whole curriculum, and the linker is the
+new component whose failure modes get their own pitfall below. Microsoft's GraphRAG — this week's required reading — goes
 further for corpus-level "sensemaking" questions: an LLM extracts an entity graph
 from the whole corpus, **Leiden community detection** (Week 2, taking a bow in
 production) partitions it hierarchically, communities get pre-computed summaries, and
@@ -191,37 +378,119 @@ themes of this corpus?" is unanswerable by any top-$k$ chunk retrieval — no ch
 contains the corpus — and becomes tractable when the corpus has been given a
 structure to summarize along.
 
+Since GraphRAG is the thing many of you will actually build at work, open the hood
+properly. The **indexing pipeline** — run once per corpus, refreshed incrementally —
+has four stages, each with a cost profile worth knowing before you promise a
+timeline. (1) *Extraction*: an LLM reads every chunk and emits entities and typed
+relations; this is the expensive stage — one-to-several model calls per chunk, so a
+100k-document corpus is a real budget line, and the reason teams cache aggressively
+and version their extraction prompts like code. (2) *Canonicalization*: merge the
+mention-level entities into stable nodes (§5 is entirely about what goes wrong
+here). (3) *Community structure*: Leiden over the entity graph, hierarchically —
+communities of communities — giving the corpus a table of contents it never had.
+(4) *Summarization*: an LLM writes a summary per community, bottom-up, each level
+summarizing the level below. The result is a queryable artifact at several
+granularities: raw chunks, entities with their subgraphs, and community summaries.
+
+**Query time** then has two distinct modes, and conflating them is the most common
+GraphRAG misunderstanding. **Local search** serves entity-anchored questions — link
+the question's entities, pull their neighborhoods plus attached source chunks, hand
+the bundle to the model; latency is comparable to vector RAG since the graph hops
+are index lookups. **Global search** serves corpus-level questions — "what are the
+recurring themes?" — by map-reducing over community summaries: ask the question of
+each relevant summary (map), synthesize the partial answers (reduce). It is slower
+and costs several model calls, which is fine, because the questions it serves were
+previously *impossible* rather than slow. The routing rule from the bake-off now has
+three branches: entity-anchored → local; corpus-global → global; neither → plain
+vector retrieval. And a fourth, quietly load-bearing capability falls out of the
+architecture for free: **provenance surfaces through the graph** — every retrieved
+fact carries its source chunk, so answers arrive with citations a user can audit,
+which for regulated deployments is not a feature but the requirement that got the
+project funded.
+
+How do you know any of it works? RAG evaluation decomposes into two questions that
+must be measured separately, because they fail independently. **Retrieval quality**:
+did the needed evidence reach the context? — the *coverage* metric you will compute
+in the lab (against gold supporting facts), plus ranking metrics when the gold is
+graded. **Faithfulness**: did the generated answer actually follow from the
+retrieved evidence, or did the model freelance? — measured by entailment checks of
+answer claims against retrieved sources, human-audited on samples. The Microsoft
+paper's own evaluation — LLM-as-judge rating "comprehensiveness" and "diversity" —
+measures neither directly, which the required reading asks you to critique; the
+critique writes itself once you have the decomposition. Cost enters honestly too: a
+GraphRAG index is worth building when the corpus is queried *many times* (the
+indexing cost amortizes — the same economics as Query2box's amortized reasoning, one
+section ago) and when multi-hop or global questions are a real fraction of traffic;
+for a corpus queried twice, vector RAG's zero-index-cost wins on arithmetic alone.
+
 Honesty about the other direction: when the question has no linkable entity, or the
 KG is sparse where the question lives, similarity wins — fuzzy questions are vector
-RAG's home turf. Production systems route between the two; the bake-off below is
+RAG's home turf. Production systems route; the bake-off below is
 small enough to referee by hand and real enough that both sides win somewhere:
 
 {{< include ../assets/d3/w5-rag.html >}}
 
 ## 5. Part two: the model builds the graph
 
-Where do KGs come from? Increasingly: from LLMs reading text — which closes a strange
-loop (models building the structure that grounds models) and inherits every classic
-information-extraction failure at new scale. The three you will meet in the first
-hour of any real project:
+Where do KGs come from? For decades the answers were curation (expensive, precise,
+slow — Wikidata's volunteer army; the pharma companies' teams of biocurators) and
+classical information extraction (pattern-based, brittle, cheap). The 2020s answer is
+LLMs reading text — extraction quality that pattern systems never reached, at a price
+per document that keeps falling — which closes a strange loop (models building the
+structure that grounds models) and inherits every classic information-extraction
+failure at new scale, now delivered with perfect grammar and total confidence. The
+three failures you will meet in the first hour of any real project:
 
 {{< include ../assets/figures/fig-w5-construction.html >}}
 
 1. **Canonicalization.** "IU", "Innopolis University", "the university" — extraction
    mints a new entity per surface form, and your graph's entity count inflates with
-   aliases. Every downstream join silently fragments. Repairs: alias resolution
-   against a gazetteer, embedding-based entity matching, and *schema-first*
-   extraction (force the model to link to existing IDs, not to invent strings).
+   aliases. Every downstream join silently fragments: the completion model sees two
+   half-connected universities where reality has one, the query engine finds paths
+   through neither, and coverage metrics *overstate* the graph (more entities!) while
+   its usefulness quietly falls. Repairs: alias resolution against a gazetteer,
+   embedding-based entity matching, and *schema-first* extraction (force the model to
+   link to existing IDs, not to invent strings).
 2. **Precision.** Extractors hallucinate fluent, plausible, false triples — and a KG
    *launders* them: once a fact is a crisp triple with a URI, it looks exactly as
-   authoritative as a curated one. Repair: keep **provenance** (source span per
-   triple) as a mandatory schema field, and verify samples against sources.
+   authoritative as a curated one. The laundering is the dangerous part — text keeps
+   its hedges ("reportedly", "some claim"), a triple keeps nothing. Repair: keep
+   **provenance** (source span per triple) as a mandatory schema field, and verify
+   samples against sources.
 3. **Schema drift.** Free extraction invents relations (*located_in*, *situated_in*,
-   *lies_in*…) and violates type signatures. Repair: extract *into* a fixed ontology
+   *lies_in*…) and violates type signatures — three spellings of one relation
+   fragment your relation statistics the way aliases fragment entities, and every
+   Week-4 pattern audit silently breaks. Repair: extract *into* a fixed ontology
    with type-checking — Week 1's "modeling decision" doctrine, enforced by a
    validator.
 
 {{< include ../assets/d3/w5-extract.html >}}
+
+The widget's three toggles each stand for a real engineering literature; here is the
+minimum a practitioner should know about each. **Canonicalization at scale** is a
+matching problem with a quadratic temptation: you cannot compare every mention to
+every entity, so production systems *block* first (cheap keys — normalized names,
+initial letters, embedding-space buckets — that shortlist candidates), then *match*
+within blocks using string similarity, attribute agreement, and increasingly an
+embedding of the mention's *context* (the same trick as Week 3: things are known by
+their company — two mentions with matching neighborhoods are the same entity). The
+newest twist is using the LLM itself as the matcher ("are these the same
+institution?"), which works embarrassingly well and fails exactly where it matters
+most: confident merging of similarly-named distinct entities (two "St. Mary's
+Hospital"s), the one error class worse than duplication, because merges destroy
+information while duplicates merely dilute it. Bias the pipeline toward
+under-merging; duplicates can be fixed tomorrow. **Schema-first extraction** means
+the prompt carries the ontology — allowed relation list, type signatures, and
+required output format — turning the model from an author into a form-filler;
+measured extraction precision routinely jumps double digits versus free-form
+prompting, and the rejected residue ("interesting non-conforming facts") becomes the
+queue for deliberate schema evolution rather than accidental drift. **Verification
+economics** is the uncomfortable one: you cannot afford to verify everything, so
+spend the audit budget where queries land — sample per *relation type* (error rates
+vary wildly by relation), audit the high-traffic entities disproportionately, and
+wire the provenance field so that end-user corrections flow back as labeled data.
+A KG built this way gets *more* trustworthy with use; one built without provenance
+can only decay.
 
 The loop's moral, which is also this course's KG arc in one sentence: **extraction is
 cheap now; trust is the product.** Canonicalization, verification, and provenance are
@@ -229,15 +498,46 @@ where the engineering lives — and a GraphRAG system is only as good as the gra
 feed it (the widget's red box is what "confidently wrong" looks like at retrieval
 time).
 
+### The three-body problem, named
+
+Zoom out once before the pitfalls, because the two halves of the LLM era — §4 and §5
+— are instances of a taxonomy worth carrying whole (it organizes this week's optional
+roadmap survey, and more usefully, it organizes vendor pitches). Systems combining
+KGs and LLMs come in three patterns. **KG-enhanced LLM**: the graph serves the model
+— GraphRAG, KG-grounded prompting, structured tool use; the KG's job is precision
+and provenance, the model's job is language. **LLM-augmented KG**: the model serves
+the graph — extraction, canonicalization, schema suggestion, even embedding-model
+training data; the model's job is coverage, the KG's job is to be the durable,
+auditable artifact. **Synergized**: the loop closed deliberately — the model builds
+and repairs the graph that grounds it, with verification gates at the interface
+(Q7 below stress-tests exactly this pattern's failure mode). When someone shows you
+an architecture diagram with a graph and a language model in it, your first question
+now has a name: *which of the three is this, and where are the gates?* Most
+production systems today are the first pattern with aspirations toward the third;
+knowing the difference between the aspiration and the gate is due diligence.
+
+One more placement note for your mental map of the field: everything this week
+reasoned over a *fixed* vocabulary of entities and relations — Query2box's anchors
+are still table lookups (Week 3's transductive wall, unbroken since). The frontier
+beyond this course's core: *inductive* reasoners like ULTRA (optional reading)
+that transfer zero-shot to unseen KGs by embedding relations relative to each other
+rather than absolutely — one pretrained reasoner for any graph. Read it after Week 6
+and you will recognize the trick as message passing over a graph *of relations*;
+the two halves of this course are about to start compounding.
+
 ::: {.callout-tip title="🚀 The course project launches today" icon="false"}
 Topics are published and team formation opens now: **teams of 2–3**, proposal due
-**Week 9 (Oct 22)**, midway check Week 12, report + talk Week 15. Fifteen-plus
+**Week 9 (Oct 22)**, midway check Week 12, report + talk Week 15. Sixteen
 suggested topics with datasets — node/link/graph prediction on OGB, KG completion,
-GraphRAG systems, recommenders, fraud, molecules, temporal graphs — live on the
+GraphRAG systems, recommenders, fraud, molecules, temporal graphs, and two
+reproducibility studies — live on the
 [topics page](../project/topics.qmd); logistics, milestones, and the grading rubric
-on the [project overview](../project/index.qmd). Pick a lane early: the proposal is
-one page, and the best predictor of a strong project is starting the dataset download
-this week.
+on the [project overview](../project/index.qmd). Several topics grow directly out of
+this fortnight — the pattern audit at scale, the easy/hard-gap study, the refereed
+GraphRAG bake-off, extraction with a precision budget — so if these two weeks
+clicked for you, your project probably lives in Track C or D. Pick a lane early: the
+proposal is one page, and the best predictor of a strong project is starting the
+dataset download this week.
 :::
 
 ## Common pitfalls
@@ -246,38 +546,54 @@ this week.
 The failure is quantitative, so hold the numbers: per-hop reliability compounds
 ($0.9^3 \approx 0.73$) and intermediate frontiers explode ($b^k$). If your system
 design contains "then, for each candidate, query again", you are building the thing
-§1 buried. Either embed the query, or bound the depth and own the error bar.
+§1 buried. Either embed the query, or bound the depth and own the error bar — and
+note the modern costume this pitfall wears: an LLM agent calling a search tool in a
+loop *is* chained lookup, with the same compounding and a language model's
+confidence stapled on top. The analysis of §1 applies to agentic retrieval
+unchanged, which makes it strangely current for mathematics this simple.
 :::
 
 ::: {.callout-warning title="Pitfall 2 · Reasoning benchmarks that a database would ace" icon="false"}
 If test answers are reachable by traversing training edges, you are measuring recall,
 not inference. Demand the easy/hard split in anything you read; compute it in
-anything you build. (Leakage trilogy now complete: walks over test edges, inverse
-triples, traversable answers — all one disease: test information flowing through the
-data pipeline.)
+anything you build; and when a system must serve both, report both channels — a
+model strong on generalization and weak on entailment is broken differently, not
+better. (Leakage trilogy now complete: walks over test edges, inverse triples,
+traversable answers — all one disease: test information flowing through the data
+pipeline.)
 :::
 
 ::: {.callout-warning title="Pitfall 3 · GraphRAG on a rotten graph" icon="false"}
 Structured retrieval adds an authority veneer: the LLM receives crisp triples and
 cites them confidently — including the hallucinated ones (Figure 4's red box). A
-GraphRAG system inherits its KG's precision *and hides it*. Before routing questions
-to the graph, audit extraction precision on a sample, and surface provenance to the
-end user, not just to the model.
+GraphRAG system inherits its KG's precision *and hides it*: end users see citations,
+which read as verification, which is precisely what an unverified extraction is not.
+Before routing questions to the graph, audit extraction precision on a sample, and
+surface provenance to the end user, not just to the model — a citation that opens
+the actual source span is worth ten precision points of trust.
 :::
 
 ::: {.callout-warning title="Pitfall 4 · Treating entity linking as solved" icon="false"}
 The bake-off's fuzzy question failed graph retrieval for one reason: nothing in it
 linked. Real questions are full of pronouns, nicknames, and descriptions ("the
 Kazan-based university"); linking recall bounds everything downstream. Measure it
-separately — a perfect subgraph retriever behind a 60% linker is a 60% system.
+separately — a perfect subgraph retriever behind a 60% linker is a 60% system. And
+resist the tempting fix of maximally aggressive linking: over-eager linkers that
+match every capitalized phrase pull in wrong subgraphs, and a *wrong* subgraph is
+worse than none, because the downstream model treats retrieved structure as
+authoritative (Pitfall 3's veneer, self-inflicted). Precision and recall of the
+linker deserve their own dashboard, per entity type, before any end-to-end number
+is worth discussing.
 :::
 
 ::: {.callout-warning title="Pitfall 5 · Believing the box (or the beta)" icon="false"}
 Query embeddings return *plausible* regions, not certified answers: the box that
-generously recovered Naproxen will, on another query, generously include garbage.
-There is no free calibration under the open-world assumption (Week 4, still true).
-For decisions that matter, treat query-embedding output as a candidate generator
-feeding verification — not as an oracle.
+generously recovered Naproxen will, on another query, generously include garbage —
+and unlike a traversal engine, it cannot show you the path it took, because there
+was none. There is no free calibration under the open-world assumption (Week 4,
+still true), and there is no free explanation either. For decisions that matter,
+treat query-embedding output as a candidate generator feeding verification — a
+shortlist for the traversal engine, the curator, or the lab — never as an oracle.
 :::
 
 ## In this week's lab
@@ -288,8 +604,19 @@ against hand-checkable asserts), trained on FB15k-237 queries, evaluated with th
 easy/hard split so you can watch a "reasoning" metric collapse when the lookups are
 taken away. Half two: a mini-GraphRAG over a small document set — entity linking,
 subgraph retrieval, and the coverage metric from Figure 3, head-to-head against
-TF-IDF retrieval on one-hop, two-hop, and fuzzy questions — no API keys, the "LLM" is
+cosine retrieval on one-hop, two-hop, and fuzzy questions — no API keys, the "LLM" is
 whoever reads the retrieved context, which for grading purposes is you.
+
+One lab war story is worth telling in advance, because it is a lecture point wearing
+overalls. The first draft of the training loop taught the box operators from 2-hop
+path samples alone — and hard-answer Hits@10 sat at random. Diagnosis: FB15k-237 has
+237 relations, and a few thousand sampled paths cannot teach 237 projection
+operators their geometry; the fix was to pretrain every relation's operator on plain
+1-hop queries — that is, on *all of Week 4* — before fine-tuning on paths. The
+shipped lab keeps both phases, labeled, and the general lesson is compositional
+learning's quiet prerequisite: operators compose only if each operator was learnable
+*alone* from enough data. When your fancy compositional system underperforms,
+check whether its atoms ever got trained.
 
 ## Required reading
 
@@ -408,6 +735,18 @@ now formalize a multi-hop question, embed it, grade the answer without grading a
 database, and route between structure and similarity like someone who has seen both
 fail.
 
+The arc also completes a quieter education in *design method* that is worth stating
+once, explicitly, as the thing to carry out of these two weeks even if every model
+name fades. Three times running, the winning move was the same: write down the
+operations your problem requires, then choose a representation closed under them —
+directed facts demanded asymmetric scorers, composition demanded a relation group,
+conjunction demanded intersectable regions, negation demanded mirrorable
+distributions. And three times running, the field's honest evaluators had to invent
+a split that separated *memory* from *inference* — filtered ranking, hard answers,
+leakage audits — because the naive metric flattered recall. Representation follows
+operators; evaluation separates memory from inference. Two sentences, and they will
+serve you in corners of ML that have never heard of a knowledge graph.
+
 Notice, though, what every method since Week 3 has had in common: the encoder is
 still a **table**. DeepWalk looked vectors up; TransE looked vectors up; even
 Query2box looks up its anchors. Week 3's four walls still stand — no parameter
@@ -415,10 +754,14 @@ sharing, no new entities, and, most painfully: all those node *features* — the
 paper's words, the protein's sequence, the account's profile — still lying on the
 floor, untouched since Lab 2. Next week the table is finally replaced by a machine:
 an encoder that *computes* a node's vector from its features and its neighbors'
-features, recursively. You have already peeked at its page — Week 6 has been
-published since the course began, as a promise of where this was going. Now you have
-every prerequisite it assumes. The graph neural network era of this course starts
-Thursday.
+features, recursively — and every thread of the first five weeks converges on it.
+The Laplacian you met in Week 1 becomes its propagation matrix; the label
+propagation of Week 3 becomes its ancestor; the aggregation instinct of this week's
+intersection operator becomes its defining move; and the WL algorithm of Week 2 is
+waiting, four weeks downstream, to tell it what it can never see. You have already
+peeked at its page — Week 6 has been published since the course began, as a promise
+of where this was going. Now you have every prerequisite it assumes. The graph
+neural network era of this course starts Thursday.
 
 :::
 
