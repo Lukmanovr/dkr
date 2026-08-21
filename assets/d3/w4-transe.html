@@ -1,0 +1,29 @@
+```{=html}
+<div class="interactive-container" id="w4-te-widget">
+  <div class="fig-label">Interactive · TransE learns our twelve facts</div>
+  <div class="widget-controls">
+    <button class="pill-btn" id="w4-te-train" type="button">train ×300</button>
+    <button class="pill-btn" id="w4-te-auto" type="button">auto ▸</button>
+    <button class="pill-btn" id="w4-te-reset" type="button">reset</button>
+    <button class="pill-btn active" data-rel="0" type="button">located_in</button>
+    <button class="pill-btn" data-rel="1" type="button">instance_of</button>
+    <button class="pill-btn" data-rel="2" type="button">capital_of</button>
+    <button class="pill-btn" data-rel="3" type="button">part_of</button>
+    <button class="pill-btn" data-rel="4" type="button">flows_through</button>
+  </div>
+  <div id="w4-te-svg" role="img" aria-label="Ten entities of the Wikidata fragment moving in a live two-dimensional TransE training run, with the selected relation drawn as translation arrows and residual readouts below"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the ten entities positioned by TransE training, with translation arrows for a
+    chosen relation; same-tail heads end up crushed together.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 1.</strong> Real margin-loss SGD on the twelve
+  facts, in d = 2 so the geometry is the picture. Solid arrows show h + r; the dashed
+  red gap is the miss. <strong>Try this:</strong> press <em>auto ▸</em> and watch three
+  predicted failures materialize: (1) Innopolis and Kazan collapse toward each other —
+  same relation, same tail, so TransE crushes the heads; (2) the located_in and
+  capital_of readout shrinks — two relations with the same (h, t) pair must merge;
+  (3) the hero fact stays mediocre while nonsense stays worse — partial credit,
+  not composition. Every failure is a row of the cheat sheet, live.</p>
+</div>
+```

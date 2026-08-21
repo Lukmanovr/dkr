@@ -1,0 +1,525 @@
+---
+title: "Knowledge Graphs I: Facts as Geometry"
+subtitle: "Week 4 · Thursday, September 17, 2026 · 90 minutes"
+description: "Typed, directed facts and the machinery that completes them: RDF and open-world honesty, the TransE/DistMult/ComplEx/RotatE scoring geometries, the relation-pattern cheat sheet with proofs, corruption and self-adversarial training, and filtered ranking evaluation done right."
+date: 2026-09-17
+date-modified: last-modified
+format:
+  html:
+    toc-depth: 3
+---
+
+::: {.content-visible when-format="html"}
+
+::: {.callout-tip title="Learning objectives" icon="false"}
+After this lecture (and Lab 4) you can:
+
+1. **represent** facts as (head, relation, tail) triples, explain RDF, ontologies, and the open- vs closed-world assumptions — and say which one your data license actually grants you;
+2. **define** the TransE, DistMult, ComplEx, and RotatE scoring functions and compute each by hand on toy embeddings;
+3. **prove** which relation patterns — symmetry, antisymmetry, inversion, composition, 1-to-N — each model can represent: the model-selection cheat sheet;
+4. **derive** the margin-based and self-adversarial negative-sampling losses and explain corruption sampling under the open-world assumption;
+5. **run** filtered ranking evaluation, compute MRR and Hits@K by hand, and explain why FB15k had to become FB15k-237.
+:::
+
+## The graph that completes itself
+
+In 2012 Google announced it would stop searching for *strings* and start searching for
+*things*: behind the search box it had built a graph of entities — people, places,
+proteins, films — connected by named relations. Wikidata, the open sibling, now holds
+over a hundred million entities and more than a billion statements, each one a triple
+you already met in Lab 1: *(Innopolis University, located_in, Innopolis)*.
+
+Here is the industry's dirty secret, and this week's engine. When researchers audited
+Freebase — the KG that seeded Google's — they found that **71% of its people had no
+recorded place of birth**, and 75% no nationality. Not because these facts are unknown
+to humanity; because nobody had typed them in. Every real knowledge graph is a sparse
+shadow of the truth it models.
+
+::: {.predict}
+**Commit before you look.** Our own twelve-triple fragment from Lab 1 — is it complete?
+Find a true fact about its ten entities that none of the twelve triples states, using
+only facts already derivable from the fragment itself.
+
+::: {.predict-answer}
+**(IU, located_in, Tatarstan)** — because IU is in Innopolis and Innopolis is in
+Tatarstan. (Also: KFU is in Tatarstan; both universities are in Russia; Kazan is in
+Russia…) The fragment *implies* far more than it *states*. A knowledge graph that could
+score unstated triples by plausibility would complete itself — and that scoring
+problem, **knowledge graph completion**, is this week.
+:::
+:::
+
+{{< include ../assets/figures/fig-w4-hero.html >}}
+
+Last week's cliffhanger asked what happens when edges get types and directions. The
+honest answer: everything from Week 3 survives — encoder, decoder, similarity, loss —
+but the decoder must grow up. "Are these two entities close?" is no longer the
+question; *(Kazan, capital_of, Tatarstan)* is true while *(Kazan, part_of, Volga)* is
+nonsense, and both pairs are "close". The question is now **"is this fact true?"**, and
+the decoder must hear the relation to answer it.
+
+**Roadmap.** (1) Facts, schemas, and the open-world assumption — the epistemics of
+knowledge. (2) Completion as a ranking task. (3) Four geometries for truth: relations
+as translations, products, complex products, rotations. (4) The cheat sheet: what each
+geometry can and cannot say, with proofs. (5) Training when missing ≠ false. (6)
+Evaluation that doesn't lie: filtered MRR, and two famous scandals.
+
+::: {.callout-note title="Recap — what this lecture assumes" collapse="true"}
+- **Lab 1**: the twelve Wikidata triples and `kg_stats` — entities are everything that appears as a head *or* a tail, including "city" and "university".
+- **Week 3**: the encoder–decoder template; embedding lookup tables; negative sampling (SGNS); Pitfall 2 (only geometry is identifiable, not coordinates).
+- **Week 1**: heterogeneous graphs — typed nodes and edges as a modeling decision. A KG is that decision taken seriously at planetary scale.
+:::
+
+## 1. Facts, schemas, and honest ignorance
+
+A **knowledge graph** stores atomic facts as triples $(h, r, t)$: a head entity, a
+named relation, a tail entity. The web-standard serialization is
+<span class="term" data-def="RDF (Resource Description Framework): the W3C standard for publishing triples, with globally unique URIs for entities and relations so that independent datasets can merge without name collisions. Wikidata speaks it; so does every biomedical ontology.">**RDF**</span> —
+subject–predicate–object with global URIs, so that *Kazan-the-city* never collides with
+*Kazan-the-helicopter-plant* when two datasets merge. Above the facts sits an
+<span class="term" data-def="Ontology / schema: the type system of a KG — entity classes (city, person), relation signatures (located_in: place → place), and constraints (a capital_of head must be a city). It is what makes some corruptions detectably absurd.">**ontology**</span>:
+classes, relation signatures (*located_in* goes place → place), constraints. Our
+fragment carries a miniature one — the `instance_of` edges *are* its type system.
+
+The epistemological fine print matters more than any formula today:
+
+::: {.callout-important title="The open-world assumption, or: what a missing edge means" icon="false"}
+Under the <span class="term" data-def="Closed-world assumption (CWA): anything not stated is false. Correct for a database that is complete by construction — an airline's flight table. Catastrophically wrong for knowledge graphs.">closed-world assumption</span>,
+absence is denial: no *(IU, located_in, Tatarstan)* edge means IU is *not* in
+Tatarstan. Databases live here. Knowledge graphs cannot: they are built by volunteers
+and extractors sampling an unbounded world, so absence usually means *nobody said*.
+That is the <span class="term" data-def="Open-world assumption (OWA): a missing fact is unknown, not false. The working epistemics of every real KG — and the reason KG training data contains no true negatives, only unstated triples.">**open-world assumption**</span>,
+and it has a sharp consequence for machine learning: **a KG gives you positives and
+silence — never labeled negatives.** Every "negative example" this week is manufactured
+by corrupting a positive, and some manufactured negatives will be accidentally true.
+Keep that discomfort; §5 pays it off.
+:::
+
+Scale check, so the toy examples stay calibrated: Wikidata ≈ $10^8$ entities; Google's
+graph reported 500 billion facts on 5 billion entities back in 2020; biomedical KGs
+(drugs–targets–diseases) power literal drug discovery. At that scale, completion is not
+a party trick — every percent of Hits@10 is millions of recovered facts.
+
+## 2. Completion is ranking
+
+The task, precisely. Given the training triples $\mathcal{T}$, learn a **scoring
+function** $f(h, r, t) \in \mathbb{R}$ — higher means more plausible — and answer
+queries $(h, r, ?)$ and $(?, r, t)$ by scoring *every* entity in the slot and ranking.
+Nobody asks for calibrated probabilities of truth (the open world forbids them); a
+ranking that puts real facts above fabrications is both achievable and useful.
+
+In the Week 3 template: the **encoder** is still a lookup table — one vector per entity,
+and now *one vector per relation*. The **similarity** is membership in $\mathcal{T}$.
+All the invention concentrates in the **decoder** $f$, which must take *three* inputs.
+The filing cabinet gains its promised row — and this whole lecture is the story of one
+cell:
+
+| method | encoder | decoder $f(h,r,t)$ | similarity |
+|---|---|---|---|
+| DeepWalk (Wk 3) | lookup | $\mathbf{z}_h^\top \mathbf{z}_t$ — relation-deaf | walk co-occurrence |
+| **KG embeddings (today)** | lookup ×2 | **four designs below** | observed triples |
+| GCN (Wk 6) | neural network | task head | labels |
+
+## 3. Four geometries for "is this true?"
+
+Each model is one answer to a single design question: *what kind of geometric object is
+a relation?* All four are computed below on concrete toy vectors — check at least one
+by hand now, because the midterm will ask for exactly this:
+
+{{< include ../assets/figures/fig-w4-scorers.html >}}
+
+**TransE (2013): a relation is a translation.**
+$$
+f(h, r, t) = -\bigl\|\mathbf{h} + \mathbf{r} - \mathbf{t}\bigr\|
+$$
+True facts should make $\mathbf{h} + \mathbf{r}$ land on $\mathbf{t}$; the score is
+the (negated) miss distance. One vector per relation, beautifully cheap, and
+chains of translations *add* — a property §4 turns into a theorem. It is Week 3's
+dot-product decoder with one added vector, and it started the entire field.
+
+**DistMult (2015): a relation is a feature-weighting.**
+$$
+f(h, r, t) = \sum_{i=1}^{d} h_i \, r_i \, t_i
+$$
+A bilinear score with a diagonal relation matrix: $r$ decides which coordinates of the
+head–tail agreement matter. Fast, strong on benchmarks — and hiding a flaw you can spot
+from the formula alone: $h$ and $t$ enter symmetrically. Look at the figure's middle
+panel: swapping them cannot change the score. *Ever.*
+
+**ComplEx (2016): a relation is a complex weighting.** Move every vector to
+$\mathbb{C}^d$ and score with the real part of the Hermitian product:
+$$
+f(h, r, t) = \operatorname{Re}\Bigl(\textstyle\sum_i h_i \, r_i \, \bar{t}_i\Bigr).
+$$
+The conjugate on $\bar{t}$ breaks the swap symmetry: the figure's third panel scores
+$+2$ forward and $-2$ backward. One implementation detail with a proof-sized payoff:
+choosing $\operatorname{Im}(\mathbf{r}) = 0$ recovers DistMult exactly — symmetry
+becomes a *choice per relation* instead of a prison.
+
+**RotatE (2019): a relation is a rotation.** Keep $\mathbb{C}^d$ but constrain
+$|r_i| = 1$ — each relation coordinate is a pure phase, rotating the corresponding
+head coordinate:
+$$
+f(h, r, t) = -\bigl\|\mathbf{h} \circ \mathbf{r} - \mathbf{t}\bigr\|,
+\qquad \mathbf{h} \circ \mathbf{r} = (h_1 r_1, \ldots, h_d r_d).
+$$
+Translation's chaining, plus phases that can express symmetry (a half-turn is its own
+inverse) — the best of both prior worlds, and the reason it tops this family's
+benchmarks.
+
+Formulas memorize poorly and derive well. Watch the first one *earn* its geometry — and
+fail exactly where the algebra says it must:
+
+{{< include ../assets/d3/w4-transe.html >}}
+
+## 4. What a geometry can and cannot say
+
+Here is the discipline that turns four formulas into an engineering decision. A
+**relation pattern** is a logical regularity your relations obey; a model *represents*
+the pattern if some parameter choice makes the pattern hold exactly in the scores. Five
+patterns cover most of practice:
+
+{{< include ../assets/figures/fig-w4-patterns.html >}}
+
+The verdicts are theorems, not folklore. The four you should be able to produce cold:
+
+::: {#prp-transe-sym .proposition name="TransE cannot represent a symmetric relation"}
+If $f(a, r, b) = f(b, r, a) = 0$ (both directions score perfectly) for some $a \neq b$,
+then $\mathbf{r} = \mathbf{0}$ — and the relation collapses: every entity is related
+precisely to itself.
+:::
+
+<details><summary>Proof (two lines)</summary>
+Perfect scores mean $\mathbf{a} + \mathbf{r} = \mathbf{b}$ and
+$\mathbf{b} + \mathbf{r} = \mathbf{a}$. Adding: $2\mathbf{r} = \mathbf{0}$. With
+$\mathbf{r} = \mathbf{0}$, $f(h,r,t) = -\|\mathbf{h} - \mathbf{t}\|$ is maximal only
+at $\mathbf{t} = \mathbf{h}$. $\square$
+</details>
+
+::: {#prp-distmult-sym .proposition name="DistMult is symmetric — always"}
+For every choice of parameters, $f(h, r, t) = f(t, r, h)$. DistMult cannot prefer
+*(Kazan, capital_of, Tatarstan)* over *(Tatarstan, capital_of, Kazan)* by any margin,
+for any training, ever.
+:::
+
+<details><summary>Proof (one line)</summary>
+$\sum_i h_i r_i t_i = \sum_i t_i r_i h_i$ by commutativity of multiplication. $\square$
+</details>
+
+::: {#prp-complex .proposition name="ComplEx chooses its symmetry per relation"}
+With $\operatorname{Im}(\mathbf{r}) = \mathbf{0}$ the ComplEx score is symmetric in
+$(h,t)$; with $\operatorname{Im}(\mathbf{r}) \neq \mathbf{0}$ it contains an
+antisymmetric term — so both symmetric and antisymmetric relations are representable,
+relation by relation.
+:::
+
+<details><summary>Proof sketch (split into parts)</summary>
+Write $h_i \bar t_i = s_i + a_i i$ where $s_i = \operatorname{Re}(h_i \bar t_i)$ is
+symmetric under the swap $h \leftrightarrow t$ and $a_i = \operatorname{Im}(h_i \bar t_i)$
+flips sign under it. Then
+$\operatorname{Re}(r_i \, h_i \bar t_i) = \operatorname{Re}(r_i) s_i - \operatorname{Im}(r_i) a_i$:
+the real part of $\mathbf{r}$ weights the symmetric channel, the imaginary part the
+antisymmetric one. Set $\operatorname{Im}(\mathbf{r}) = 0$ for symmetry; give it mass
+for direction — the figure's $+2/-2$ panel is this identity with numbers. $\square$
+</details>
+
+::: {#prp-rotate .proposition name="RotatE composes"}
+If $r_3 = r_1 \circ r_2$ (phases add), then whenever $(a, r_1, b)$ and $(b, r_2, c)$
+hold exactly, $(a, r_3, c)$ holds exactly: rotation is the only decoder here whose
+relations form a group under composition.
+:::
+
+<details><summary>Proof (one line, plus the contrast)</summary>
+$(\mathbf{a} \circ \mathbf{r_1}) \circ \mathbf{r_2} = \mathbf{a} \circ (\mathbf{r_1} \circ \mathbf{r_2})$
+by associativity of (coordinatewise) complex multiplication; unit moduli are closed
+under it. TransE composes the same way with $\mathbf{r_3} = \mathbf{r_1} + \mathbf{r_2}$
+— but cannot simultaneously do symmetry (@prp-transe-sym); DistMult and ComplEx have
+no relation-on-relation operation that mirrors chaining at all. $\square$
+</details>
+
+Every cell of the sheet has a derivation of this size — walk them:
+
+{{< include ../assets/d3/w4-patterns.html >}}
+
+Two consequences worth pulling out of the table. First, the **1-to-N crush** you
+watched in Figure 1: any *functional* scorer — one that maps $h$ to a single target
+point ($\mathbf{h}+\mathbf{r}$, or $\mathbf{h} \circ \mathbf{r}$) — must place all
+of a head's true tails at that one point, so *Tatarstan contains {Kazan, Innopolis}*
+forcibly merges the two cities. Similarity scorers (DistMult, ComplEx) can love many
+tails at once. Second, a corollary that answers the hero figure:
+
+::: {#cor-transitive .corollary name="Nobody here represents transitivity"}
+A transitive relation composes *with itself into itself*: $r \circ r \Rightarrow r$.
+TransE then needs $\mathbf{r} + \mathbf{r} = \mathbf{r}$, i.e. $\mathbf{r} = \mathbf{0}$;
+RotatE needs every phase to satisfy $2\theta_i = \theta_i$, i.e. $\theta_i = 0$ — the
+identity rotation. Either way the relation degenerates. *located_in* is transitive —
+so the hero fact can earn partial credit from geometry, but no exact representation
+exists in this family. (Week 5's query embeddings attack multi-hop inference head-on.)
+:::
+
+This is the cheat sheet's real lesson: **model selection is pattern audit.** List the
+patterns your relations obey — Lab 4 does this for FB15k-237 — and the table picks
+your model. No benchmark scores required.
+
+## 5. Training on missing truth
+
+The loss must work under the open-world constraint from §1: positives from
+$\mathcal{T}$, negatives manufactured. The classic recipe (TransE) is
+<span class="term" data-def="Corruption sampling: manufacture a negative from a positive (h,r,t) by replacing the head or the tail with a random entity — (h′,r,t) or (h,r,t′). The standard source of negatives in KG training, honest under the open-world assumption only because collisions with unstated truths are rare.">**corruption**</span>
+plus a margin:
+
+$$
+\mathcal{L} = \sum_{(h,r,t) \in \mathcal{T}}
+\max\bigl(0,\; \gamma - f(h,r,t) + f(h', r, t')\bigr),
+$$
+
+where $(h', r, t')$ corrupts head *or* tail uniformly at random. Read it as a
+geometric demand: every true triple must outscore its corruption by at least the
+margin $\gamma$, and beyond that the loss stops caring — no wasted gradient on
+already-easy comparisons. This is Week 3's SGNS instinct in ranking form.
+
+Uniform corruption has a scale problem: with $10^5$ entities, almost every random
+corruption is absurd (*Volga located_in university*), scores terribly already, and
+teaches nothing. RotatE's fix — **self-adversarial negative sampling** — reweights
+sampled negatives by the *model's own current belief* in them:
+
+$$
+p(h'_j, r, t'_j) = \frac{\exp \alpha f(h'_j, r, t'_j)}{\sum_k \exp \alpha f(h'_k, r, t'_k)},
+$$
+
+used as weights on the negative terms (temperature $\alpha$; no gradient flows through
+the weights). Hard, plausible lies get the gradient; absurdities are ignored. Watch the
+budget migrate:
+
+{{< include ../assets/d3/w4-negatives.html >}}
+
+The ⚠ in the widget is the open-world bill arriving: corruption sometimes manufactures
+a *true* fact and calls it negative. At toy scale you can see it happen; at $10^5$
+entities it is rare per batch but systematic — one reason implementations filter
+corruptions against the known triple set, and one reason self-adversarial weighting
+must be used with care (it actively *hunts* plausible triples, and the most plausible
+"lie" is occasionally the truth).
+
+## 6. Scoring the scorer
+
+Evaluation is ranking, and the protocol has enough teeth to deserve its own worked
+example. For each test triple, hide the head (then the tail), score every entity in
+the vacancy, sort, find the true entity's rank. Report **MRR** (mean reciprocal rank)
+and **Hits@K** (fraction with rank ≤ K). One subtlety separates honest numbers from
+nonsense:
+
+{{< include ../assets/figures/fig-w4-eval.html >}}
+
+**Filtered** means: before computing the rank, delete every *other* candidate that
+forms a known true triple (train or test). The model ranked Russia above Tatarstan for
+*(Volga, flows_through, ?)* — and Russia is *correct*, it just wasn't the held-out
+fact. Punishing that is measuring your dataset's redundancy, not your model's error.
+Run the protocol yourself, on a model that genuinely never saw the test facts:
+
+{{< include ../assets/d3/w4-rank.html >}}
+
+Two community scandals complete your evaluation education, both in this week's
+optional readings. **The dataset scandal:** FB15k, the original benchmark, contained
+test triples whose *inverses* sat in the training set — *(a, contains, b)* in train,
+*(b, located_in, a)* in test — so a one-line rule "invert and look up" rivaled deep
+models. FB15k-237 exists because Toutanova & Chen removed the near-duplicate relations;
+it is the benchmark Lab 4 uses, and the reason you should reflexively ask "*could a
+lookup solve this test set?*" of any benchmark, in any field. **The tie scandal:**
+several published models emitted *identical* scores for thousands of candidates, and
+evaluation code that placed the true entity first among ties reported inflated MRR —
+models looked strong because of a sorting convention. Random tie-breaking is now the
+standard. Neither scandal involved fraud; both involved nobody looking.
+
+## Common pitfalls
+
+::: {.callout-warning title="Pitfall 1 · Reading a KG with closed-world eyes" icon="false"}
+"The KG has no *treats* edge between this drug and that disease, so there is no
+relationship" — under OWA this inference is void, and in biomedical KGs it is the
+*discovery target*. Absence licenses nothing. If your downstream logic needs real
+negatives (contraindications, disproven links), they must be curated as explicit
+facts, not inferred from silence.
+:::
+
+::: {.callout-warning title="Pitfall 2 · Raw ranking metrics" icon="false"}
+Unfiltered MRR punishes the model for knowing true facts that aren't the held-out one
+(the figure's Russia). Always state *filtered*, and always ask which flavor a paper
+reports — the gap is large on redundant KGs, and "we beat X" across different
+protocols is noise.
+:::
+
+::: {.callout-warning title="Pitfall 3 · Benchmarks a lookup can solve" icon="false"}
+FB15k's inverse-relation leak is one instance of a universal failure: test facts
+deterministically recoverable from train by a trivial rule. Before trusting any
+completion benchmark — or building your train/test split — audit for inverses,
+duplicates under relation renaming, and near-synonymous relations. (This is Week 3's
+Pitfall 1 wearing a bow tie: the leak is in the *split*, not the walk.)
+:::
+
+::: {.callout-warning title="Pitfall 4 · Trusting scores you didn't tie-break" icon="false"}
+If a model scores many candidates identically (saturated activations, quantization,
+a bug), rank depends on the sort order — and optimistic tie-handling silently inflates
+MRR. Check score-tie rates before celebrating; break ties randomly; be suspicious of
+leaderboard jumps unaccompanied by ideas.
+:::
+
+::: {.callout-warning title="Pitfall 5 · Popularity is not truth" icon="false"}
+Entities with many facts get trained more, sit in denser neighborhoods, and outrank
+rare entities in *every* slot — your completion model reinvents the popularity
+contest (degree bias, third week running). Symptoms: tail-entity queries fail;
+Hits@10 looks fine on average and is terrible on rare entities. Report performance
+stratified by entity frequency, and remember it when the model "discovers" that a
+famous protein is linked to everything.
+:::
+
+## In this week's lab
+
+[Lab 4](../labs/lab04.qmd) builds TransE and RotatE from scratch in plain PyTorch
+(about a hundred lines each) and trains them on FB15k-237, the honest benchmark: you
+implement both scoring functions against hand-checkable asserts (the lecture's toy
+numbers), write the corruption sampler and margin loss, run filtered evaluation and
+reproduce MRR/Hits@10 on a held-out subsample — and then perform this week's signature
+experiment: train both models on a small graph rich in *symmetric* relations, and
+watch TransE drive its relation vector toward zero while RotatE parks its phases at
+π, exactly as @prp-transe-sym predicts. Theory, caught red-handed.
+
+::: {.callout-tip title="HW1 is out — due Thursday, October 1 (Week 6)" icon="false"}
+The first homework covers Weeks 1–4: representations and the Laplacian, classical
+features and PageRank, shallow embeddings, and KG embedding theory (including proving
+the DistMult column of today's cheat sheet). See
+[Homework 1](../homeworks/hw1.qmd) for problems, submission format, and the honor-code
+statement. Start early; the proofs are short but not automatic.
+:::
+
+## Required reading
+
+**1 · Bordes, Usunier, Garcia-Durán, Weston & Yakhnenko — *Translating Embeddings for Modeling Multi-relational Data* (NeurIPS 2013).** [proceedings.neurips.cc](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html)
+
+::: {.reading-annotation}
+TransE — the paper that started modern KG embeddings, and a model of economy: one idea
+(relation = translation), one loss (the margin ranking you derived today), five pages.
+Focus on §2 — scoring function, corruption, margin loss — and on Table 3, where mean
+rank and Hits@10 are defined the way the field still evaluates; note the raw-vs-filtered
+distinction being born. Skim the comparisons to the older tensor models (SE, RESCAL) on
+a first pass.
+:::
+
+**2 · Sun, Deng, Nie & Tang — *RotatE: Knowledge Graph Embedding by Relational Rotation in Complex Space* (ICLR 2019).** [arXiv:1902.10197](https://arxiv.org/abs/1902.10197)
+
+::: {.reading-annotation}
+The strongest direct descendant. Read §3 and Table 1 slowly — it is today's cheat
+sheet in its original habitat, and after this lecture you can verify every cell rather
+than believe it. Then study §3.3, self-adversarial negative sampling: a training trick
+that matters as much as the model, and Figure 3's learned phase histograms — symmetric
+relations really do land on π, which Lab 4 reproduces in miniature. Skim the ablation
+tables.
+:::
+
+**Also see:** Hamilton, *GRL book*, ch. 4 (knowledge graph embeddings; our notation
+follows it) · CS224W, "Knowledge Graph Embeddings".
+
+**Optional:** Yang et al., [DistMult](https://arxiv.org/abs/1412.6575) (ICLR 2015) —
+read §2's unified view of translation vs. bilinear models and meet the symmetry flaw at
+the source · Trouillon et al., [ComplEx](https://arxiv.org/abs/1606.06357) (ICML 2016)
+— §§3–4 for the Hermitian trick; accept the linear algebra, keep the scoring function ·
+Toutanova & Chen, [Observed vs. Latent Features](https://doi.org/10.18653/v1/W15-4007)
+(2015) — the FB15k leak, diagnosed; a few pages, read all of it ·
+Sun et al., [A Re-evaluation of KG Completion Methods](https://arxiv.org/abs/1911.03903)
+(ACL 2020) — the tie-breaking scandal; read for permanent leaderboard suspicion.
+
+## Check your understanding
+
+<details><summary>Q1 · Epistemics — Your team ships a KG-backed compliance tool. A regulator asks: "the graph shows no ownership link between company A and sanctioned entity B — can we clear A?" Answer as this lecture would, and name one engineering change that would let the tool say more.</summary>
+No: the KG is open-world — a missing edge means *unrecorded*, not *absent*; clearing A
+requires evidence of absence, which silence is not. Engineering change: curate explicit
+negative facts for the relations that matter (verified "no-ownership" assertions with
+provenance), or report completion-model scores *with* the caveat that they rank
+plausibility of the positive, never certify its negation. (Bonus: a calibrated "we
+have vetted A's neighborhood to depth k" coverage statement is often what the
+regulator actually needs.)
+</details>
+
+<details><summary>Q2 · Hand computation — With h = (2, 1), r = (1, 3), t = (1, 2): compute the DistMult score both ways. Then with complex h = 1+i, r = i, t = −1+i: compute the ComplEx score both ways. State what each pair of numbers demonstrates.</summary>
+DistMult: $2{\cdot}1{\cdot}1 + 1{\cdot}3{\cdot}2 = 8$; swapped
+$1{\cdot}1{\cdot}2 + 2{\cdot}3{\cdot}1 = 8$ — identical, demonstrating
+@prp-distmult-sym (forced symmetry). ComplEx: $h r \bar t = (1{+}i)(i)(-1{-}i) = 2$,
+so $\operatorname{Re} = +2$; swapped: $(-1{+}i)(i)(1{-}i) = -2$, so
+$\operatorname{Re} = -2$ — sign flip, demonstrating the antisymmetric channel opened
+by $\operatorname{Im}(r) \neq 0$ (@prp-complex). These are the exact panels of the
+scorers figure; the midterm changes the numbers.
+</details>
+
+<details><summary>Q3 · Model selection — A family-tree KG has spouse (symmetric), parent_of (antisymmetric, 1-to-N), and grandparent_of (the composition of parent_of with itself). Using only the cheat sheet, pick a model and state what each rejected model gets wrong.</summary>
+RotatE: spouse needs symmetry (phases π — TransE out by @prp-transe-sym), parent_of
+needs antisymmetry (DistMult out by @prp-distmult-sym), grandparent_of needs
+composition ($r_{gp} = r_p \circ r_p$ — ComplEx out, no composition). Caveat worth
+stating for full marks: parent_of is 1-to-N, which strains RotatE's functional scorer
+(children of one parent get squeezed together) — no model in the family is clean on
+this KG, and saying *where* your chosen model will hurt is part of the answer.
+</details>
+
+<details><summary>Q4 · Prove it — Show from the definitions: (a) if TransE represents a 1-to-N relation exactly, all N tails coincide; (b) if RotatE represents a transitive relation exactly, the relation is the identity rotation. State what (b) implies about located_in.</summary>
+(a) Exactness gives $\mathbf{h} + \mathbf{r} = \mathbf{t}_1$ and
+$\mathbf{h} + \mathbf{r} = \mathbf{t}_2$ ⇒ $\mathbf{t}_1 = \mathbf{t}_2$: one landing
+point. (b) Transitivity is self-composition into itself, so phases must satisfy
+$\theta_i + \theta_i \equiv \theta_i \pmod{2\pi}$ ⇒ $\theta_i \equiv 0$: the identity
+(@cor-transitive). Hence located_in — transitive in the world — has no exact RotatE
+representation with a non-degenerate relation: geometric KG models *approximate*
+transitive closure and provably cannot nail it, which is a standing argument for
+Week 5's dedicated multi-hop machinery.
+</details>
+
+<details><summary>Q5 · Metrics by hand — A test set has two queries. Query 1: true entity at raw rank 4, with two known-true competitors above it. Query 2: raw rank 1. Compute raw and filtered MRR and Hits@1, and state the general inequality between raw and filtered metrics.</summary>
+Query 1 filtered rank: $4 - 2 = 2$. Raw MRR $= \tfrac{1}{2}(\tfrac14 + 1) = 0.625$;
+filtered MRR $= \tfrac{1}{2}(\tfrac12 + 1) = 0.75$. Hits@1: raw $= 0.5$, filtered
+$= 0.5$ (the filter moved rank 4→2, not to 1). In general filtered ≥ raw for every
+query (removing competitors can only improve a rank), so filtered MRR/Hits@K dominate
+raw — which is why the two must never be compared across papers.
+</details>
+
+<details><summary>Q6 · The leak — Explain the FB15k exploit concretely: what rule solves a leaked test triple, why does an embedding model "learn" it anyway, and how does FB15k-237 close the hole? Connect to Week 3's Pitfall 1.</summary>
+If train has $(a, r_1, b)$ and test has $(b, r_2, a)$ with $r_2$ the inverse relation
+of $r_1$, the rule "answer with the train partner" is perfect — no learning involved.
+An embedding model achieves the same by learning $\mathbf{r}_2 \approx$ the inverse
+transform of $\mathbf{r}_1$ (cheap: @prp-rotate's inversion row), so its score
+reflects dataset redundancy, not inference. FB15k-237 drops near-inverse/duplicate
+relations so no such rule survives. The family resemblance to Week 3: in both cases
+test information reaches training through the *data pipeline* (walks across test
+edges; inverse triples in train), not through the model — audit the split, not the
+architecture.
+</details>
+
+<details><summary>Q7 · Self-adversarial — Why does weighting negatives by the model's own scores accelerate training, when the same scores are exactly what training is trying to fix? And name the failure mode the ⚠ candidate in Figure 3 warns about, plus its standard mitigation.</summary>
+The margin loss only learns from violated comparisons; uniform corruption mostly draws
+absurdities that are already separated, contributing zero gradient. Weighting by
+current scores concentrates the batch on the frontier — negatives the *current* model
+finds plausible — which is where gradient exists. It is a curriculum generated by the
+model itself (and the weights carry no gradient, so it does not chase its own tail).
+Failure mode: the most "plausible lie" is sometimes an unstated truth (open world!),
+and self-adversarial weighting actively promotes it to chief negative — training then
+pushes a true fact down hard. Mitigation: filter candidate corruptions against all
+known triples, and keep α moderate so the weighting stays a tilt, not a spotlight.
+</details>
+
+## Where this leaves us
+
+Facts became geometry today: relations turned into translations, weightings, and
+rotations, and you can now prove — not recall — which regularities each geometry can
+hold, train one honestly on positives-plus-silence, and evaluate it without flattering
+yourself. You also collected two permanent reflexes: ask what a missing edge means,
+and ask whether a lookup could ace the benchmark.
+
+But look at what our best models still cannot do. The hero fact needed *two* hops and
+already strained everything (@cor-transitive); a real question — "which drugs target
+proteins associated with this disease?" — is a *path with variables in the middle*,
+marching through an incomplete graph where every hop might be a missing edge. Chaining
+single-hop completions multiplies error; enumerating intermediate candidates explodes.
+Next week, queries themselves become geometric objects — boxes that intersect, regions
+that contain answers — and the knowledge graph meets the technology that suddenly made
+all of this front-page relevant: retrieval for large language models. Bring the
+open-world assumption; it is about to become a product requirement.
+
+:::
+
+::: {.content-visible when-format="html"}
+{{< include ../assets/d3/w4-scripts.html >}}
+:::

@@ -1,0 +1,34 @@
+---
+title: "Lab 4 · Facts as geometry"
+subtitle: "Week 4 · TransE & RotatE from scratch on FB15k-237"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab04_kge.ipynb)
+
+**≈ 25 minutes of compute · free Colab or any CPU · no GPU needed**
+
+Two knowledge-graph embedding models built from scratch and evaluated the honest way,
+implementing the [Week 4 lecture](../lectures/04-knowledge-graphs.qmd):
+
+1. **The honest benchmark** — FB15k-237, with the inverse-relation leak already
+   surgically removed; you read its datasheet before touching it.
+2. **The TransE score** (exercise 1): the translation decoder, checked against the
+   lecture's exact toy numbers.
+3. **Corruption and the margin** (exercise 2): negatives manufactured under the
+   open-world assumption, and a loss that stops caring once the margin is met.
+4. **Filtered evaluation** (exercise 3): your `filtered_rank` passes the lecture's
+   Q5 by hand, then produces real MRR and Hits@10 on held-out facts, both directions.
+5. **The RotatE score** (exercise 4): complex tensors, `torch.polar`, and the
+   lecture's quarter-turn as the assert.
+6. **The showdown** (exercise 5): train both models on synthetic symmetric +
+   antisymmetric relations and measure the prophecy — TransE's married-vector norm
+   collapses to ~0.01 of the antisymmetric one, while RotatE parks the married phases
+   at half-turns. The cheat sheet, caught on camera.
+
+Stretch (ungraded): RotatE at FB15k-237 scale, self-adversarial negatives, and a
+pattern audit that finds the most symmetric relation in the wild.
+
+**Submitting.** One executed notebook on Moodle: all five exercise checks ✓, three
+reflection answers. Grading: assertions 70% · reflections 30%. *Restart and run all*
+before you submit. AI-assistant use is allowed with disclosure, per the honor code —
+the notebook's final cell restates the policy.

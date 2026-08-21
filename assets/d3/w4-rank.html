@@ -1,0 +1,24 @@
+```{=html}
+<div class="interactive-container" id="w4-rk-widget">
+  <div class="fig-label">Interactive · Filtered ranking on held-out facts</div>
+  <div class="widget-controls">
+    <button class="pill-btn" id="w4-rk-next" type="button">next query</button>
+    <label style="font-size:0.85rem">
+      <input type="checkbox" id="w4-rk-filter"> filtered (the published protocol)
+    </label>
+  </div>
+  <div id="w4-rk-svg" role="img" aria-label="A held-out fact's head-prediction ranking with every entity scored by the trained model; toggling the filter removes known-true training competitors and updates MRR and Hits at one"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the ranking for a held-out query, with a known-true training competitor above
+    the answer in the raw list and removed in the filtered one.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 4.</strong> The evaluation protocol end to end,
+  on facts this model genuinely never saw: two held-out triples, full entity ranking,
+  raw versus filtered, MRR and Hits@1 across the test set.
+  <strong>Try this:</strong> on the first query, find the purple competitor sitting
+  above the truth and name it before hovering; toggle the filter and confirm the rank
+  arithmetic by hand. Then answer: why is filtering <em>not</em> cheating — what
+  precisely distinguishes a purple bar from the green one?</p>
+</div>
+```

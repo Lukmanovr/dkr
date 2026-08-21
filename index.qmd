@@ -26,9 +26,11 @@ design choice.
 The course begins **Thursday, August 27, 2026** with
 [Week 1: Why graphs?](lectures/01-why-graphs.qmd) and its
 [onboarding lab](labs/lab01.qmd) — set up your environment there first, then continue
-into [Week 2: classical graph ML](lectures/02-classical-graph-ml.qmd) and
-[Week 3: node embeddings](lectures/03-embeddings.qmd). Materials go live week by week;
-the [GCN week](lectures/06-gcn.qmd) is also published and shows where the course is
+week by week through [classical graph ML](lectures/02-classical-graph-ml.qmd),
+[node embeddings](lectures/03-embeddings.qmd), and
+[knowledge graphs](lectures/04-knowledge-graphs.qmd) (where
+[Homework 1](homeworks/hw1.qmd) goes out). The
+[GCN week](lectures/06-gcn.qmd) is also published and shows where the course is
 headed: interactive lecture pages you can manipulate, and Colab labs that build each
 method from scratch before reaching for the library.
 

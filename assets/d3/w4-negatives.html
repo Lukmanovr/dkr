@@ -1,0 +1,28 @@
+```{=html}
+<div class="interactive-container" id="w4-ng-widget">
+  <div class="fig-label">Interactive · Who gets the gradient?</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-q="0" type="button">(IU, located_in, Innopolis)</button>
+    <button class="pill-btn" data-q="1" type="button">(Volga, flows_through, Tatarstan)</button>
+    <button class="pill-btn" data-q="2" type="button">(Kazan, instance_of, city)</button>
+    <label style="font-size:0.85rem">temperature α
+      <input type="range" id="w4-ng-alpha" min="0" max="3" step="0.5" value="0" style="width:140px">
+      <span id="w4-ng-aval">0.0</span>
+    </label>
+  </div>
+  <div id="w4-ng-svg" role="img" aria-label="For a chosen true triple, the nine tail corruptions ranked by model score, with self-adversarial sampling weights that concentrate on the hardest negatives as the temperature rises"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: nine corrupted tails ranked by score; at temperature zero all receive equal
+    sampling weight, at higher temperatures the plausible corruptions dominate.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 3.</strong> Corruption sampling made visible: teal
+  bars are the trained model's scores for each fake tail, terracotta bars the probability
+  of drawing it as a negative. <strong>Try this:</strong> slide α from 0 to 3 and watch
+  the gradient budget migrate from absurdities (rivers located in universities) to the
+  plausible lies that actually teach the model something. Then find the ⚠ candidate on
+  the third triple — a corruption that is <em>accidentally true</em> — and explain why
+  sampling it as a negative is both inevitable (open-world!) and mostly harmless at
+  scale.</p>
+</div>
+```

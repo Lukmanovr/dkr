@@ -1,0 +1,55 @@
+---
+title: "Homework 1 · Foundations"
+subtitle: "Weeks 1–4 · out Sep 17 · due Thursday, Oct 1, 23:59"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/homeworks/hw01_foundations.ipynb)
+
+**≈ 5–10 hours · individual work · 10% of the course grade**
+
+One notebook, three parts, covering representations, classical graph ML, shallow
+embeddings, and KG embedding theory:
+
+- **Part A · Derivations (30 pts).** Four proofs, answered in markdown cells:
+  relabeling and spectral invariance (plus finding where the invariant *fails*);
+  why PageRank needs its teleport, on the smallest graph that breaks it; the SGNS
+  fixed point, derived; and the complete DistMult column of the Week 4 cheat sheet.
+- **Part B · Implementation (60 pts, autograded).** Three exercises whose asserts you
+  can read: spectral fingerprints that catch A1's cospectral pair; an empirical
+  verification that SGNS converges to the shifted PMI (theory, then `corr > 0.9` in
+  code); and DistMult trained for 1,500 steps that *provably* cannot learn direction
+  — your proof from A4, caught on camera.
+- **Part C · Investigation (10 pts).** One hyperparameter from Labs 2–4, one
+  mechanistic hypothesis, at most three runs, ten honest lines. Null results welcome;
+  cherry-picking is not.
+
+## Rubric
+
+| Part | Points | Graded by |
+|---|---|---|
+| A1 spectra · A2 PageRank · A3 SGNS · A4 DistMult | 10 + 8 + 6 + 6 | TA, per proof step |
+| B1 · B2 · B3 | 20 + 20 + 20 | autograder (visible + hidden variants) |
+| C hypothesis · experiment · conclusion | 2 + 4 + 4 | TA |
+
+Late policy: −10% per day, up to 3 days; nothing accepted after solutions are
+released. Regrade window: one week after grades post.
+
+## FAQ
+
+**Can I hand-write Part A?** Yes — paste a *legible* photo into the markdown cell.
+Illegible scans are graded as blank.
+
+**The visible asserts pass — am I guaranteed the B points?** Almost: hidden variants
+run the same checks with different graphs and toy vectors. If your code is honest
+(no hard-coded answers), visible-pass ≈ hidden-pass.
+
+**May I use an AI assistant?** Yes, with disclosure in the final cell (tool + what
+for), per the [honor code]. You must be able to explain any line and any proof step
+in person; inability to explain is treated as undeclared use.
+
+**Part C says "at most three configurations" — can I run ten?** You can *run*
+anything; you must *report* a focused comparison. The point is a defensible
+conclusion, not a sweep.
+
+**Something is broken / ambiguous.** Post in the course forum thread for HW1 —
+clarifications get pinned there, and everyone sees the same answers.

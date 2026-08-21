@@ -58,7 +58,8 @@ const STATIC_WIDGETS = ["w6-eq-linked"];
 // JS-rendered widgets: the harness loads their real scripts so shot and lint
 // exercise the initial rendered state, not an empty container.
 const JS_WIDGETS = ["w2-centrality", "w2-pagerank", "w2-wl", "w2-louvain",
-                    "w3-walks", "w3-pq", "w3-embed", "w3-labelprop"];
+                    "w3-walks", "w3-pq", "w3-embed", "w3-labelprop",
+                    "w4-transe", "w4-patterns", "w4-negatives", "w4-rank"];
 
 export function listFigures() {
   return readdirSync(FIGDIR).filter((f) => f.endsWith(".html")).map((f) => f.replace(/\.html$/, ""))
