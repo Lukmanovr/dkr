@@ -1,0 +1,857 @@
+---
+title: "Heterogeneous Graphs: Message Passing Meets the Knowledge Graph"
+subtitle: "Week 10 · Thursday, October 29, 2026 · 90 minutes"
+description: "Every edge so far meant the same thing. This week types arrive: R-GCN's per-relation weights and one hand-worked update, the 4.75-million-parameter bill and the basis trick that cuts it 14.7×, metapaths and typed attention (HAN, HGT), and the measured showdown — a learned encoder against Week 4's lookup table, same decoder, same eval, honest verdict."
+date: 2026-10-29
+date-modified: last-modified
+format:
+  html:
+    toc-depth: 3
+---
+
+::: {.content-visible when-format="html"}
+
+::: {.callout-tip title="Learning objectives" icon="false"}
+After this lecture (and Lab 10) you can:
+
+1. **extend** message passing to typed nodes and edges, and hand-simulate one R-GCN layer on a small typed graph;
+2. **derive** R-GCN's parameter explosion and both repairs — basis and block-diagonal decompositions — with exact counts;
+3. **describe** attention-based heterogeneous models (HAN's metapaths, HGT's typed attention) at architecture level and choose between them for a stated schema;
+4. **assemble** encoder–decoder KG completion (R-GCN encoder + DistMult decoder) and compare it against Week 4's shallow embeddings honestly — same decoder, same eval;
+5. **map** a relational database schema onto a heterogeneous graph — the bridge Week 14 will drive a truck over.
+:::
+
+## The last untyped week
+
+Week 9 ended by naming the assumption every graph in this course's GNN arc has
+shared: *every edge meant the same thing.* Cora's edges were all citation. The
+karate club's were all friendship. The barbell's were all wire. One adjacency
+matrix, one aggregation, one learned way of listening — a simplification so
+comfortable it stopped feeling like one.
+
+Now look at the graphs from the *other* half of this course. In
+[Week 4](04-knowledge-graphs.qmd), *located_in* and *treats* and *capital_of*
+were so unalike that each got its own geometric personality — translations,
+rotations, diagonal scalings — and we abandoned message passing entirely,
+scoring triples straight out of a lookup table. For six weeks the two threads
+of this course have run in parallel: knowledge graphs with rich types and no
+message passing; message passing with rich learning and no types. This week
+they merge, and the merge is not a formality — it forces two genuinely new
+problems and one uncomfortable measurement.
+
+The first problem is architectural: what does "aggregate the neighborhood" even
+mean when the neighborhood contains an author, three citations, and a venue?
+The answer — give every relation its own transformation — takes one line to
+say and, on a real knowledge graph, immediately writes a bill for **4.75
+million parameters per layer**. You will compute that bill exactly, and the
+two classic ways of talking it down. The second problem is subtler: when
+neighborhoods speak through *typed multi-hop patterns* (co-authorship is
+author–paper–author, not any single edge), who decides which patterns matter?
+Two architectures answer differently — one asks a human, one learns it — and
+choosing between them is a real engineering decision you will practice.
+
+And the uncomfortable measurement: once an R-GCN can *encode* entities of a
+knowledge graph, the obvious move is to bolt Week 4's DistMult decoder on top
+and declare the lookup table obsolete. We ran that experiment — same data,
+same loss, same filtered evaluation as Lab 4, everything matched — and the
+lookup table won. Holding the theorem-grade elegance of typed message passing
+in one hand and that table in the other, without dropping either, is this
+week's version of the discipline this course keeps preaching: architectures
+are hypotheses, and the benchmark does not care how pretty they are.
+
+::: {.predict}
+**Commit before you look.** DBLP is a real academic graph: 4,057 authors,
+14,328 papers, 7,723 terms, 20 conferences, with typed edges for writing,
+mentioning, and publishing. The task: classify authors into four research
+areas. An MLP on author features alone — no graph at all — scores 79.0%.
+Predict the accuracy of a two-layer *typed* message-passing network that also
+reads papers, terms, and venues. And predict what an *untyped* GNN (all edges
+merged into one soup) would do to that number.
+
+::: {.predict-answer}
+Measured, three seeds: the typed network reaches **84.0 ± 0.7** — five points
+over features-alone, earned mostly through author–paper–author co-authorship
+signal that the MLP cannot see. The untyped soup is the interesting control:
+merging edge types forces one shared weight onto co-authorship, term
+co-occurrence, and venue links simultaneously, and the benchmark literature's
+answer (you will meet the HGB paper below) is that it costs real accuracy —
+though less than the architecture papers implied, a nuance this lecture takes
+seriously in §6.
+:::
+:::
+
+## The object: schemas, instances, and what projections destroy
+
+A <span class="term" data-def="A graph with a type function on nodes and on edges: each node has a type (author, paper…), each edge a relation type (writes, cites…), and only schema-permitted combinations occur.">heterogeneous graph</span>
+is a graph plus a type system: node types $\mathcal{A}$, relation types
+$\mathcal{R}$, and a **schema** — a small meta-graph saying which types may
+connect through which relations. The distinction between schema and instance
+is worth keeping sharp, because every architecture this week is parameterized
+by the *schema* while computing on the *instance*:
+
+{{< include ../assets/figures/fig-w10-hetero.html >}}
+
+The five-node instance on the right is this week's karate club — small enough
+to hand-compute, rich enough to break untyped intuitions — and its scalar
+features are chosen so you can follow every number.
+
+The real dataset behind this week's measurements deserves the same anatomical
+attention, because its quirks are every heterogeneous dataset's quirks. DBLP,
+as packaged for hetero-GNN research: **4,057 authors** (the nodes we classify,
+into four research areas), **14,328 papers**, **7,723 terms**, **20
+conferences**; edge types `writes`, `mentions`, `published_in`, each stored
+in both directions. Now the quirks. Feature dimensions differ *per type* —
+authors carry 334-dimensional bags of words, papers 4,231, terms 50 — so no
+single weight matrix can even accept "the neighbors" as one batch; typed
+models are forced on you by linear algebra before any accuracy argument.
+Conference nodes ship with *no features at all* — twenty nodes, pure
+identity — and the standard fix (give them a constant scalar and let their
+embedding be entirely relational) is a tiny preview of the featureless-entity
+problem that dominates the KG half of this lecture. And the labels live on
+only one type: authors. The task is not "classify the graph"; it is "classify
+one type, using all of them" — which is exactly the shape of most industrial
+problems (classify the *customers*, using orders, products, sessions).
+
+This shape is everywhere once you look. OGB's academic benchmark (MAG) is
+authors–papers–institutions–fields at two million nodes. Biomedical graphs
+tie drugs, proteins, diseases, side-effects into typed multigraphs
+(Week 5's toy KG, industrialized). E-commerce is users–items–sessions–
+queries. In each, the types are not annotation on top of the data — they
+*are* the data model, and flattening them is a modeling decision someone
+should have to defend in review.
+
+You have, in fact, been here before, in the smallest possible dose: the
+bipartite graphs of [Week 1](01-why-graphs.qmd) — users and movies, two
+node types, one relation — are the minimal heterogeneous graph, and the
+recommendation systems built on them were heterogeneous modeling before
+the word arrived. This week's apparatus is that idea with the training
+wheels off: many types, many relations, and a schema instead of a
+two-column convention.
+
+Why not simplify? The standard temptation, which whole applied literatures
+indulged for years, is to *project*: co-authorship networks are
+author–paper–author collapsed to author–author; protein networks collapse
+drug–protein–disease tripartite structure to protein–protein. Projection is
+lossy in ways you can now name precisely. It forgets multiplicity (two shared
+papers or ten — one edge either way), forgets the mediator's identity (shared
+*NeurIPS* paper or shared workshop note), and forgets every path that mixes
+relations. [Week 1](01-why-graphs.qmd) called choosing a representation the
+first modeling decision; the heterogeneous graph is the representation that
+declines to decide prematurely — it keeps the types and lets the *model*
+learn what to collapse. The price is that the model must now be told how to
+read types, which is the rest of this lecture.
+
+## R-GCN: one weight matrix per relation
+
+The R-GCN update (Schlichtkrull et al. 2018, your required reading) is
+[Week 7's template](07-gnn-design.qmd) with the aggregation slot split by
+relation:
+
+$$h_v' = \sigma\Big(\, W_0\, h_v \;+\; \sum_{r \in \mathcal{R}}\ \sum_{u \in N_r(v)} \frac{1}{c_{v,r}}\, W_r\, h_u \Big),$$
+
+three small print items included, each of which will bill you later if
+skipped now. Each relation $r$ — *and each direction*: an incoming `cites`
+is a different channel from an outgoing one, because being cited and citing
+are different evidence about a paper (prominence versus topical ancestry),
+so a graph with $R$ relations runs $2R$ typed channels plus the self-loop
+$W_0$ — and that factor of two is about to matter enormously in the
+parameter count. The
+normalizer $c_{v,r} = |N_r(v)|$ averages *within* each relation, so three
+co-authors do not outvote one citation merely by count — and the paper also
+offers a learnable variant of $c$, an early whisper of §6's attention, since
+"how loudly may this channel speak" is exactly the quantity attention would
+make input-dependent. And aggregation
+across relations is a plain **sum** — after Week 7 you can immediately ask
+whether that slot could be attention instead; hold the question until §6,
+where two architectures answer it.
+
+Every symbol earns its keep in one worked update at paper $P_1$ of our toy —
+features $h(A_1){=}1$, $h(A_2){=}2$, $h(P_1){=}1$, $h(P_2){=}3$, $h(V){=}2$,
+scalar weights $W_0{=}1$, $W_{\text{writes}}{=}\tfrac12$,
+$W_{\text{cites}}{=}1$, $W_{\text{pub}^{-1}}{=}\tfrac14$:
+
+{{< include ../assets/figures/fig-w10-rgcn.html >}}
+
+Read the ledger the way the network does. The `writes` channel *averages* its
+two authors ($\tfrac{1+2}{2} = 1.5$) before its weight touches them; the
+citation, alone on its channel, arrives at full strength; the venue whispers
+through a deliberately small weight. Total: $1 + 0.75 + 3 + 0.5 =
+\mathbf{5.25}$. Now collapse the types — one shared $W = \tfrac12$, one plain
+mean over all four neighbors — and the update becomes $1 + \tfrac12 \cdot
+\tfrac{1+2+3+2}{4} = \mathbf{2.00}$. The number matters less than what died on
+the way to it: in the untyped layer there is *no parameter whose job is to say
+citations matter more than venues*. Not "harder to learn" — nonexistent. Typed
+weights are not a performance tweak; they are the difference between a
+preference the optimizer can find and a preference the hypothesis class
+cannot express. Play the fader yourself:
+
+{{< include ../assets/d3/w10-typed.html >}}
+
+Two mechanical details separate people who have implemented this from people
+who have read about it, and both are Lab 10 material. First, **inverse
+channels are your job**. The equation's $N_r(v)$ quietly includes relations
+like `cites⁻¹` — but PyG's `RGCNConv` knows nothing of inversion; it
+propagates along the edges you give it, in the direction you give them. The
+construction is three lines and absolutely load-bearing: concatenate the
+edge list with its flipped copy, and give the flipped edges relation types
+offset by $R$ (types $0..R{-}1$ forward, $R..2R{-}1$ inverse). Forget it and
+a paper learns from what it cites but *nothing* from being cited — an
+information diode nobody intended. More than one published "R-GCN
+underperforms here" table owes part of its gap to this bug, which is why the
+lab's assert makes you build the doubled list and checks the offsets
+explicitly. Second, **what is $h^{(0)}$ for a featureless entity?** FB15k-237
+entities have no features — the input layer is an identity: each entity gets
+a learnable row, i.e. the input to the first R-GCN layer *is* Week 4's lookup
+table, and the encoder's claim is only ever that passing that table through
+typed neighbors improves it. Keeping this straight is what makes the
+showdown of §5 a controlled experiment rather than a vibe: both pipelines
+start from the same object, and the encoder is exactly one added stage.
+
+And to make the arithmetic muscle memory rather than a spectator sport, run
+the same ledger at a second node yourself before the lab does it to you. At
+$A_2$ (feature 2): outgoing `writes` gives an inverse channel `writes⁻¹`
+from papers $\{P_1, P_2\}$: with weight $\tfrac12$, contribution $\tfrac12
+\cdot \tfrac{1+3}{2} = 1$; self gives $1 \cdot 2 = 2$; no other channel
+touches an author in this instance. $h'(A_2) = 3$: an author is, to this
+layer, their own identity plus the average of what they write — which reads
+like a job description because that is what typed aggregation is, a learned
+job description per relation.
+
+That is the whole architecture. On DBLP it is worth, as measured above, five
+points over ignoring the graph — respectable, honest money. And the measured
+five points come with a mechanism you can articulate: the MLP sees an
+author's own words; two typed layers see the words of every co-authored
+paper, every term those papers mention, and every venue that accepted them —
+the co-authorship metapath assembled implicitly by stacking typed hops. The
+trouble starts when you count what this machinery costs on a graph whose
+$\mathcal{R}$ was not four but 237.
+
+## The bill: $(2R{+}1) \cdot d^2$, and two ways to not pay it
+
+Parameters per R-GCN layer, hidden width $d$, both directions plus self-loop:
+$(2R + 1)$ matrices of $d^2$ entries. At FB15k-237's $R = 237$ and a modest
+$d = 100$: $475 \times 10{,}000 = \mathbf{4{,}750{,}000}$ parameters *per
+layer* — before a single entity embedding. Compare: the entire lookup table
+of Week 4 was $14{,}541 \times 100 \approx 1.45$M. The encoder that was
+supposed to enrich the embeddings costs three times the embeddings
+themselves, per layer, and most of those matrices train on starvation
+rations — FB15k-237's relation frequencies are wildly skewed, so rare
+relations get full $d^2$ budgets and a few hundred triples of signal.
+Overfitting is not a risk; it is the default.
+
+Run the audit properly, because "wildly skewed" is a measurable, not an
+adjective. FB15k-237 has 272,115 training triples over 237 relations — a
+mean of ~1,148 per relation, but the distribution is the usual power law:
+a handful of relations (`/people/person/profession`-style workhorses)
+carry tens of thousands of triples while the long tail carries dozens. Now
+put that against the budget: at $d = 100$, every relation's $W_r$ holds
+10,000 free parameters *per direction*. A relation with 40 training triples
+is being asked to estimate 20,000 numbers from 40 examples — a
+parameters-per-example ratio of 500:1, which is not "prone to overfitting"
+so much as *unspecified*: most of that matrix will be whatever the random
+initialization and the regularizer left behind. The R-GCN paper knew it —
+edge dropout and L2 are load-bearing in their recipe, not hygiene — but
+regularization can only shrink the unspecified dimensions toward zero; it
+cannot conjure signal. The decompositions attack the ratio itself.
+
+Watch the basis count assemble, term by term, because each term is a design
+decision. $B d^2$: the shared dictionary — thirty matrices that *all*
+relations must express themselves through; this is where capacity lives,
+and it no longer scales with $R$ at all. $2RB$: the per-relation mixing
+coefficients — thirty numbers per channel, so our starving 40-triple
+relation now estimates 30 numbers from 40 examples instead of 20,000; the
+ratio just improved by three orders of magnitude. $d^2$: the self-loop,
+which nobody decomposes because there is only one of it. Total at our
+scale: $300{,}000 + 14{,}220 + 10{,}000 = 324{,}220$.
+
+Both repairs from the R-GCN paper are one idea each, and you can hold them as
+a pair of opposite bets:
+
+**Basis decomposition** bets that *relations are more alike than they are
+numerous*. Keep only $B \ll 2R$ shared basis matrices $V_1, \dots, V_B$ and
+write every relation as a mixture: $W_r = \sum_b a_{rb} V_b$. The count drops
+to $B d^2 + 2RB + d^2$: at $B = 30$, that is $324{,}220$ — **14.7× fewer**,
+with the per-relation identity carried entirely by a length-30 coefficient
+vector $a_r$. Stop on that object for a moment, because you have seen it
+before: a small dense vector, one per relation, learned end-to-end, encoding
+how the relation behaves — $a_r$ *is a relation embedding*, in precisely
+[Week 4's](04-knowledge-graphs.qmd) sense, living inside the encoder's
+weights instead of the decoder's score. (The optional CompGCN reading makes
+this bridge into a design principle: represent relations as vectors
+outright and *compose* them with entity embeddings using operators lifted
+from TransE and DistMult — the two halves of this course collapsing into one
+equation.)
+
+**Block-diagonal decomposition** bets the opposite: relations are
+*independent*, but low-rank — each $W_r$ is a block-diagonal matrix of, say,
+ten $\tfrac{d}{10} \times \tfrac{d}{10}$ blocks, so features interact only
+within small sub-spaces. Count: $2R \cdot \tfrac{d^2}{10} + d^2 = 484{,}000$
+at our scale — between the extremes, sharing nothing across relations.
+
+{{< include ../assets/figures/fig-w10-params.html >}}
+
+How do you choose $B$? Like every capacity knob: by validation, but with a
+useful semantic reading attached. $B$ is a claim about how many *kinds of
+relational behavior* exist in your schema — FB15k-237's 237 relations
+plausibly cluster into far fewer behavioral families (part-whole relations,
+professional relations, geographic containments…), and a trained model lets
+you check: the coefficient vectors $a_r$ are inspectable, and relations
+that share basis usage in $a_r$-space are relations the model considers
+kin. That inspection is a legitimate deliverable — "the model discovered
+that `capital_of` and `headquartered_in` load the same three bases" is an
+interpretability artifact your Week-4 lookup decoder could never produce —
+and it is an early ancestor of this line's current endpoint: the ULTRA
+foundation model (optional reading) drops the learned relation vocabulary
+entirely and represents relations *by how they interact with each other*,
+which is what lets one pretrained model answer queries on knowledge graphs
+it has never seen. The basis trick, squinted at correctly, was the first
+draft of relations-as-structure.
+
+Which bet wins is an empirical question that depends on how much your
+relations genuinely share, and the widget below is calibrated to give you the
+engineering instinct: at $R \le 30$ the disease is mild and the full
+treatment (which couples relations that may want independence) can cost more
+than it saves; at $R = 237$ the full version is untrainable luggage and the
+basis version is simply how the model ships.
+
+{{< include ../assets/d3/w10-params.html >}}
+
+<details>
+<summary>Where R-GCN actually came from — one drawer of history</summary>
+R-GCN was published at ESWC — the Extended *Semantic Web* Conference — not at
+a machine-learning venue, and that address is the history in one line. The
+Semantic Web community had spent fifteen years building typed graphs (RDF,
+ontologies, SPARQL) and wanted statistical models; the statistical relational
+learning community had spent the 2000s on Markov logic networks and lifted
+inference; and the tensor-factorization line (RESCAL 2011, then TransE 2013,
+DistMult 2015) had made KG completion a benchmark sport. R-GCN, with Kipf —
+of GCN fame — among its authors, was the moment the GCN wave broke over all
+three: the paper is literally the GCN equation dressed for RDF, evaluated on
+the SRL community's entity-classification datasets (AIFB, MUTAG, BGS, AM)
+and the factorization community's FB15k-237. It won cleanly on the former —
+typed features over typed structure is exactly its home game, and Lab 10
+gives you AIFB for the same reason. On the latter it needed the DistMult
+decoder to compete at all, which, as our measured showdown is about to say,
+was foreshadowing.
+</details>
+
+## The showdown: learned encoder vs the lookup table
+
+Assemble the pipeline the R-GCN paper proposed for link prediction. Week 4's
+recipe was *lookup encoder* → DistMult score → margin loss → filtered
+ranking. Keep every stage but the first: replace the lookup with entity
+embeddings that a 1-layer R-GCN (basis, $B = 30$) has passed through the
+graph, so every entity's vector now digests its typed neighborhood:
+
+{{< include ../assets/figures/fig-w10-encdec.html >}}
+
+We ran the comparison with everything matched, and "matched" is a checklist,
+not a mood — walk it, because designing this table *is* the lesson. Same
+data: FB15k-237, the leak-audited split from Week 4. Same starting object:
+learnable 100-dimensional entity vectors (the encoder passes them through
+one basis-30 R-GCN layer with a residual; the lookup uses them raw). Same
+decoder: DistMult, $\langle h, r, t\rangle$. Same loss: margin ranking
+against one uniform corruption per positive — the exact recipe Lab 4
+trained TransE with. Same evaluation: 2,000 sampled test facts, both
+directions, filtered against all known triples, same sampling seed, so
+every model answers the *same questions*. Same budget axis: 5 and 15
+epochs, wall-clock recorded. What we did **not** match — and report instead
+— is compute per epoch, because that asymmetry is not a confound, it is a
+finding: one encoder epoch costs about 22 lookup epochs, and any deployment
+decision has to price that in.
+
+{{< include ../assets/d3/w10-showdown.html >}}
+
+The lookup table wins every matched comparison on the board, and it does so
+while spending **1/22nd** of the wall-clock. The trajectories carry more
+information than the endpoints, so read them: from 5 to 15 epochs the
+shallow DistMult moved 0.179 → 0.145 — *backwards* — and the encoder moved
+0.126 → 0.122, a flat line bought for another sixteen minutes of GPU. The
+first is honest-to-goodness overtraining: margin loss with unconstrained
+embeddings keeps inflating norms after the ranking signal saturates, and
+MRR pays for it (TransE dodges this with its unit-sphere renormalization —
+Week 4's "cosmetic" constraint, earning its keep). The second kills the
+most tempting rescue in advance: "the encoder just needs more epochs" is
+refuted by the encoder's own trajectory here — more epochs helped neither
+pipeline, and what both actually need is a better-shaped loss and early
+stopping, which the literature's tuned numbers (shallow models near 0.34)
+spend real search budgets to find. Extrapolation arguments must survive
+being measured. Sit with the discomfort rather than explaining it away,
+because each candidate explanation you might reach for is itself
+instructive. *"Train the encoder longer"* — the gap at 15
+epochs is smaller than at 5, so extrapolation helps the encoder, but the
+compute bill scales with it: equal-wall-clock comparisons get worse for
+R-GCN, not better. *"Tune it properly"* — the reproduction literature did
+(your Week-8 skepticism training pays off here): systematic re-evaluations
+find well-tuned *shallow* models at MRR ≈ 0.34 on this benchmark, leading or
+matching every GNN encoder, a finding published under the title "You CAN
+Teach an Old Dog New Tricks." *"The benchmark is unrepresentative"* — closer,
+and worth making precise. FB15k-237 is **transductive**: every test entity
+was seen in training, so a lookup table can afford a bespoke vector per
+entity, and the encoder's structural sharing buys little. Where encoders
+demonstrably earn their cost: entities with *features* (a molecule's atoms,
+a paper's abstract), **inductive** settings where test entities are new (a
+lookup has no row for a new node — [Week 7's](07-gnn-design.qmd) SAGE
+argument, verbatim), sparse entities that must borrow statistical strength
+from neighbors, and *entity classification* on typed graphs — R-GCN's actual
+home turf, where it beat the field cleanly. The one-sentence verdict to
+carry: **a learned encoder is a mechanism for sharing; it pays exactly when
+your entities have something to share and rows in a table when they do not.**
+
+It is also worth knowing, mechanically, what the encoder *did* with its 400
+seconds, because the anatomy of the cost is next week's entire subject. Each
+gradient step scores one 8,192-triple batch — but before it can score
+anything, the encoder must produce entity vectors, and producing them means
+one full propagation over all 544 thousand directed edges (both-direction
+channels of 272 thousand triples), touching all 14,541 entities, whether or
+not they appear in the batch. Thirty-four steps per epoch, five epochs:
+roughly *one hundred seventy* full-graph propagations — 156 seconds against
+the lookup's 7 — to train on what the lookup handled with O(batch)
+embedding updates. The lookup's advantage is not
+cleverness; it is that its "encoder" is indexing, and indexing is free. Hold
+that anatomy: the moment the graph outgrows memory next week, "full
+propagation per step" stops being expensive and becomes impossible, and the
+repair (sample the neighborhood per batch) is what turns this week's
+architectures into deployable systems.
+
+If our verdict bothers you — it should at least itch — the scientific
+response is not to re-run with more epochs but to design the experiment
+where the encoder's job description actually applies, and you can specify
+it right now with course-grade precision. Take FB15k-237, hold out not
+random *triples* but random *entities*: strip 5% of entities from training
+entirely, then at test time ask for their links given only their
+neighborhoods. The lookup table forfeits — it has no row, the exact
+transductive failure Week 3 catalogued — while the encoder computes an
+embedding for a node it has never seen from typed messages alone. That
+inductive split is where R-GCN-style encoders post their wins in the
+literature, and constructing it (with the Week-1 discipline about what
+leaks across the boundary) is precisely the kind of evaluation design this
+course keeps insisting is the real skill.
+
+One more lens on the same data, because it closes a loop opened in Week 4.
+Split the test queries by relation category — the TransE paper's own 1-1 /
+1-N / N-1 / N-N taxonomy, computed from train-set fan-outs with the paper's
+1.5 threshold — and the widget's second view shows MRR 0.313 on N-1 queries
+against 0.139 on N-N, with N-N alone comprising 71% of the test set. The
+mechanism is the one you proved in Week 4, now wearing benchmark clothes.
+An N-1 relation is (nearly) a *function* — many people, one birthplace each
+— so a tail query has one defensible answer and geometry can nail it; that
+is the 0.313. An N-N relation admits crowds on both sides, and when we ask
+for *the* held-out tail among hundreds of genuinely plausible ones, the
+model is being graded partly on information the graph does not contain;
+that is the 0.139, and it is a property of the *query distribution*, not
+of any model — which is exactly why no encoder in our table moved it much.
+The "1-to-N crush" you watched squeeze vectors in a 2-D widget six weeks
+ago is where most of a real benchmark's difficulty lives, and knowing that
+changes how you read every KG leaderboard from now on: ask for the
+category breakdown before applauding a headline MRR.
+
+## When types need attention: metapaths, HAN, HGT
+
+R-GCN listens per *relation*. But much of what matters in a typed graph is a
+per-*pattern* phenomenon: co-authorship is not any single edge — it is the
+composite `author → paper → author`. A
+<span class="term" data-def="A sequence of node/relation types, e.g. author–paper–author; instances of the pattern connect nodes into a derived, homogeneous 'metapath neighborhood'.">metapath</span>
+is such a typed walk recipe, and each recipe manufactures a different
+homogeneous graph from the same instance:
+
+{{< include ../assets/d3/w10-metapath.html >}}
+
+**HAN** (2019, optional reading) builds directly on this, in two stacked
+attention stages whose division of labor you should be able to recite.
+Stage one, *node-level* attention: for each metapath $\Phi$ on the menu,
+attend GAT-style over $v$'s $\Phi$-neighborhood — within the co-author
+lens, which co-authors matter? — producing one embedding of $v$ per
+metapath, $z_v^{\Phi}$. Stage two, *semantic* attention: a small learned
+scorer weighs the metapaths themselves — for this task, how much is the
+co-author lens worth against the venue lens? — and mixes the
+$z_v^{\Phi}$'s with softmax weights shared across all nodes. Those
+semantic weights are the architecture's best feature and its résumé line:
+they are a *readable* answer to "which pattern carried the prediction,"
+the kind of artifact a domain expert can audit and argue with. The
+architecture is also exactly as good as its menu: a metapath nobody wrote
+down is a signal nobody aggregates, and the menu is written by a human
+before training begins.
+
+**HGT** (2020, required reading) removes the menu. Attention is
+parameterized by the <em>meta-relation</em> — the triple (source type, edge
+type, target type) — with type-specific projections, transformer-style: a
+paper attending to its authors builds queries with the paper-type
+projection, keys and values with the author-type projections, and the
+attention's core matrix is indexed by the full triple (author, writes,
+paper) — so the *same* author node uses different projections when talking
+to a paper than when talking to an institution. Multi-hop patterns are not
+enumerated; they *emerge* across layers, because a 2-layer HGT composes
+typed hops the way any GNN composes hops — our A–P–V–P–A lens is just two
+HGT layers' receptive field, discovered rather than declared. Parameters
+scale with the number of *types* and not with relation pairs, and the
+paper scaled the machine to a 179-million-node academic graph. The trade
+against HAN is legibility for coverage: nothing to forget to enumerate,
+nothing human-readable to point at afterward.
+
+And then the audit, because this course does not hand out architecture
+recommendations without one. The HGB benchmark study (optional reading,
+title: *"Are we really making much progress?"*) re-implemented twelve
+heterogeneous GNNs under one protocol and found that a **properly tuned
+plain GAT** — types ignored except for a learnable edge-type embedding —
+matches or beats most of them, with much of the published gaps traceable to
+feature preprocessing and split choices rather than architecture. Their
+constructive artifact, Simple-HGN, is worth thirty seconds of respect
+precisely for how little it is: GAT, plus a learnable vector per edge type
+that participates in the attention score, plus standard training hygiene.
+One typed dial — the *minimal* one — captured most of what the elaborate
+machinery captured. The paper is also a syllabus in how to read
+architecture claims after this course: check whether the baselines were
+tuned with the same care as the proposal (Week 7's noise floor), whether
+the splits match across rows (Week 4's filtered-ranking lesson), and
+whether preprocessing differs between lines of the same table. The pattern
+— elaborate mechanism, modest tuned-baseline gap — is not unique to
+heterogeneous GNNs; you saw it in the KG re-evaluations of Week 4, you
+will see it again wherever leaderboards live. That does not make types worthless (our own DBLP measurement
+says +5 points over no graph at all, and the *edge-type embedding* that
+Simple-HGN keeps is precisely the minimal typed dial); it makes the
+*elaborateness* of type machinery a claim requiring Week-7-grade evidence.
+Schema decision procedure, in one breath: few relations and features that
+matter → R-GCN or plain GAT with edge-type embeddings; a domain expert with
+strong pattern knowledge and a need to explain decisions → HAN with their
+metapaths; many types, web scale, no menu-writer available → HGT; and in
+every case, run the untyped baseline first, because five points is what
+types bought on DBLP and you should know what they buy on yours.
+
+## The bridge already under your feet
+
+One more reframing, and it may be the most economically consequential slide
+of the course. A relational database *is* a heterogeneous graph. Tables are
+node types; rows are nodes; every foreign key is a typed edge; a junction
+table is an edge type with attributes. The `orders` table pointing into
+`customers` and `products` is `customer ←ordered— order —contains→ product`,
+and every enterprise on earth runs on data shaped exactly like this.
+
+Work one mapping end to end, because the mechanics have teeth. A hospital
+system: `patients(id, demographics…)`, `visits(id, patient_id, ward,
+admitted_at)`, `prescriptions(visit_id, drug_id, dose)`, `drugs(id, class)`.
+Node types: patient, visit, drug (and possibly ward, promoted from a column
+to a type if wards matter relationally). Typed edges: patient —has_visit→
+visit from the foreign key; visit —prescribed→ drug through the junction
+table, carrying `dose` as an edge attribute. Now the two decisions that
+separate a clean mapping from a leaky one. First, *promotion*: a column
+becomes a node type when its values are shared entities you want messages
+to flow through (drug class: yes, free-text notes: no — they become
+features). Second, *time*: `admitted_at` is not decoration. A model
+predicting readmission must only pass messages along edges that existed
+before prediction time, or it commits the exact leak Week 1 diagnosed in
+random splits and Week 3 caught in walk-based link prediction — the
+temporal edition, and the single most common failure in applied relational
+deep learning. Week 14 builds the full discipline (RelBench's tasks are
+defined by timestamp cutoffs for precisely this reason); this week, just
+notice the schema hands you the leak and the cure in the same column.
+
+The consequence of the bridge runs in both directions. Forward: everything
+from this lecture applies to the databases where the world's commercial
+data actually lives — typed message passing over customers, orders,
+products predicts churn and fraud and demand *without the
+feature-engineering step* that armies of analysts currently hand-craft
+with SQL joins; that is the pitch of relational deep learning, and Week 14
+is devoted to it. Backward: your instincts about databases transfer to
+this week's models — a metapath is a JOIN path; HAN's semantic attention
+is learning which JOINs matter; a projection is a materialized view that
+someone forgot could lose information. And the economics follow the data:
+fraud detection at payment networks is typed-pattern detection (card—
+merchant—device—IP rings where the *types* of the connecting entities are
+the signal); recommendation at retail scale is user–item–session graphs;
+academic search ranks author–paper–venue neighborhoods. When someone asks
+what heterogeneous GNNs are *for*, the honest answer is mostly not
+"knowledge graphs" — our showdown showed lookups holding that fort — it is
+"the world's SQL tables, finally read natively."
+
+## The method: designing a typed model without folklore
+
+The week's transferable procedure, five questions asked in order, each with
+a cheap measurement attached:
+
+**Does the graph help at all?** Features-only baseline first (our DBLP MLP:
+79.0). No typed anything until untyped-anything beats it.
+
+**Do types help?** Untyped GNN on the merged graph versus one typed model.
+The gap is your types budget — spend architecture complexity proportionally
+to it, and per HGB, expect the honest gap to be smaller than the papers
+advertising it.
+
+**Which patterns carry the signal?** Probe with metapaths before buying
+attention: compute two or three metapath-adjacency features (Week 2 skills —
+they are matrix products) and feed them to a linear model. If
+author–paper–author explains the labels, you know *what* the fancy model
+must learn — and you have a floor it must beat.
+
+**Encoder or lookup?** Transductive, featureless, every test entity seen in
+training → the lookup is a strong, cheap, dignified baseline; treat encoder
+gains over it as claims requiring the matched-budget table this lecture just
+showed you. Features, new entities at test time, or sparse long-tail
+entities → the encoder has a job description.
+
+**What does the parameter bill say?** Count before training: $(2R{+}1)d^2$
+against your triples-per-relation histogram. If rare relations get more
+parameters than training examples, decompose (basis if relations plausibly
+share, blocks if they don't) — or take CompGCN's route and make relations
+vectors from the start.
+
+Watch the procedure run on DBLP, because we did run it. Question one:
+features-only MLP, 79.0 ± 0.5 — a strong floor; whatever we build must
+clear it. Question two: a typed 2-layer network, 84.0 ± 0.7 — the graph is
+worth five points, so type machinery has a budget of "five points minus
+what untyped would get," modest by construction. Question three: the
+signal, probed, is mostly the co-author metapath — which is why two typed
+layers (whose receptive field composes exactly A–P–A) capture it without
+any attention machinery. Question four does not arise (the task is node
+classification with features — encoder territory by definition). Question
+five: $R = 4$ at $d = 64$ puts the full bill at $9 \times 4{,}096 \approx
+37$k parameters per layer — three orders of magnitude below the
+decomposition-discussion threshold, so R-GCN-style full weights (or the
+SAGE-per-edge-type equivalent we actually trained) is simply correct, and
+anyone proposing HGT here should be asked, kindly, what disease they are
+treating. Ten minutes of procedure, and every architecture decision came
+out priced instead of fashionable.
+
+A word on tooling before the pitfalls, because Lab 10 will make this
+concrete and because ergonomics quietly decide what gets built. PyG
+represents a heterogeneous graph as a `HeteroData` object — a dictionary of
+node-type feature matrices and a dictionary of edge stores keyed by the
+full (source type, relation, target type) triple — and offers two roads to
+a typed model. The explicit road, `HeteroConv`, is a dictionary of
+per-edge-type layers whose outputs are aggregated per node type; it is
+R-GCN's philosophy as an API, every relation's operator visible and
+swappable, and it is exactly what our measured DBLP model this week was
+built from (a `SAGEConv` per edge type,
+summed). The automatic road, `to_hetero`, takes a homogeneous model you
+already trust and *compiles* it into a typed one — duplicating weights per
+type triple — which is how you convert last week's architecture into this
+week's without rewriting it, and also how you accidentally multiply your
+parameter count by the number of edge types without reading a single
+warning. Both roads force the inverse-channel and per-type-feature
+decisions this lecture keeps flagging; neither makes them for you. The
+lesson generalizes past PyG: heterogeneous modeling is one part equations
+and two parts data plumbing, and the plumbing is where the silent failures
+live — which is precisely why the lab asserts the plumbing, not just the
+accuracy.
+
+## Common pitfalls
+
+**Forgetting inverse channels.** An R-GCN over `cites` with no `cites⁻¹`
+channel means being cited teaches a paper nothing. PyG's conventions make
+this *your* job (double the edge list, offset the types — Lab 10 makes you
+do it and asserts you did); several published "R-GCN underperforms"
+results are this bug wearing a conclusion.
+
+**Projecting first, modeling second.** Collapsing author–paper–author to a
+co-author graph before the GNN throws away multiplicity, mediators, and
+mixed paths — then the model gets blamed. If you must project, project as a
+*probe* (the method above), never as the input.
+
+**Per-relation averaging vs global averaging.** $c_{v,r}$ normalizes within
+each relation. Swap in a single global mean and high-degree relations
+recolonize the update — the exact failure typed weights were hired to
+prevent, reintroduced by a normalizer.
+
+**Reading transductive wins as encoder wins.** If every test entity has a
+training row, a lookup can match you; claim encoder superiority only with
+new-entity or feature-dependent evidence. (And the converse: never deploy a
+lookup where new entities arrive hourly.)
+
+**Buying HGT for a four-relation schema.** Typed attention with
+meta-relation parameterization solves a problem you do not have at $R = 4$;
+at that scale it is extra variance with a transformer's appetite. The
+parameter widget is calibrated exactly for this conversation with your
+future colleagues.
+
+## In this week's lab
+
+[Lab 10](../labs/lab10.qmd) walks the full arc on real data: the P1 hand
+update asserted; DBLP loaded as a `HeteroData` object whose typed edge
+dictionary you build and whose author classifier you train (asserting the
++measured gap over the feature-only MLP); the inverse-channel construction
+for FB15k-237 done explicitly and asserted; and the showdown reproduced —
+lookup-DistMult and R-GCN-DistMult under the identical Lab-4 protocol, with
+your numbers landing within tolerance of this lecture's table and a claims
+paragraph asking what the encoder did and did not buy.
+
+## Required reading
+
+- **Schlichtkrull et al. — Modeling Relational Data with GCNs** (ESWC 2018).
+  The update equation, both decompositions, and the encoder–decoder link
+  prediction template. Read §2 closely; skim the per-dataset details.
+- **Hu, Dong, Wang, Sun — Heterogeneous Graph Transformer** (WWW 2020).
+  Meta-relation-parameterized attention; how it avoids hand-designed
+  metapaths. Focus on §4 and the architecture figure; skim the scaling
+  sections.
+
+Optional: HAN (WWW 2019) for the metapath-attention alternative; the HGB
+study (KDD 2021) for the tuned-GAT reality check; CompGCN (ICLR 2020) for
+relations-as-vectors unifying this week with Week 4; ULTRA (ICLR 2024) for
+where this line is heading — one pretrained model, zero-shot link prediction
+on any KG, relations represented by how they interact rather than by a
+learned vocabulary.
+
+## Check your understanding
+
+**Q1.** Compute the R-GCN update at $V$ in the toy instance (features and
+weights as in the figure; incoming `published_in` from $P_1, P_2$ with
+weight $\tfrac12$; $W_0 = 1$).
+
+<details><summary>Answer</summary>
+Only one typed channel reaches $V$: incoming `published_in` from
+$\{P_1, P_2\}$ with $c_{V,r} = 2$: $\tfrac12 \cdot \tfrac{1 + 3}{2} = 1$.
+Self: $1 \cdot 2 = 2$. Total $h'(V) = \mathbf{3}$. One-channel nodes are
+the degenerate case where typed and untyped layers coincide up to the
+weight value — worth noticing, because it says *where* types matter: at
+nodes whose neighborhoods mix relations.
+</details>
+
+**Q2.** A schema has $R = 24$ relations and you plan $d = 200$. Compute the
+full per-layer bill and the basis-30 bill, and make the call.
+
+<details><summary>Answer</summary>
+Full: $(2 \cdot 24 + 1) \cdot 200^2 = 49 \times 40{,}000 = 1.96$M. Basis-30:
+$30 \cdot 40{,}000 + 48 \cdot 30 + 40{,}000 = 1.24$M — a 1.6× saving, and
+$B = 30$ against 48 channels barely decomposes at all. At this scale the
+full version is affordable and keeps relations independent; decomposition
+is a treatment for a disease you get at hundreds of relations, not dozens.
+</details>
+
+**Q3.** Why does the basis decomposition's coefficient vector $a_r$ deserve
+to be called a relation embedding, and which Week-4 model does CompGCN's
+subtraction composition secretly import?
+
+<details><summary>Answer</summary>
+$a_r \in \mathbb{R}^B$ is a small dense learned vector, one per relation,
+that fully determines the relation's behavior (its mixing of shared bases)
+— functionally identical to Week 4's relation vectors, relocated into the
+encoder. CompGCN's subtraction operator $\phi(h, r) = h - r$ imports
+TransE: composing entity and relation by translation, now inside message
+passing rather than in the decoder score.
+</details>
+
+**Q4.** Your team proposes replacing the production KG-completion lookup
+model with an R-GCN encoder "because message passing is more expressive."
+Give the two-sentence measured reply.
+
+<details><summary>Answer</summary>
+On our matched-budget FB15k-237 run the lookup won every comparison (0.179
+vs 0.126 MRR at 5 epochs) at 1/22nd the compute — and more epochs helped
+neither pipeline — while tuned reproductions
+in the literature agree shallow models lead this benchmark — transductive
+completion with featureless entities is the lookup's home game.
+Expressiveness is Week 9's axis, not a deployment argument; show me new
+entities, features, or sparse-entity sharing in our workload and the
+encoder gets a job interview.
+</details>
+
+**Q5.** For author $a_5$ in the metapath widget's instance, compute the
+A–P–A and A–P–V–P–A neighbor sets by hand and explain the asymmetry.
+
+<details><summary>Answer</summary>
+$a_5$ wrote only $p_4$, whose author set is $\{a_5\}$ alone → A–P–A
+neighbors: $\varnothing$. Via venues: $p_4 \to$ ICML $\to \{p_3, p_4\} \to$
+authors $\{a_4, a_5\}$ → A–P–V–P–A neighbors: $\{a_4\}$. A solo author has
+no co-authors but still has venue-mates — different metapaths genuinely
+manufacture different graphs, which is why HAN needs its second, semantic
+level of attention to arbitrate between them.
+</details>
+
+**Q6.** HAN or HGT for: (a) a hospital deploying a model that must justify
+each prediction to clinicians, on a schema its own informaticians know
+deeply; (b) a web-scale academic graph with dozens of node types and no one
+who can enumerate patterns?
+
+<details><summary>Answer</summary>
+(a) HAN: the informaticians' pattern knowledge becomes the metapath menu,
+and semantic-attention weights give clinicians a readable "co-medication
+mattered more than shared-ward" answer. (b) HGT: meta-relation
+parameterization needs no menu, shares parameters across the type
+explosion, and was built (with its sampling machinery) for exactly that
+scale. Both answers should come with the HGB caveat: tune the Simple-HGN
+baseline first.
+</details>
+
+**Q7.** Map this schema to a heterogeneous graph: tables `users(id, …)`,
+`items(id, …)`, `purchases(user_id, item_id, timestamp)`,
+`reviews(user_id, item_id, stars, text)`. What are the node types, edge
+types, and where do `stars` and `timestamp` live?
+
+<details><summary>Answer</summary>
+Node types: user, item (junction tables become *edges*, not nodes — unless
+they carry enough attributes to deserve nodehood). Edge types: `purchased`
+(user→item, attribute: timestamp) and `reviewed` (user→item, attributes:
+stars, text-derived features). Two typed channels between the same node
+pair is precisely what R-GCN handles and projections destroy; a model that
+merges them cannot learn that a 1-star review and a purchase should move an
+embedding in opposite directions.
+</details>
+
+**Q8.** Our showdown's N-N queries (71% of the test set) scored MRR 0.139
+under every model. Why should the *category* of a query bound your
+expectations, independent of architecture?
+
+<details><summary>Answer</summary>
+An N-N query has many true answers on both sides; filtered evaluation
+removes known ones, but the model must still rank *one* held-out tail above
+thousands of plausible candidates for a relation that genuinely admits
+many — the information to single out the test answer often is not in the
+graph at all. That is a ceiling set by the task's uncertainty, not by
+model capacity: Week 9 taught architectural ceilings, this table teaches
+epistemic ones, and confusing the two wastes GPU-months.
+</details>
+
+## Where this leaves us
+
+The two halves of this course are now one subject. Knowledge graphs got an
+encoder; message passing got types; the basis coefficients turned out to be
+relation embeddings; and CompGCN closed the loop formally by putting TransE's
+translation inside the aggregation. You hand-computed the typed update,
+audited the 4.75-million-parameter bill down to 324 thousand, and — most
+importantly — ran the honest experiment and let the lookup table keep its
+crown in the arena where it happens to be strong, while writing the encoder's
+actual job description: features, new entities, shared structure.
+
+Bank the week's transferable skills too, because they outlive any
+particular architecture in it: you can now cost a typed model *before*
+training it (parameters against triples-per-relation, the audit that
+predicts overfitting from a histogram); you can design a matched-budget
+comparison whose asymmetries are findings rather than confounds; you can
+read a schema — any schema, SQL included — as a graph with decisions
+attached about promotion, direction, and time; and you can meet a new
+heterogeneous architecture and locate it in two questions: what plays the
+role of the per-relation weight, and who writes the menu of patterns.
+Those four travel; the model zoo rotates. And when in doubt, this week's
+whole spirit compresses to one instruction: before adding type machinery,
+measure what types are worth on your task — then spend exactly that much.
+
+Close the loop yourself before you leave — no notes, one minute: the opener
+claimed the untyped layer doesn't merely *struggle* to prefer citations
+over venues but *cannot*. Reconstruct why, from the collapsed update's
+formula. Then reconstruct the showdown verdict — who won, at what compute
+ratio, and the one word naming the setting where the verdict flips. If
+both come back cleanly, this week is yours; whichever one doesn't is the
+section to reread now, while it costs a minute instead of an exam point.
+
+But notice what our showdown quietly assumed: FB15k-237 fits in one GPU's
+memory, whole. Every model this week — like every model since Week 6 — saw
+the *entire graph* at every step: full-batch forward passes, 272 thousand
+edges at once, embeddings for every entity resident at all times. DBLP was
+26 thousand nodes; ogbn-arxiv strained but obeyed at 169 thousand. HGT's
+authors, meanwhile, were training on **179 million** nodes — and at that
+scale, "load the graph and propagate" is not slow; it is *impossible*, by
+orders of magnitude, in any memory you will ever be given. The trick that
+makes it possible anyway — sample the neighborhood, accept the noise, bound
+the variance — is one you already hold from Week 7: GraphSAGE's bargain,
+which we treated as a curiosity about receptive fields. Next week it becomes
+the entire subject: what happens to message passing when the graph is
+bigger than the machine — mini-batching over neighborhoods, historical
+embeddings, and the engineering that turned GNNs from a paper subject into
+infrastructure that serves recommendations to a billion people before
+breakfast.
+
+:::
+
+::: {.content-visible when-format="html"}
+{{< include ../assets/d3/w10-scripts.html >}}
+:::

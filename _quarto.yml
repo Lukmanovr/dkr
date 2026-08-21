@@ -49,6 +49,8 @@ website:
             text: "7 · GNNs II: The Design Space"
           - href: lectures/09-expressiveness.qmd
             text: "9 · GNN Theory: The Ceiling"
+          - href: lectures/10-hetero-rgcn.qmd
+            text: "10 · Heterogeneous Graphs & R-GCN"
       - section: Labs
         contents:
           - href: labs/lab01.qmd
@@ -69,6 +71,8 @@ website:
             text: "Lab 8 · Debrief + project kickoff"
           - href: labs/lab09.qmd
             text: "Lab 9 · The ceiling, verified"
+          - href: labs/lab10.qmd
+            text: "Lab 10 · Typed message passing"
       - section: Assessments
         contents:
           - href: homeworks/hw1.qmd

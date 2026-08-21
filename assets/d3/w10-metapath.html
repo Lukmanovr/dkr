@@ -1,0 +1,28 @@
+```{=html}
+<div class="interactive-container" id="w10-mp-widget">
+  <div class="fig-label">Interactive · Metapaths: different lenses, different neighbors</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-author="a1" type="button">author a1</button>
+    <button class="pill-btn" data-author="a3" type="button">author a3</button>
+    <button class="pill-btn" data-author="a5" type="button">author a5</button>
+    <span class="ctrl-sep"></span>
+    <button class="pill-btn active" data-mp="apa" type="button">A–P–A</button>
+    <button class="pill-btn" data-mp="apvpa" type="button">A–P–V–P–A</button>
+    <button class="pill-btn" data-mp="cite" type="button">A–P–cited-by–P–A</button>
+  </div>
+  <div id="w10-mp-svg" role="img" aria-label="A ten-node academic graph where choosing an author and a metapath highlights which other authors become that author's neighbors under the chosen metapath lens: co-authors, same-venue authors, or citing authors"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the heterogeneous-graph figure above shows the same instance; compose the
+    typed hops by hand to find each metapath neighborhood.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 3.</strong> A metapath is a typed walk recipe,
+  and each recipe manufactures a different homogeneous graph from the same data —
+  which is exactly what HAN aggregates over, one attention head per lens.
+  <strong>Try this:</strong> for a1, the three lenses give three <em>disjoint</em>
+  answers: co-author {a2}, same-venue {a2, a3}, cited-by {a4}. Then try a5, whose
+  co-author set is empty but whose venue set is not — the lens, not the data,
+  decides who counts as close. Choosing metapaths IS feature engineering, with
+  everything Week 2 taught about its costs.</p>
+</div>
+```

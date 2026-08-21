@@ -1,0 +1,22 @@
+```{=html}
+<div class="interactive-container" id="w10-sd-widget">
+  <div class="fig-label">Interactive · The encoder showdown, measured</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-view="budget" type="button">models × budget</button>
+    <button class="pill-btn" data-view="cats" type="button">by relation category</button>
+  </div>
+  <div id="w10-sd-svg" role="img" aria-label="Measured FB15k-237 results: filtered MRR and Hits at ten for TransE, shallow DistMult, and an R-GCN encoder with DistMult decoder at five and fifteen epochs with wall-clock times, plus TransE's MRR broken down by relation category"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the encoder-decoder figure above carries the headline numbers.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 4.</strong> Our own experiment, Lab-4 protocol
+  end to end. <strong>Try this:</strong> in the budget view, find every matched
+  comparison (same epochs, same decoder) — the lookup wins each one, at 1/22nd the
+  wall-clock, and the 15-epoch rows show more training helping <em>neither</em>
+  pipeline under this loss; the literature's tuned numbers agree the encoder is no
+  free upgrade on this benchmark. Then switch to the category lens: N-1 queries score
+  MRR 0.313 while N-N — 71% of the test set — sits at 0.139. Lab 10 hands you both
+  pipelines and asks what the encoder buys <em>per category</em>.</p>
+</div>
+```

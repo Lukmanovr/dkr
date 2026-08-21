@@ -1,0 +1,40 @@
+---
+title: "Lab 10 · Typed message passing"
+subtitle: "Week 10 · hand ledgers, DBLP for real, inverse channels, and the honest showdown"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab10_hetero.ipynb){target="_blank"}
+
+**≈ 15 minutes of compute · GPU runtime recommended for the showdown**
+
+The [Week 10 lecture](../lectures/10-hetero-rgcn.qmd), executed end to end:
+
+1. **The ledger and the bill** (exercise 1): the R-GCN scalar update (typed
+   5.25 vs untyped 2.00) and the parameter counters — 4.75M full, 324,220 with
+   basis-30, the 14.7× discount — all asserted to the lecture's figures.
+2. **DBLP, for real** (exercise 2): the feature-only MLP floor (~79%), then
+   your typed two-layer network built from one `SAGEConv` per edge type —
+   asserted to clear the floor by the measured margin. The forward pass over
+   a dictionary of typed tensors is yours to write; that is where the types
+   actually happen.
+3. **Inverse channels** (exercise 3): the three-line doubled-edge construction
+   every R-GCN implementation silently requires — asserted structurally, then
+   dramatized: FB15k-237 has 724 pure-sink entities that would
+   *never receive a message* without your three lines.
+4. **The showdown** (exercise 4): lookup-DistMult vs R-GCN-DistMult, Lab 4's
+   exact protocol, same epochs, same eval sample. You implement the referee
+   (filtered MRR / Hits@10, both directions); the asserts expect your numbers
+   inside the lecture's bands — and expect the lookup to win, which is the
+   week's most instructive discomfort. A **claims paragraph** closes it:
+   what the typed graph bought, what the encoder didn't, and what your
+   numbers do not license.
+
+Stretch (ungraded): the untyped control on DBLP, basis-coefficient
+inspection, the inductive split where the lookup forfeits, and a hand-built
+metapath probe.
+
+**Submitting.** One executed notebook on Moodle, run **full** (not SMOKE):
+four checks ✓, claims paragraph, three reflections. *Restart and run all*
+first. Grading: assertions 60% · claims 15% · reflections 25%. AI-assistant
+use allowed with disclosure, per the honor code — the final cell restates
+the policy.

@@ -1,0 +1,24 @@
+```{=html}
+<div class="interactive-container" id="w10-ty-widget">
+  <div class="fig-label">Interactive · One typed update, dials exposed</div>
+  <div class="widget-controls">
+    <span style="font-size:0.85rem">W(cites):</span>
+    <button class="pill-btn" data-wc="0" type="button">0</button>
+    <button class="pill-btn" data-wc="0.5" type="button">½</button>
+    <button class="pill-btn active" data-wc="1" type="button">1</button>
+    <button class="pill-btn" data-wc="2" type="button">2</button>
+    <button class="pill-btn" id="w10-ty-untyped" type="button">collapse the types</button>
+  </div>
+  <div id="w10-ty-svg" role="img" aria-label="The five-node academic toy graph with a live R-GCN update ledger at paper P1: per-relation contributions from self, writes, cites, and inverse published_in channels, recomputed as the cites weight changes or as all types collapse into one shared weight"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the R-GCN anatomy figure above works the same update with fixed weights.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 1.</strong> The typed update as a mixing desk:
+  every relation has its own fader. <strong>Try this:</strong> mute the citation
+  channel (W = 0) and watch P₂'s influence vanish from P₁'s update entirely; then
+  press <em>collapse the types</em> — the untyped layer hears all four neighbors at
+  one volume, and no training can ever change that, because there is nothing left
+  to train per relation. That missing set of dials is the whole argument for R-GCN.</p>
+</div>
+```
