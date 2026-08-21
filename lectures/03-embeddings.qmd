@@ -723,7 +723,10 @@ and ask "what matrix does it factorize?"; you can design a probe that measures a
 representation rather than a classifier; and you carry two permanent leak detectors
 (walks over test edges; coordinates across runs). Those four travel to language
 models, recommenders, and vision embeddings unchanged — this week was secretly a
-course on representation learning that happened to use graphs.
+course on representation learning that happened to use graphs. And keep the
+normalization reflex: a vector's norm and its direction can encode different
+things — frequency in one, meaning in the other — so choosing what to normalize
+is part of experimental design, not housekeeping.
 
 But look back at Lab 1's twelve Wikidata triples. *Innopolis University —
 located_in — Innopolis. Kazan — capital_of — Tatarstan.* Every edge today was a bare,

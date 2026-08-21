@@ -782,7 +782,9 @@ What was genuinely new is exactly one thing — the decoder listens to a *typed,
 directed* relation — and that one change forced the entire §4 theory of what
 geometry can express. Keep that ratio in mind as the course accelerates: most
 "new" methods are one changed cell in the filing cabinet, and finding the changed
-cell is the fastest way to understand any paper this field produces.
+cell is the fastest way to understand any paper this field produces. Practice the
+move deliberately: next time a leaderboard paper crosses your feed, give yourself
+sixty seconds to name its changed cell before reading the abstract's adjectives.
 
 But look at what our best models still cannot do. The hero fact needed *two* hops and
 already strained everything (@cor-transitive); a real question — "which drugs target

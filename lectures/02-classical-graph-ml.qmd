@@ -786,7 +786,9 @@ Today you extracted everything a graph will confess without being trained: who m
 (five ways), who clusters, who belongs together, and a fingerprint for whole graphs
 that a 1968 pencil-and-paper procedure computes in linear time. You also hit the wall:
 every one of these features was designed by a human who did not know your task, and
-none of them improves with data.
+none of them improves with data. Hold onto them anyway, as a permanent baseline
+discipline: every learned method in the rest of this course has to beat these ten
+lines of NetworkX before its extra machinery has earned anything.
 
 Next week we stop designing features and start *learning* them: every node gets a
 vector of free parameters, and the graph itself — through random walks that you now

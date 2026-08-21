@@ -1,0 +1,23 @@
+```{=html}
+<div class="interactive-container" id="w7-gt-widget">
+  <div class="fig-label">Interactive · How attentive is attention?</div>
+  <div class="widget-controls">
+    <button class="pill-btn" id="w7-gt-retrain" type="button">retrain (new seed)</button>
+    <button class="pill-btn" id="w7-gt-reset" type="button">reset</button>
+  </div>
+  <div id="w7-gt-svg" role="img" aria-label="Two five-by-five attention heatmaps trained live on the dictionary-lookup task: GAT's rows share one argmax column because its attention is static, while GATv2 learns the diagonal"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: after training, GAT's attention matrix has the same favorite key in every row
+    (1/5 correct), while GATv2's matrix is diagonal (5/5).</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 3.</strong> A theorem, caught in a heatmap: both
+  models train by identical gradient descent on "each query attends to its own key" —
+  GAT cannot express per-query rankings (its score separates into a key-only term after
+  the monotone LeakyReLU), so every row falls in love with the same column; GATv2's
+  one-line reordering makes the ranking genuinely conditional.
+  <strong>Try this:</strong> press <em>retrain</em> several times — GAT's chosen column
+  changes with the seed, its failure never does. Then, before Week 9, articulate why
+  "read a famous architecture critically" is a skill this widget just taught you.</p>
+</div>
+```

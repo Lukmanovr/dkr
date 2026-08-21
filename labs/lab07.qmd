@@ -1,0 +1,34 @@
+---
+title: "Lab 7 · The design-space ablation"
+subtitle: "Week 7 · SAGE, GAT, GIN by hand and in PyG — then 16 configurations, 3 seeds, error bars"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab07_design.ipynb){target="_blank"}
+
+**≈ 30 minutes of compute · free Colab (GPU runtime speeds the grid, not required)**
+
+The [Week 7 lecture](../lectures/07-gnn-design.qmd), with your hands on every claim:
+
+1. **The lecture's arithmetic, asserted** (exercise 1): SAGE's separated update,
+   GIN's count, GAT's muting softmax — the exact worked numbers, as code.
+2. **One layer from the template** (exercise 2): SAGE-mean built from PyG's
+   `MessagePassing` base and matched to a dense computation to six decimals — after
+   this, every architecture is a `message()` and an `aggr` to you.
+3. **The aggregator propositions in float32** (exercise 3): mean/max/sum confusion
+   cases, including the real-valued asterisk that explains why GIN carries an MLP.
+4. **The ablation grid** (exercise 4): the lecture's Figure 4 reproduced with the
+   same protocol — 16 configurations × 3 seeds, early stopping, your own error bars,
+   the GAT-at-depth-4 crash and its one-line resurrection — ending in a **claims
+   paragraph** graded on whether every sentence cites its cells.
+5. **60× Cora** (exercise 5): GCN vs SAGE on ogbn-arxiv under its honest time split —
+   where the noise floor drops, the future is harder than the past, and Cora's
+   folklore starts to bend.
+
+Stretch (ungraded): the ±BatchNorm axis, DropEdge vs dropout, jumping knowledge, and
+GATv2 across the grid.
+
+**Submitting.** One executed notebook on Moodle with the **full** grid (not SMOKE),
+all five checks ✓, the claims paragraph, three reflections. Grading: assertions 60% ·
+claims paragraph 15% · reflections 25%. *Restart and run all* before you submit.
+AI-assistant use is allowed with disclosure, per the honor code — the final cell
+restates the policy.

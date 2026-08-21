@@ -1,0 +1,27 @@
+```{=html}
+<div class="interactive-container" id="w7-ab-widget">
+  <div class="fig-label">Interactive · A real ablation, explorable</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-arch="GCN" type="button">GCN</button>
+    <button class="pill-btn" data-arch="SAGE" type="button">SAGE</button>
+    <button class="pill-btn" data-arch="GAT" type="button">GAT</button>
+    <button class="pill-btn" data-arch="GIN" type="button">GIN</button>
+    <button class="pill-btn active" data-depth="2" type="button">2 layers</button>
+    <button class="pill-btn" data-depth="4" type="button">4 layers</button>
+    <label style="font-size:0.85rem"><input type="checkbox" id="w7-ab-res"> residual connections</label>
+  </div>
+  <div id="w7-ab-svg" role="img" aria-label="An explorable grid of sixteen measured Cora configurations — architecture by depth by residual, three seeds each — with the selected cell's accuracy, spread, and delta against the two-layer GCN baseline"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: sixteen measured configurations ranked by accuracy; the two-layer GCN baseline
+    tops the table at 81.0%, and four-layer GAT without residuals collapses to 26.2%.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 4.</strong> Sixteen real configurations, three
+  seeds each, measured with the exact protocol Lab 7 hands you — no invented numbers
+  anywhere in this figure. <strong>Try this:</strong> (1) find the single best cell
+  (spoiler: the boring baseline); (2) flip GAT to 4 layers and watch a 54-point crash,
+  then check the residual box and watch the rescue; (3) find a comparison whose delta
+  is smaller than its error bars, and practice saying "within noise" out loud — it is
+  the most valuable phrase this course will teach you.</p>
+</div>
+```

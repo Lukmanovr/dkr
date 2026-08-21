@@ -1,0 +1,782 @@
+---
+title: "GNNs II: The Design Space"
+subtitle: "Week 7 · Thursday, October 8, 2026 · 90 minutes"
+description: "After the GCN, the zoo: message passing as a three-slot template, GraphSAGE's sampling bargain, GAT's attention (and its famous flaw), GIN's sum, the repair shop of skips and norms — and the ablation discipline that turns a thousand papers into one decision procedure."
+date: 2026-10-08
+date-modified: last-modified
+format:
+  html:
+    toc-depth: 3
+---
+
+::: {.content-visible when-format="html"}
+
+::: {.callout-tip title="Learning objectives" icon="false"}
+After this lecture (and Lab 7) you can:
+
+1. **define** GraphSAGE (sampling + aggregator variants), GAT (attention coefficients, multi-head), and GIN (sum + MLP), and compute each update by hand on toy graphs;
+2. **compare** mean, max, and sum aggregators: which multisets each confuses, and which tasks that dooms;
+3. **justify** each architectural component — skips, jumping knowledge, normalizations, DropEdge — by the failure mode it repairs, with the failure demonstrated rather than asserted;
+4. **read** a GNN architecture description in a paper and reimplement it from the equations (including reading it critically — this lecture catches a famous one);
+5. **design and run** a controlled ablation: one factor at a time, multiple seeds, error bars, and a claim that survives its own evidence.
+:::
+
+## One equation, a thousand papers
+
+Something strange happened after 2017. The GCN paper landed, worked, and within three
+years the literature filled with hundreds of "novel architectures": a convolution
+here, an attention there, a pooling, a gating, an aggregation, each with its own name,
+its own diagram, and its own claimed one-point victory on a benchmark whose noise
+floor, as you will measure today, is about a point. A newcomer opening the
+proceedings could be forgiven for despair — surely nobody can learn six hundred
+architectures, and surely not all six hundred can be the state of the art.
+
+Nobody needs to. In 2017, the *Neural Message Passing* paper made an observation that
+deflated and organized the entire zoo at once: almost every one of those
+architectures is the **same algorithm** — collect messages from neighbors, aggregate
+them, update yourself — with different choices plugged into three slots. Learn the
+template and the slots, and a "novel architecture" becomes a row in a table you can
+read in ten seconds. This lecture is that table, its four most important rows, and —
+because a design space with $10^5$ corners cannot be navigated by folklore — the
+experimental discipline for choosing among them.
+
+There is a second, quieter reason this lecture ends in methodology rather than in a
+recommended architecture. When the field finally ran the fair, massive comparison
+(315,000 configurations; the optional reading), the headline was not "architecture X
+wins" — no architecture won. The transferable findings were about *components*
+(skips help; sum aggregation travels well) and about *variance* (task-to-task
+differences dwarf model-to-model ones). In a space with that shape, the durable
+asset is not a favorite model but a cheap, honest procedure for deciding on *your*
+task — which is a genuinely different thing to teach, and the reason this week's
+lab produces a table with error bars instead of a leaderboard entry.
+
+::: {.predict}
+**Commit before you look.** Week 6's GCN treats every neighbor identically: the same
+normalized weight, the same transformation, everyone averaged. Name three *distinct*
+ways you might want to break that uniformity — three different senses in which
+neighbors should not all count the same.
+
+::: {.predict-answer}
+The three answers are this lecture's three headline architectures. You might want to
+**not read all of them** — a hub with ten thousand neighbors makes "average everyone"
+a cost problem: sample instead (GraphSAGE). You might want to **weight them by
+content** — some neighbors are more relevant to this node than others: learn
+per-neighbor attention (GAT). And you might want to **count rather than average** —
+mean throws away how *many* neighbors of each kind you have, which for some tasks is
+the whole signal: sum them (GIN). Cost, relevance, multiplicity: three failures of
+uniformity, three architectures.
+:::
+:::
+
+Last week ended with the GCN unable to tell certain graphs apart and unable to serve
+heterophilous neighborhoods — and with the promise that both wounds have treatments.
+Here is the plan of treatment, which is also the plan of the lecture.
+
+**Roadmap.** (1) The message-passing template — three slots that organize everything.
+(2) GraphSAGE: sampling as a bargain, aggregators as a menu, and the inductive payoff
+that finally settles Week 3's oldest debt. (3) GAT: attention on graphs, computed by
+hand — and then read critically, because its most famous property is subtly broken.
+(4) GIN and the aggregator question: what mean, max, and sum each forget, as theorems.
+(5) The repair shop: skips, jumping knowledge, normalizations, DropEdge — each matched
+to a demonstrated failure. (6) The method: ablations that produce knowledge instead of
+noise, practiced on a real grid you can explore right now.
+
+::: {.callout-note title="Recap — what this lecture assumes" collapse="true"}
+- **Week 6**, thoroughly — this lecture is its direct sequel: the GCN layer
+  $\hat{\mathbf{A}}\mathbf{X}\mathbf{W}$, its low-pass reading, permutation
+  equivariance, and the two failure modes at its edges (oversmoothing with depth;
+  heterophily). If the renormalization trick or the $\mu^k$ decay feel hazy, reread
+  Week 6 §§2–3 first; every repair in §5 leans on them.
+- **Week 1**: heavy-tailed degrees (hubs are why sampling exists) and the friendship
+  paradox (why sampled neighbors are not average nodes).
+- **Week 2**: the WL algorithm — aggregation over *multisets* of neighbor colors; today's
+  §4 is WL's question ("which multisets can you tell apart?") asked of neural
+  aggregators.
+- **From ML**: softmax, attention as weighted averaging (no transformer background
+  needed — we build attention from scratch), batch normalization at the level of
+  "normalizes activations".
+:::
+
+## 1. The template: three slots
+
+Write the general **message-passing layer** the way the MPNN paper did, and every
+architecture in this lecture becomes a configuration:
+
+$$
+\mathbf{h}_v^{(k+1)} \;=\; \phi\Bigl(\mathbf{h}_v^{(k)},\;
+\rho\bigl\{\psi(\mathbf{h}_u^{(k)}, \mathbf{h}_v^{(k)}, \mathbf{e}_{uv}) : u \in \mathcal{N}(v)\bigr\}\Bigr)
+$$
+
+— a **message function** $\psi$ (what each neighbor sends, possibly depending on the
+receiver and the edge), an **aggregator** $\rho$ (how the *multiset* of messages is
+squashed into one vector — it must accept any number of messages in any order, which
+is where Week 1's permutation demand lives), and an **update** $\phi$ (how the node's
+own state meets the aggregated neighborhood). Stack $K$ layers and information flows
+$K$ hops, exactly as in the GCN — that part does not change all lecture.
+
+{{< include ../assets/figures/fig-w7-mpnn.html >}}
+
+Three remarks before the zoo, each of which will earn its keep repeatedly. First, the
+aggregator $\rho$ is the mathematically load-bearing slot: it is the only place where
+the *set* nature of neighborhoods enters, so it alone decides what neighborhood
+information survives — §4 makes this precise with theorems. Second, the template is a
+*reading tool*: when a paper announces an architecture, find $\psi$, $\rho$, $\phi$ in
+its equations and you have understood the paper's model in one pass — "specify the
+three slots" is a standing exam question here precisely because it is a standing
+professional skill. Third, the template is also an *implementation*: PyTorch
+Geometric's `MessagePassing` base class is this equation as an API — you write
+`message()`, choose an `aggr`, write `update()`, and the library handles the
+scatter/gather plumbing over `edge_index`. Lab 7 has you build a layer this way from
+a paper's equations, which permanently demystifies the framework.
+
+The template also carries the field's history in miniature, which makes the
+literature legible. Message passing was distilled in 2017 from four separate research
+lines that had converged without noticing — spectral convolutions (Week 6's
+lineage), molecular fingerprint networks in chemistry, gated recurrent graph nets,
+and interaction networks in physics simulation — and the MPNN paper's contribution
+was largely *taxonomy*: showing one table where the community saw many methods.
+DeepMind's "graph networks" formulation the next year generalized the same template
+to edge- and global-level states; the software followed the taxonomy (PyTorch
+Geometric and DGL are both, at heart, template engines over `edge_index`); and the
+architecture flood of 2018–2020 is best read as a community sweeping the template's
+slots. This is the same historiographic pattern you saw in Week 3 (every embedding a
+factorization) and Week 4 (every scorer a geometry): a field's maturity moment is
+the arrival of the table, and after today you hold all three tables.
+
+One more piece of orientation: why did the field need anything beyond the GCN at all?
+Three concrete pressures, each of which you have already met. **Scale** — Week 6's Q7
+computed a full-batch GCN pass on ogbn-products; the arithmetic worked, but it
+assumed *every neighbor of every node* participates in every layer, and on
+heavy-tailed graphs (Week 1) hubs make the cost of exact neighborhoods both huge and
+wildly uneven. **Inductivity** — the GCN as we trained it computes on a fixed graph;
+Week 3's transductive wall (new node, no answer) was cracked but not fully broken,
+because training assumed the test graph was present. **Expressiveness and fit** —
+Week 6 §6 exhibited graphs the GCN provably cannot distinguish and neighborhoods
+(heterophilous ones) where its fixed averaging actively hurts. Sampling, attention,
+and sum-aggregation are the respective answers, and each is one slot's worth of
+change.
+
+## 2. GraphSAGE: sample, aggregate, and finally go inductive
+
+GraphSAGE (2017) — from the same Stanford group and the same year as the GCN, but
+aimed at industrial scale from its first page — makes two independent moves, and it
+pays to hold them apart because practitioners routinely adopt one without the other.
+
+**Move one: a different update.** Instead of mixing self and neighborhood through one
+shared transformation (the GCN's self-loop trick), SAGE keeps them separate and
+concatenates:
+
+$$
+\mathbf{h}_v^{(k+1)} = \sigma\Bigl(\mathbf{W}^{(k)} \cdot
+\bigl[\mathbf{h}_v^{(k)} \,\|\, \rho\{\mathbf{h}_u^{(k)} : u \in \mathcal{N}_s(v)\}\bigr]\Bigr).
+$$
+
+The concatenation looks like bookkeeping and is actually a design statement: the
+model can now learn *different* transformations for "what I am" and "what surrounds
+me" — including, in the limit, ignoring the neighborhood entirely. On a homophilous
+graph that flexibility is mildly useful; on a heterophilous one it is the difference
+between a model that can and cannot represent "I am the opposite of my neighbors."
+File this as the first, cheapest repair for Week 6's heterophily wound (Week 10
+brings stronger medicine).
+
+Compute one update by hand, because the lab's first assert is exactly this. Take
+node $C$ of the cast graph with 1-dimensional features: $h_C = 2$, neighbors
+$\{A: 1, B: 3, E: 4, F: 0\}$, mean aggregator, and (scalar) weights
+$\mathbf{W} = [w_{\text{self}}, w_{\text{nbr}}] = [1, \tfrac12]$, identity
+activation. Aggregate: $\text{mean}(1, 3, 4, 0) = 2$. Concatenate and transform:
+$1 \cdot 2 + \tfrac12 \cdot 2 = 3$. Now delete $F$ from the neighborhood and redo it:
+mean becomes $8/3$, update becomes $2 + 4/3 = 10/3$ — the update moved because the
+*composition* of the neighborhood moved, with the self-term untouched. Thirty seconds
+of arithmetic, and you have felt the separation that the concatenation buys.
+
+**Move two: sampled neighborhoods.** SAGE aggregates over $\mathcal{N}_s(v)$ — a
+*fixed-size random sample* of neighbors (say 10 at layer one, 25 at layer two)
+rather than all of them. This single change rescues minibatch training on large
+graphs: with exact neighborhoods, the receptive field of one node after $K$ layers is
+its full $K$-hop ball — on a small-world graph (Week 1), quickly *most of the graph*,
+which is why naive minibatching explodes; with samples of size $s$, the receptive
+field is at most $s^K$ nodes, a constant you chose. The price is variance: the
+aggregated vector is now an *estimate* of the true neighborhood aggregate, jittering
+from epoch to epoch. Feel both sides of the bargain on a real hub:
+
+{{< include ../assets/d3/w7-sage.html >}}
+
+The widget's spread column is doing honest statistics: the sampled mean is unbiased,
+its standard deviation shrinks like $1/\sqrt{s}$, and epochs of training average over
+resamples — so the noise behaves less like corruption and more like the dropout
+family of regularizers, which is why in practice sampling often costs little accuracy
+and occasionally *helps*. Notice also the widget's asymmetry, which is Week 1's
+friendship paradox cashing in: sampling only bites on hubs, and on heavy-tailed
+graphs, hubs are where all the cost was anyway.
+
+It is worth being concrete about what a sampled *minibatch* actually is, because the
+mental picture differs from every other deep-learning pipeline you know and the
+difference causes real confusion in Lab 7's arxiv half. In image training, a batch
+is 256 independent examples. In graph training, a batch of 256 *target nodes* is not
+enough to compute anything — layer $K$ needs their sampled neighbors, layer $K{-}1$
+needs the neighbors' neighbors, and so on: the batch is really a **computation
+subgraph**, built backwards from the targets, containing every node any layer will
+touch. With fan-outs $(25, 10)$ for a 2-layer model, 256 targets can pull in tens of
+thousands of supporting nodes — which is fine (that was the point: it is *bounded*,
+where exact neighborhoods were not), but it explains two phenomena that surprise
+everyone once: GNN minibatches are enormous relative to their target count, and
+shallow models are disproportionately cheap. It also explains a serving trick worth
+knowing: at inference time you can drop sampling entirely and compute exact
+layer-by-layer passes over the full graph (no gradients, so memory is manageable) —
+train stochastic, serve exact, and the train/serve mismatch is one more reason
+sampled training's noise-tolerance matters.
+
+**The aggregator menu.** SAGE shipped with three $\rho$ options: **mean** (the
+default, GCN-adjacent), **max-pooling** (transform each neighbor with a small MLP,
+take coordinatewise max — "is any neighbor strongly X?"), and **LSTM** (run the
+neighbors through a sequence model). The LSTM aggregator deserves a moment of
+critical reading practice, three sections before we do it to GAT: an LSTM consumes a
+*sequence*, but a neighborhood is a *set* — so SAGE feeds neighbors in random order
+and hopes the LSTM learns approximate order-invariance. It scored well on benchmarks;
+it also violates the one structural commitment (permutation invariance, Week 1) that
+every other component of every architecture in this course respects by construction.
+The field quietly dropped it. The lesson is not "LSTMs are bad" — it is that
+benchmark wins do not certify structural correctness, and you now know to check the
+$\rho$ slot of any new paper for exactly this sin.
+
+A budgeting aside that interviews love and papers omit: compare parameter counts
+across the regimes this course has visited. Week 3's lookup table: $O(nd)$ — half a
+terabyte at social scale. A SAGE layer: two weight matrices, $O(d \cdot d')$ —
+*independent of the graph entirely*; a full model is a few hundred thousand
+parameters whether the graph has thirty-four nodes or three billion. That inversion
+— parameters scale with feature width, data scales with the graph — is why GNNs are
+statistically thrifty on large graphs (many nodes supervising few weights) and
+prone to overfitting on tiny ones (Cora's 140 training labels supervising those
+same weights, which is why dropout and small hidden sizes dominate its
+leaderboard). One architecture family, two opposite failure regimes, both predicted
+by counting.
+
+**The inductive payoff.** Here is the sentence Week 3 has been waiting four weeks
+for. Because every SAGE parameter lives in the *functions* ($\mathbf{W}$s and
+aggregators) and none in a per-node table, a trained SAGE model is a program you can
+run on **any graph with the same feature space**: new nodes, new edges, an entirely
+new graph — embed them by running the forward pass. The original paper's flagship
+experiment trained on one protein–protein interaction graph and predicted on
+*different organisms' graphs*; the modern deployment pattern — train weekly, serve
+continuously on a growing graph — is only possible in this regime. Week 3's wall #2
+is now rubble: the encoder computes instead of remembering. (Walls #1, #3, and #4
+fell with it: parameters shared, features consumed, size $O(1)$ in $n$ — the entire
+critique of the lookup table, answered by one architectural decision.)
+
+## 3. GAT: attention, derived and then interrogated
+
+If neighbors should not count equally, let the model decide how much each counts.
+GAT (2018) — arriving the year attention was eating natural language processing, and
+importing the idea with graph-shaped adjustments — computes, for each edge $(u, v)$,
+an **attention coefficient**:
+
+$$
+e_{vu} = \text{LeakyReLU}\bigl(\mathbf{a}^\top [\mathbf{W}\mathbf{h}_v \,\|\, \mathbf{W}\mathbf{h}_u]\bigr),
+\qquad
+\alpha_{vu} = \frac{\exp(e_{vu})}{\sum_{u' \in \mathcal{N}(v) \cup \{v\}} \exp(e_{vu'})},
+$$
+
+then aggregates with those weights: $\mathbf{h}_v' = \sigma(\sum_u \alpha_{vu}
+\mathbf{W}\mathbf{h}_u)$. In template terms: $\psi$ is the shared linear map, $\rho$
+is a *learned-weighted* mean, $\phi$ is the nonlinearity — one slot changed, and the
+change is that aggregation weights now depend on *content*, not just on degree
+bookkeeping as the GCN's $1/\sqrt{\hat d_u \hat d_v}$ did.
+
+Hand-compute one attention head, because the mechanics compress three papers into one
+example. Let $v$ have two neighbors with (already transformed, 2-dim) features
+$\mathbf{W}\mathbf{h}_{u_1} = (1, 0)$, $\mathbf{W}\mathbf{h}_{u_2} = (0, 1)$, self
+$\mathbf{W}\mathbf{h}_v = (1, 1)$, and attention vector
+$\mathbf{a} = (1, 0, 2, 0)$ — i.e., $\mathbf{a}$ reads the first coordinate of the
+receiver and the first coordinate of the sender, weighting the sender double. Scores:
+$e_{vv} = \text{LReLU}(1 + 2 \cdot 1) = 3$; $e_{vu_1} = \text{LReLU}(1 + 2 \cdot 1) = 3$;
+$e_{vu_2} = \text{LReLU}(1 + 2 \cdot 0) = 1$. Softmax over $\{3, 3, 1\}$:
+$\alpha \approx (0.47, 0.47, 0.06)$ — the second neighbor, whose content lacks what
+$\mathbf{a}$ looks for, is nearly muted. That muting is the sales pitch: on a
+heterophilous fringe, an attention head can learn to down-weight misleading
+neighbors, something no fixed normalization can do. **Multi-head** attention runs $H$
+independent $(\mathbf{W}, \mathbf{a})$ pairs and concatenates the results — the same
+role channels play in a CNN: different heads free to specialize in different
+neighbor-selection criteria, plus a variance-reduction effect that makes training
+tangibly more stable.
+
+Now the critical reading, because GAT is this course's designated case study in
+*reading a famous architecture skeptically*. Look at the score formula again and
+split the pre-activation: $e_{vu} = \text{LReLU}(\underbrace{\mathbf{a}_1^\top \mathbf{W}\mathbf{h}_v}_{\text{receiver term}} + \underbrace{\mathbf{a}_2^\top \mathbf{W}\mathbf{h}_u}_{\text{sender term}})$.
+
+::: {#prp-static .proposition name="GAT's attention is static"}
+For a fixed receiver $v$, the ranking of senders $u$ by $e_{vu}$ is determined by the
+sender term $\mathbf{a}_2^\top \mathbf{W}\mathbf{h}_u$ alone — the *same* ranking for
+every receiver. Consequently GAT cannot represent any attention pattern in which
+different receivers prefer different senders (e.g., "query $i$ attends to key $i$").
+:::
+
+<details><summary>Proof (monotonicity does all the work)</summary>
+Fix $v$; the receiver term is a constant $c_v$ across senders, so
+$e_{vu} = \text{LReLU}(c_v + s_u)$ with $s_u = \mathbf{a}_2^\top \mathbf{W}\mathbf{h}_u$.
+LeakyReLU is strictly increasing, and adding a constant preserves order, so
+$e_{vu} > e_{vu'} \iff s_u > s_{u'}$ — an ordering independent of $v$. Softmax is
+also order-preserving, so every receiver's attention distribution peaks on the same
+globally-best sender. A "dictionary lookup" pattern (receiver $i$ peaks on sender
+$i$) requires $n$ different orderings; GAT has one. $\square$
+</details>
+
+The repair — GATv2 (2022) — is a single line: apply the nonlinearity *before* the
+attention vector, $e_{vu} = \mathbf{a}^\top \text{LReLU}(\mathbf{W}[\mathbf{h}_v \| \mathbf{h}_u])$,
+so receiver and sender interact inside the nonlinearity and the separation argument
+dies. Watch the proposition and its repair happen — both models trained live, same
+task, same seed:
+
+{{< include ../assets/d3/w7-gat.html >}}
+
+Three durable morals from one widget. Practically: use GATv2 — it is the same cost
+and strictly more expressive; PyG ships both. Empirically: GAT *still helped* on many
+real benchmarks for years, because homophilous node classification rarely needs
+per-receiver rankings — a flaw can be real and rarely triggered, which is why
+benchmarks alone never found it. Methodologically: the flaw was found by *reading the
+equations* and constructing the minimal failing task — the exact skill objective 4
+names, demonstrated at the level where it earned a publication.
+
+Four working notes complete the attention picture, each one line of code in the lab
+and one sentence of judgment here. **Cost:** attention computes one score per edge
+per head — $O(mHd)$ — so it scales exactly as well as sparsity allows and exactly as
+badly as hubs demand; combined with sampling it inherits SAGE's bargain unchanged.
+**Edge features:** the score has an obvious third input slot —
+$e_{vu} = f(\mathbf{h}_v, \mathbf{h}_u, \mathbf{e}_{vu})$ — and attention is the most
+natural place in the whole template to inject edge attributes (bond types in Week
+13's molecules, relation types in Week 10's heterogeneous graphs both enter here).
+**Attention dropout:** randomly zeroing attention coefficients during training is
+GAT's own regularizer, and it composes with (rather than replaces) DropEdge — one
+drops *scores*, the other drops *structure*. **When to expect a win:** attention
+earns its parameters where neighbor *relevance genuinely varies* — heterophilous
+fringes, noisy edges from LLM extraction (Week 5's precision failures arriving as
+graph input!), multi-relational data — and tends to tie with mean aggregation where
+homophily is strong and edges are curated, which the measured grid in §6 will
+confirm on Cora with error bars.
+
+## 4. GIN and the aggregator question
+
+Strip away sampling and attention and one question remains at the bottom of the
+design space, and it is Week 2's question wearing feature vectors: **which multisets
+of neighbors can your aggregator tell apart?** WL answered it for colors with a
+perfect (injective) hash. Neural aggregators are not perfect hashes, and their
+imperfections are exactly characterizable:
+
+{{< include ../assets/figures/fig-w7-aggregators.html >}}
+
+::: {#prp-agg .proposition name="What mean, max, and sum forget"}
+Over multisets of one-hot features: **mean** determines exactly the *proportions* of
+each type (it confuses any two multisets that are scalings of each other, e.g.
+$\{t\}$ vs $\{t, t\}$); **max** determines exactly the *support* — which types are
+present at all (it confuses any two multisets with equal support, regardless of
+counts); **sum** determines the multiset exactly (counts of every type), and is the
+only one of the three that does.
+:::
+
+<details><summary>Proof (each claim in one line)</summary>
+With one-hot features, coordinate $i$ of the sum is the count $c_i$ of type $i$ — the
+multiset itself. Coordinate $i$ of the mean is $c_i / \sum_j c_j$ — the proportion
+vector, unchanged by scaling all counts; conversely equal proportions with different
+totals give equal means, so mean determines exactly proportions. Coordinate $i$ of
+the max is $\mathbb{1}[c_i > 0]$ — the support indicator, and nothing more. $\square$
+</details>
+
+Play the game yourself — and try the widget's standing challenge, which quietly
+previews a Week 9 subtlety:
+
+{{< include ../assets/d3/w7-agg.html >}}
+
+**GIN** (2019) — the Graph Isomorphism Network, and the name is a thesis statement:
+this is the architecture designed backwards from the question "what would it take to
+match WL?" rather than forwards from a benchmark. It takes the proposition seriously
+in all three slots:
+
+$$
+\mathbf{h}_v^{(k+1)} = \text{MLP}^{(k)}\Bigl((1 + \varepsilon^{(k)})\,\mathbf{h}_v^{(k)} + \sum_{u \in \mathcal{N}(v)} \mathbf{h}_u^{(k)}\Bigr)
+$$
+
+— sum aggregation (keep the multiset), a learnable $\varepsilon$ scaling the
+self-term (keep "me" distinguishable from "one more neighbor like me"), and an MLP
+(not a single linear layer) as the update, because injective set functions
+composed with weak function approximators stop being injective. One honest asterisk on the proposition, which is also the answer key to the
+widget's standing challenge. The clean statements hold for *one-hot* (more
+generally, countable) features; with arbitrary real-valued features, scalar sums can
+collide ($\{1, 3\}$ and $\{2, 2\}$ sum identically — if you found that in the widget,
+you found the asterisk), and injectivity must be *manufactured*: first embed each
+element through a learned function, then sum — which is precisely why GIN's update
+wraps the sum in an MLP, and why the underlying DeepSets result says every
+well-behaved permutation-invariant set function has exactly this
+embed-sum-transform shape. The engineering reading: sum is not magic, *sum after a
+learned embedding* is — and the MLP is not decoration but the load-bearing half of
+the injectivity argument. Week 9 turns this asterisk into the week's central
+theorem.
+
+Week 9 proves the
+headline theorem — GIN is exactly as powerful as the WL test, and nothing
+message-passing can do better — but the practical guidance lands today: **for
+graph-level tasks where counting substructure matters (molecules above all), sum
+aggregation is the consistently right default; for node classification on rich,
+noisy, real-valued features, mean's normalization is often the better inductive
+bias** (sums grow with degree, and degree, as always, becomes a confound —
+witness what depth-4 GIN does in §6's measured grid). The aggregator is a modeling
+decision about *what information the task needs preserved*, and you can now make it
+by argument rather than by grid search.
+
+## 5. The repair shop: components matched to failure modes
+
+The second half of any modern GNN paper's architecture section is a parade of
+add-ons: residual connections, jumping knowledge, three kinds of normalization,
+DropEdge. Presented as a list, they read as superstition. Presented as
+*failure-mode → repair* pairs, they read as engineering — so here is each failure,
+demonstrated, with its repair.
+
+**Failure: depth destroys signal.** Week 6 proved the GCN is a low-pass filter and
+showed components decaying as $\mu^k$; here is what that does to representations,
+measured rather than asserted — the same experiment you can rerun from the figure's
+generator:
+
+{{< include ../assets/figures/fig-w7-oversmoothing.html >}}
+
+By twelve propagations, plain averaging has made the karate club's members nearly
+indistinguishable — mean pairwise cosine 0.96 — which is
+<span class="term" data-def="Oversmoothing: the tendency of deep message-passing networks to drive all node representations toward a common value, as repeated neighborhood averaging converges to the dominant (constant-ish) eigenvector. The reason naive deep GNNs underperform shallow ones.">**oversmoothing**</span>
+in one number. The repairs in the figure are the repairs in the literature.
+**Residual connections** ($\mathbf{h}^{(k+1)} = \mathbf{h}^{(k)} + f(\mathbf{h}^{(k)})$)
+mix each layer's output with its input — spectrally, they shift every eigenvalue
+toward 1, slowing the decay; in optimization terms they give gradients a highway
+past the smoothing operators. The figure shows them *delaying* collapse rather than
+preventing it — an honest account you will confirm with accuracy numbers in §6.
+**Restart/initial-residual connections** (mixing a fraction of the *layer-zero*
+features into every layer — the design inside APPNP and GCNII) go further: the
+figure's green curve plateaus, because a fixed dose of the original signal
+re-enters at every depth. If that trick smells familiar, it should: it is
+PageRank's teleport, resurrected as an architecture (the same $\alpha$, the same
+fixed point, Week 2 paying dividends again). **Jumping knowledge** attacks the
+problem from the side: run all $K$ layers, keep every layer's representation, and
+let the final readout combine them (concat, max, or attention over depths) — so
+each node effectively *chooses its own depth*, hub nodes reading shallow and
+peripheral nodes reading deep.
+
+**Failure: activations drift and explode.** Deep stacks of aggregations shift
+activation statistics — GIN's sums grow with degree; attention stacks saturate — and
+the generic deep-learning medicine applies: **BatchNorm** (normalize each feature
+across the batch; the design-space study's most consistently helpful normalization),
+**LayerNorm** (normalize within each node's vector; indifferent to batch composition,
+standard in attention stacks). One norm is graph-specific and worth knowing by name:
+**PairNorm** keeps the *pairwise distance* between node representations at a constant
+level across layers — it is an anti-oversmoothing device by construction, useful
+when you must go deep without restart tricks. A graph-specific subtlety hides inside
+the generic medicine too: with sampled minibatches, BatchNorm's "batch" is a
+computation subgraph whose composition changes every step — its statistics are
+noisier than in image training and biased toward whatever neighborhood mix the
+sampler drew, which is one practical reason LayerNorm (batch-independent by
+construction) gains ground as graphs get larger and sampling gets more aggressive.
+The measured grid you are about to meet held normalization fixed precisely to keep
+its factor count honest — extending it with a ±BatchNorm axis is Lab 7's designated
+stretch, and the design-space study's verdict gives you the prior to bet against.
+
+**Failure: memorizing edges.** Small graphs, big models: the network learns *this
+adjacency* rather than a function of neighborhoods. **DropEdge** removes a random
+fraction of edges each epoch — data augmentation on structure. It also, incidentally,
+thins the propagation operator (fewer edges per layer means slower mixing), so it
+doubles as a mild oversmoothing brake — one mechanism, two effects, and the reason
+it appears in both the regularization and the depth sections of papers. Note what it
+is *not*: feature dropout — the two compose, and ablating them separately is a Lab 7
+stretch goal.
+
+The design space, assembled — with the verdicts of the field's one systematic sweep
+(You, Ying & Leskovec's 315,000-configuration study, this week's optional reading)
+attached:
+
+{{< include ../assets/figures/fig-w7-design.html >}}
+
+Read the verdict column with calibrated trust: "consistently helpful" in that study
+means *across many tasks under fair tuning* — it is the best prior you can buy, not a
+guarantee for your graph. Which is precisely why the last section exists.
+
+## 6. The method: ablations that produce knowledge
+
+Every claim in §5 has the same epistemic shape: "component X helps because of
+mechanism Y." The design space is too large for folklore, papers' own comparisons
+are chronically confounded (new architecture + new tricks + more tuning budget,
+reported as one number), and your graph is not their graph. The only trustworthy
+instrument is the **controlled ablation** — and it is a *method*, with rules:
+
+1. **One factor at a time.** Change the aggregator *or* the depth *or* the
+   normalization; never two. A 2×2×2 grid of single changes beats eight bespoke
+   "improved models" because every comparison in it is interpretable.
+2. **Multiple seeds, always.** GNN training on small graphs is noisy — the measured
+   grid below contains a configuration with $\sigma = 19.5$ accuracy points across
+   seeds. A single-seed comparison on Cora is astrology.
+3. **Error bars decide.** A delta smaller than roughly two standard deviations is
+   "within noise", and saying so out loud is a professional skill, not a
+   disappointment.
+4. **Fixed budget, fixed protocol.** Same tuning effort per configuration, same
+   splits, same early-stopping rule — or you are measuring your own enthusiasm.
+5. **Claims cite cells.** Every sentence of your conclusion should trace to specific
+   numbers in the table. "Residuals matter at depth" is legal only if the table
+   contains depth-with and depth-without columns.
+
+Here is a real grid — sixteen configurations, three seeds each, measured with the
+exact protocol Lab 7 hands you — and it teaches more than any architecture section:
+
+{{< include ../assets/d3/w7-ablation.html >}}
+
+Spend real minutes in this widget; it is the lecture's argument in numbers, and —
+worth saying plainly — every value in it came from actual training runs under the
+stated protocol, because a lecture that preaches error bars owes you its own. The
+grid took about eight minutes of laptop compute, which is itself a finding: the
+price of knowing instead of believing, for a question this size, is one coffee. The
+findings you should extract, stated as an ablation report's conclusions: **(1)** the
+2-layer GCN baseline is the single best cell (81.0 ± 0.6) — on this dataset, with
+this budget, no fancy architecture beats boring, which is Cora's famous lesson and
+the reason serious papers moved to harder benchmarks; **(2)** at depth 4, residual
+connections are not an optimization but a resurrection — GAT goes from 26.2 ± 9.8
+(a crash, with seed-to-seed chaos) to 80.5 ± 1.0, a **+54-point** swing from one
+skip connection, while GIN's 44.2 ± 19.5 is a model gambling; **(3)** at depth 2,
+residuals change nothing anywhere (every delta within noise) — the repair is real
+*and* conditional, which is exactly what §5's mechanism story predicts: there is no
+depth to rescue; **(4)** several celebrated architecture differences (GCN vs SAGE at
+depth 2: 81.0 vs 79.8, overlapping error bars) are smaller than the noise floor —
+sentence-length claims in papers routinely rest on smaller gaps. And the meta-lesson
+over all four: *none of these findings could be stated from a single run of a single
+model*, which is the entire case for the method.
+
+And because an ablation is only as good as its write-up, the reporting template —
+which Lab 7 grades against, and which serves unchanged in industry design docs and
+paper rebuttals alike. A claims paragraph has three moves per claim: **the sentence**
+("residual connections are necessary at depth 4"), **the cells** ("GAT: 26.2 ± 9.8 →
+80.5 ± 1.0; GIN: 44.2 ± 19.5 → 75.2 ± 1.3"), and **the scope** ("Cora, this
+protocol; untested beyond depth 4"). Three disciplines around it: report every cell
+you ran (a table with holes invites the suspicion it deserves); state the protocol
+once, completely (splits, budget, stopping rule, seeds) so the grid is reproducible
+from the paragraph; and write the negative findings with the same care ("SAGE vs GCN:
+indistinguishable at depth 2") — negative cells are the cheapest leak-proof knowledge
+your compute budget produces, and senior reviewers read them first.
+
+A note on scale, because the lab pairs Cora with ogbn-arxiv (170k nodes — Cora ×60)
+and the design conclusions shift with size: bigger graphs support deeper models
+before oversmoothing bites (more diverse neighborhoods to average), sampling stops
+being optional (full-batch fits neither memory nor patience), the noise floor drops
+(bigger test sets, tighter error bars — real architecture differences become
+resolvable), and boring baselines stop winning automatically. "What changes when the
+graph is 100× bigger" is this week's lab question, and Week 11 makes scale the whole
+topic.
+
+## Common pitfalls
+
+::: {.callout-warning title="Pitfall 1 · Architecture shopping" icon="false"}
+Reading leaderboards as menus — "GAT beat GCN on Cora, so we use GAT" — imports
+conclusions across graphs, tasks, and tuning budgets that do not transfer (the
+measured grid above has GAT *below* GCN in every matched cell). The professional
+move: pick the simplest architecture whose *mechanisms* match your task's needs
+(§2–§4 gave you the mechanism-to-need map), then ablate on *your* data.
+:::
+
+::: {.callout-warning title="Pitfall 2 · Depth as a virtue" icon="false"}
+CNN intuition says deeper is better; message passing says deeper is *smoother* —
+receptive fields explode on small-world graphs (Week 1) and representations collapse
+(the measured curves). Most published GNNs are 2–4 layers deep for a reason. Go
+deeper only with a mechanism that pays for it (restart connections, PairNorm, JK) and
+an ablation showing depth actually bought accuracy on your task.
+:::
+
+::: {.callout-warning title="Pitfall 3 · The unread ρ slot" icon="false"}
+Aggregators get chosen by library default, yet they set the information ceiling
+(@prp-agg): mean silently deletes counts your molecular task needs; sum silently
+imports a degree confound your social task will exploit as leakage. When results
+disappoint, read the ρ slot before adding parameters — the failure is often
+representational, not statistical, and no amount of training fixes "the information
+was deleted in layer one."
+:::
+
+::: {.callout-warning title="Pitfall 4 · Trusting attention weights as explanations" icon="false"}
+Attention coefficients are seductive: they look like "the model showing its
+reasoning". They are learned weights entangled with everything else — @prp-static
+showed a whole architecture whose weights *could not* express the preferences people
+read into them, and even dynamic attention redistributes freely among correlated
+neighbors. Treat α's as diagnostics to investigate, never as explanations to ship;
+if stakeholders need explanations, that is a separate requirement with separate
+tooling.
+:::
+
+::: {.callout-warning title="Pitfall 5 · The ablation you didn't run" icon="false"}
+The mirror image of Pitfall 1: shipping your *own* improvement on a single seed and
+a favorable configuration. The grid above contains a ready-made cautionary tale —
+at one seed, depth-4 GIN can land anywhere in a 40-point range. If your improvement
+paper would not survive rule 2 and rule 3 of §6, it is not yet a result; it is an
+anecdote with a confidence interval you declined to compute.
+:::
+
+## In this week's lab
+
+[Lab 7](../labs/lab07.qmd) is the design space with your hands on it: hand-verified
+updates for SAGE, GAT, and GIN on toy graphs (the lecture's arithmetic, asserted);
+one layer built from PyG's `MessagePassing` base so the template stops being
+abstract — after which every architecture in this field is, to you, a `message()`
+and an `aggr` argument; the aggregator-confusion demonstration run as code; and then
+the centerpiece — the full ablation grid from Figure 4, reproduced with the same
+protocol (three seeds, early stopping, error bars) on Cora and extended to an
+ogbn-arxiv subset, ending with a written claim that must cite its cells. You will
+also watch depth-4 GAT crash and resurrect it with three characters of code, which
+is the kind of experience that turns §5 from a reading into a memory.
+
+## Required reading
+
+**1 · Hamilton, Ying & Leskovec — *Inductive Representation Learning on Large Graphs* (NeurIPS 2017).** [arXiv:1706.02216](https://arxiv.org/abs/1706.02216)
+
+::: {.reading-annotation}
+GraphSAGE. Work through Algorithm 1 line by line — it is §2's two moves in
+pseudocode — and be able to say why fixed-size sampling bounds the minibatch cost
+(the $s^K$ argument). Compare the aggregator variants in §3.3 against today's
+@prp-agg, and read the LSTM aggregator with your critical-reading hat on: what
+property does it violate? The inductive experiments (Reddit, cross-organism PPI) are
+the payoff — skim the clustering-coefficient theory in §3.4.
+:::
+
+**2 · Veličković et al. — *Graph Attention Networks* (ICLR 2018).** [arXiv:1710.10903](https://arxiv.org/abs/1710.10903)
+
+::: {.reading-annotation}
+GAT. Derive the attention coefficients from §2.1 and Figure 1 by hand until the
+lecture's worked example feels routine; note how multi-head attention plays the role
+channels play in CNNs, and how self-attention includes the node itself. Then — after
+today — reread §2.1 knowing @prp-static, and find the exact equation where the
+static-attention limitation hides. Reading a landmark paper twice, once naively and
+once armed, is the week's real assignment.
+:::
+
+**Also see:** Hamilton, *GRL book*, ch. 5 (the neighborhood-aggregation design
+space; our slot notation follows it) · CS224W, "A General Perspective on GNNs".
+
+**Optional:** Xu et al., [How Powerful are GNNs?](https://arxiv.org/abs/1810.00826)
+(ICLR 2019) — this week, read only Figures 2–3 and §4.1 for the aggregator
+intuition; Week 9 does the theorems · You, Ying & Leskovec,
+[Design Space for GNNs](https://arxiv.org/abs/2011.08843) (NeurIPS 2020) — the
+315,000-configuration study behind Figure 4's verdicts; read §3 and the ranking
+analysis · Brody, Alon & Yahav,
+[How Attentive are GATs?](https://arxiv.org/abs/2105.14491) (ICLR 2022) — the
+static-attention critique and the one-line fix; §3 is today's @prp-static at full
+strength · Rong et al., [DropEdge](https://arxiv.org/abs/1907.10903) (ICLR 2020) —
+the regularization corner; read §§1, 3.1, 4.1–4.2 and take the over-smoothing
+theorems on faith.
+
+## Check your understanding
+
+<details><summary>Q1 · The template — A paper defines its layer as: "each edge computes a gate g = σ(wᵀ[hᵤ ‖ hᵥ]); node v sums g·hᵤ over neighbors and passes the result through a GRU with its previous state." Identify ψ, ρ, φ, and name the closest architecture from this lecture.</summary>
+$\psi(h_u, h_v) = \sigma(\mathbf{w}^\top[h_u \| h_v]) \cdot h_u$ — a
+receiver-conditioned gated message; $\rho$ = sum; $\phi$ = GRU(previous state,
+aggregate). Closest relative: GAT — a content-dependent per-edge weight times the
+neighbor — but with a sigmoid *gate* instead of a softmax (weights need not compete
+or sum to 1: an "absolute relevance" rather than "relative attention" design), plus
+a recurrent update. If you can produce this paragraph for an arbitrary paper, the
+zoo is yours; this is objective 4's exam form.
+</details>
+
+<details><summary>Q2 · Hand computation — Node v: h_v = (1, 1); neighbors (2, 0) and (0, 2). Compute h′_v under (a) SAGE-mean with W = I on both halves (i.e., self + mean), identity activation; (b) GIN with ε = 0 and identity MLP; (c) GAT with uniform attention over {v, u₁, u₂} and W = I. Then explain which pair of answers must coincide and why.</summary>
+Mean of neighbors: $(1, 1)$. (a) $\text{self} + \text{mean} = (1,1) + (1,1) = (2, 2)$.
+(b) $\text{self} + \text{sum} = (1,1) + (2,2) = (3, 3)$. (c) uniform attention over
+three vectors including self: $\tfrac13[(1,1) + (2,0) + (0,2)] = (1, 1)$. None
+coincide here — but (a) and (c) *would* coincide if GAT's softmax happened to put
+weight ½ on self and ¼ on each neighbor: attention with content-blind weights
+degenerates to a normalized mean, which is the formal sense in which GAT generalizes
+GCN/SAGE-mean and GIN does not (sum is not a weighted mean — its output scale grows
+with degree, as (b)'s larger numbers show).
+</details>
+
+<details><summary>Q3 · Aggregator selection — For each task, choose mean, max, or sum, and defend with @prp-agg: (a) "is this molecule aromatic?" (needs ring-atom counts); (b) "is this account in contact with ANY sanctioned entity?"; (c) "classify a paper's field given neighbors with rich text embeddings"; (d) "predict a protein's degree-correlated abundance."</summary>
+(a) **Sum** — counts are the signal; mean would report ring *proportions* and max
+mere presence. (b) **Max** — the task IS the support question; sum/mean would let
+many innocuous neighbors dilute one crucial contact. (c) **Mean** — with real-valued
+embeddings, proportions/centroids of the neighborhood are the robust signal and
+degree normalization removes a confound. (d) Trick entry: sum *encodes* degree, so it
+"helps" — but ask whether you want the model to learn abundance-from-degree (a
+shortcut that breaks under distribution shift) or provide degree as an explicit
+feature and keep mean. Aggregator choice is modeling, not tuning.
+</details>
+
+<details><summary>Q4 · Prove-it — Show that GAT with a single head cannot solve the dictionary task for n ≥ 3 (query i must put its argmax on key i), no matter the training. Then explain in one sentence why GATv2's reordering breaks your proof.</summary>
+By @prp-static's argument: for fixed receiver, sender ranking is induced by
+$s_u = \mathbf{a}_2^\top \mathbf{W} \mathbf{h}_u$, which is receiver-independent;
+so all queries share one argmax sender (ties aside), and at most one query can be
+correct — $1 < n$. GATv2 computes
+$\mathbf{a}^\top \text{LReLU}(\mathbf{W}[\mathbf{h}_v \| \mathbf{h}_u])$: the
+nonlinearity acts on a *joint* function of receiver and sender, so the score no
+longer splits into (receiver constant) + (sender term), and no receiver-independent
+ranking is forced. The widget is this proof running with gradient descent as the
+adversary.
+</details>
+
+<details><summary>Q5 · Mechanism matching — A 6-layer GCN on a citation graph trains to 30% accuracy (2-layer: 78%). For each observation, name the diagnosis and the first repair you would ablate: (a) all node representations have pairwise cosine > 0.95 at layer 6; (b) training loss oscillates wildly between epochs; (c) the model fits train perfectly but transfers terribly to next year's papers.</summary>
+(a) Oversmoothing (the measured curves' regime) → residual or restart connections
+(or JK); PairNorm as alternative. (b) Optimization instability — deep unnormalized
+stacks → BatchNorm/LayerNorm first, learning-rate second. (c) Structure memorization
+/ distribution shift → DropEdge + evaluate with a temporal split (the Week 1
+discipline; "next year's papers" is a time split whether you honor it or not). The
+skill being tested: components are indexed by failure modes, not by fashion.
+</details>
+
+<details><summary>Q6 · Read the grid — Using Figure 4's measured numbers: (a) is "SAGE beats GCN on Cora" defensible at depth 2? (b) What is the single largest effect in the entire grid, and what claim does it license? (c) A blog post says "GIN is unstable." What is the honest, cell-cited version of that sentence?</summary>
+(a) No: 79.8 ± 1.1 vs 81.0 ± 0.6 — GCN is nominally *ahead*, and the gap is within
+joint noise; the defensible sentence is "indistinguishable under this protocol".
+(b) GAT at depth 4: 26.2 ± 9.8 without residuals vs 80.5 ± 1.0 with — a +54.3
+swing; it licenses "at depth 4 on Cora, residual connections determine whether GAT
+trains at all", and nothing broader. (c) "Depth-4 GIN without skips shows extreme
+seed variance on Cora (44.2 ± 19.5); at depth 2, or with residuals, its variance is
+ordinary (≈ ±1)." Precision about *which cell* is the entire difference between
+knowledge and vibes.
+</details>
+
+<details><summary>Q7 · Inductive stakes — Your team trained a SAGE model on January's transaction graph. In March, the graph has 20% new accounts and a new merchant category. List what the model can do without retraining, what silently degrades, and what breaks — and contrast each line with the Week 3 lookup-table world.</summary>
+Can do: embed and score every new account/edge by running the forward pass — the
+lookup table could not emit anything for them. Degrades silently: distribution shift
+— the new merchant category produces feature patterns unseen in training, so the
+*function* runs but its outputs drift from calibration (monitor with a fixed probe
+population, Week 3's production discipline transfers). Breaks: any change to the
+*feature schema* (new feature dimensions) — inductivity is over graphs, not over
+input spaces; and shifts in the label relationship itself require retraining in both
+worlds. The honest summary: SAGE converts "cannot answer" into "answers with aging
+confidence" — a huge upgrade that must still be operated, not trusted.
+</details>
+
+<details><summary>Q8 · Design a study — You have one week and a GPU to decide an architecture for molecular toxicity (graph-level, 40k molecules). Specify your ablation: factors and levels, what stays fixed, seeds, the metric, and the two mistakes from this lecture you are most at risk of making.</summary>
+One defensible design: factors = aggregator {mean, sum} × depth {3, 5} ×
+{±BatchNorm}, with architecture fixed to GIN-style layers (the mechanism argument —
+counting substructure — already picks the family, so spend the budget inside it);
+fixed: hidden size, optimizer, budgeted early stopping, scaffold split (chemistry's
+honest split — random splits leak series of similar molecules); 3–5 seeds; metric
+ROC-AUC with mean ± std. Risks: Pitfall 3 in reverse — sum's degree signal may
+shortcut on molecule size, so add a size-stratified analysis; and rule 4 violations
+— it is fatally tempting to give your favorite cell one extra tuning pass. A
+one-week study run this way beats a month of architecture shopping, which is the
+lecture's closing claim in operational form.
+</details>
+
+## Where this leaves us
+
+The zoo is now a table. You can read any message-passing architecture into three
+slots, hand-compute the four rows that matter, match every repair component to the
+failure it treats — with the failure demonstrated on real curves and real grids, not
+asserted — and, most importantly, you own the method that adjudicates all such
+claims: the controlled ablation, with seeds, error bars, and conclusions that cite
+their cells. That method is the week's real deliverable, and the one this course
+most confidently promises will still be earning for you in ten years: architectures
+age, experimental discipline compounds. That is also why Lab 7's grading weights
+the claims paragraph so heavily: writing three sentences that survive their own
+table is harder, and more valuable, than getting sixteen cells to run.
+
+Notice what every architecture today accepted without question: the *messages flow
+along edges, one hop per layer*. GraphSAGE sampled the edges, GAT weighted them, GIN
+counted across them — nobody defied them. Next week is the midterm (Weeks 1–7; a
+sample exam is posted with the Week 8 materials, and HW1's solutions unlock after
+the deadline). And
+in Week 9, the question underneath this whole lecture gets its theorems: *what can
+message passing, as a class, never see?* You have already met the answer's
+protagonists — WL from Week 2, the triangles-vs-hexagon pair from Week 6, GIN from
+today — and the widget's standing challenge (find multisets that fool all three
+aggregators) was a first crack in the ceiling. Week 9 maps the whole ceiling, and
+then the course starts drilling through it.
+
+:::
+
+::: {.content-visible when-format="html"}
+{{< include ../assets/d3/w7-scripts.html >}}
+:::

@@ -1,0 +1,26 @@
+```{=html}
+<div class="interactive-container" id="w7-sg-widget">
+  <div class="fig-label">Interactive · Neighbor sampling: pay less, accept noise</div>
+  <div class="widget-controls">
+    <button class="pill-btn" id="w7-sg-center" type="button">next hub</button>
+    <button class="pill-btn" data-k="2" type="button">K = 2</button>
+    <button class="pill-btn active" data-k="3" type="button">K = 3</button>
+    <button class="pill-btn" data-k="5" type="button">K = 5</button>
+    <button class="pill-btn" data-k="99" type="button">all</button>
+    <button class="pill-btn" id="w7-sg-resample" type="button">resample</button>
+  </div>
+  <div id="w7-sg-svg" role="img" aria-label="A karate club hub with its neighborhood; a sampled subset is highlighted, and the sampled mean-degree estimate is compared against the exact neighborhood mean with a running spread across resamples"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: node 33 with 17 neighbors of which 3 are sampled; the sampled mean jitters
+    around the exact mean with spread that shrinks as K grows.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 2.</strong> GraphSAGE's bargain, quantified on a
+  real hub: aggregate K sampled neighbors instead of all of them — constant cost per
+  node, at the price of estimator variance. <strong>Try this:</strong> park on node 33
+  (17 neighbors), hammer <em>resample</em> at K = 2 and watch the estimate swing; raise
+  K and watch the spread column shrink like 1/√K. Then visit node 8 (degree 3) and
+  explain why sampling buys nothing there — and why, on a heavy-tailed graph (Week 1),
+  that asymmetry is exactly the point.</p>
+</div>
+```

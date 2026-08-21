@@ -7,15 +7,16 @@ const chrome = ["C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "/usr/bin/google-chrome"].find(existsSync);
 const slugs = process.argv.slice(2).length ? process.argv.slice(2) :
   ["01-why-graphs", "02-classical-graph-ml", "03-embeddings",
-   "04-knowledge-graphs", "05-kg-reasoning", "06-gcn"];
+   "04-knowledge-graphs", "05-kg-reasoning", "06-gcn", "07-gnn-design"];
 
 const browser = await puppeteer.launch({ executablePath: chrome, headless: "new", args: ["--disable-gpu"] });
 const page = await browser.newPage();
 for (const slug of slugs) {
-  await page.goto(`http://localhost:8765/lectures/${slug}.html`, { waitUntil: "domcontentloaded", timeout: 60000 });
-  await new Promise((r) => setTimeout(r, 400));
+  await page.goto(`http://localhost:8765/lectures/${slug}.html`, { waitUntil: "load", timeout: 60000 });
+  await page.waitForSelector(".reading-meta", { timeout: 10000 });
+  // read the badge itself — the number the instructor and students see
   const n = await page.evaluate(() =>
-    (document.querySelector("main").innerText || "").trim().split(/\s+/).length);
+    parseInt(document.querySelector(".reading-meta").textContent.match(/([\d,]+) words/)[1].replace(/,/g, ""), 10));
   const ok = n >= 8000 && n <= 9500 ? "✓" : n < 8000 ? `needs +${8000 - n}` : "over";
   console.log(`${slug}: ${n} visible words  ${ok}`);
 }

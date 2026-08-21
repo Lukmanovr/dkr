@@ -31,10 +31,11 @@ week by week through [classical graph ML](lectures/02-classical-graph-ml.qmd),
 ([facts](lectures/04-knowledge-graphs.qmd), then
 [reasoning and GraphRAG](lectures/05-kg-reasoning.qmd)) — with
 [Homework 1](homeworks/hw1.qmd) out in Week 4 and the
-[course project](project/index.qmd) launching in Week 5. The
-[GCN week](lectures/06-gcn.qmd) is also published and shows where the course is
-headed: interactive lecture pages you can manipulate, and Colab labs that build each
-method from scratch before reaching for the library.
+[course project](project/index.qmd) launching in Week 5. The GNN arc is also
+underway — [message passing and GCN](lectures/06-gcn.qmd), then
+[the design space: SAGE, GAT, GIN](lectures/07-gnn-design.qmd) — and shows where the
+course is headed: interactive lecture pages you can manipulate, and Colab labs that
+build each method from scratch before reaching for the library.
 
 ## How the course works
 

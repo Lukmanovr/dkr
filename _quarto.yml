@@ -45,6 +45,8 @@ website:
             text: "5 · Knowledge Graphs II: Reasoning & the LLM Era"
           - href: lectures/06-gcn.qmd
             text: "6 · GNNs I: Message Passing & GCN"
+          - href: lectures/07-gnn-design.qmd
+            text: "7 · GNNs II: The Design Space"
       - section: Labs
         contents:
           - href: labs/lab01.qmd
@@ -59,6 +61,8 @@ website:
             text: "Lab 5 · Query2box-lite & mini-GraphRAG"
           - href: labs/lab06.qmd
             text: "Lab 6 · GCN from scratch → PyG"
+          - href: labs/lab07.qmd
+            text: "Lab 7 · The design-space ablation"
       - section: Assessments
         contents:
           - href: homeworks/hw1.qmd

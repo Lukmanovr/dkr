@@ -15,16 +15,22 @@
   }
 
   // ── reading time under the title (long pages only) ───────────────────────
+  // Counted on window load so deferred KaTeX has replaced raw LaTeX source —
+  // the number matches the rendered page (and scripts/wordcount.mjs).
   if (main) {
-    var words = (main.innerText || "").trim().split(/\s+/).length;
-    if (words > 1200) {
-      var mins = Math.max(1, Math.round(words / 200));
-      var meta = document.createElement("p");
-      meta.className = "reading-meta";
-      meta.textContent = "≈ " + mins + " min read · " + words.toLocaleString() + " words";
-      var title = document.querySelector(".quarto-title-meta") || document.querySelector(".quarto-title");
-      if (title) title.insertAdjacentElement("afterend", meta);
-    }
+    window.addEventListener("load", function () {
+      setTimeout(function () {
+        var words = (main.innerText || "").trim().split(/\s+/).length;
+        if (words > 1200) {
+          var mins = Math.max(1, Math.round(words / 200));
+          var meta = document.createElement("p");
+          meta.className = "reading-meta";
+          meta.textContent = "≈ " + mins + " min read · " + words.toLocaleString() + " words";
+          var title = document.querySelector(".quarto-title-meta") || document.querySelector(".quarto-title");
+          if (title) title.insertAdjacentElement("afterend", meta);
+        }
+      }, 0);
+    });
   }
 
   // ── hover/tap glossary for .term[data-def] ───────────────────────────────

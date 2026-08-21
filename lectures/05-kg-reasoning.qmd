@@ -745,7 +745,10 @@ distributions. And three times running, the field's honest evaluators had to inv
 a split that separated *memory* from *inference* — filtered ranking, hard answers,
 leakage audits — because the naive metric flattered recall. Representation follows
 operators; evaluation separates memory from inference. Two sentences, and they will
-serve you in corners of ML that have never heard of a knowledge graph.
+serve you in corners of ML that have never heard of a knowledge graph. When a new
+benchmark or model reaches you, run both tests in that order — what are the
+operators, and what does the split actually separate — and you will usually know a
+paper's worth before you reach its experiments section.
 
 Notice, though, what every method since Week 3 has had in common: the encoder is
 still a **table**. DeepWalk looked vectors up; TransE looked vectors up; even

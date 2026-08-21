@@ -1,0 +1,22 @@
+```{=html}
+<div class="interactive-container" id="w7-ag-widget">
+  <div class="fig-label">Interactive · The multiset discriminator</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-preset="0" type="button">{t} vs {t,t}</button>
+    <button class="pill-btn" data-preset="1" type="button">{t,g} vs {t,t,g,g}</button>
+    <button class="pill-btn" data-preset="2" type="button">{t,t,g} vs {t,g,g}</button>
+  </div>
+  <div id="w7-ag-svg" role="img" aria-label="Two editable neighbor multisets of teal and gold one-hot features, with mean, max, and sum computed live and a verdict on which aggregators can distinguish them"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the aggregators figure above shows the three classic confusion cases with all
+    values computed.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 1.</strong> Aggregator theory as a game: build
+  two neighborhoods, watch which of mean/max/sum can tell them apart.
+  <strong>Try this:</strong> reproduce all three preset verdicts by hand first, then
+  take the widget's standing challenge — find two <em>different</em> multisets that
+  fool all three aggregators at once. (Think about what sum forgets. Week 9 turns your
+  answer into a theorem about what GIN can and cannot see.)</p>
+</div>
+```
