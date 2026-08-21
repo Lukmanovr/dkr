@@ -1,0 +1,25 @@
+```{=html}
+<div class="interactive-container" id="w9-pw-widget">
+  <div class="fig-label">Interactive · Augmentations on trial</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-feature="uniform" type="button">no features</button>
+    <button class="pill-btn" data-feature="degree" type="button">+ degree</button>
+    <button class="pill-btn" data-feature="triangles" type="button">+ triangle count</button>
+    <button class="pill-btn" data-feature="rw" type="button">+ RW return prob</button>
+    <button class="pill-btn" data-feature="random" type="button">+ random IDs</button>
+    <button class="pill-btn" id="w9-pw-reseed" type="button">reseed</button>
+  </div>
+  <div id="w9-pw-svg" role="img" aria-label="Two test pairs judged under a chosen feature augmentation: whether WL separates two genuinely different graphs, and whether it wrongly separates two relabeled copies of the same graph"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the ladder figure above lists which augmentations separate which pairs.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 3.</strong> Every augmentation faces both
+  questions at once: does it separate <em>different</em> graphs, and does it spare
+  the <em>same</em> graph? <strong>Try this:</strong> triangle counts and
+  random-walk returns pass both tests — they are computed from the graph, so
+  relabelings agree. Then press random IDs and reseed a few times: pair A is
+  "cured," and pair B — the identical hexagon — is "separated" too, every single
+  seed. Power that cannot tell truth from noise is not expressiveness.</p>
+</div>
+```

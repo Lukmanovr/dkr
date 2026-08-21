@@ -1,0 +1,40 @@
+---
+title: "Lab 9 · The ceiling, verified"
+subtitle: "Week 9 · WL from scratch, an untrained GIN, augmentations on trial, CSL, and the barbell — all deterministic"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab09_expressiveness.ipynb){target="_blank"}
+
+**≈ 2 minutes of compute · numpy + networkx only — no torch, no training, no seeds**
+
+Theory week gets a theory lab: every claim in the
+[Week 9 lecture](../lectures/09-expressiveness.qmd) becomes an assert you satisfy:
+
+1. **WL from scratch** (exercise 1): ~10 lines with the one subtlety that
+   matters — a color table *shared across both graphs* — reproducing every
+   verdict: the blind founding pair, the molecules stabilizing at the same
+   2/4/4 classes, and the same-degree-sequence pair that splits at exactly
+   round 2.
+2. **The ceiling on an untrained GIN** (exercise 2): random weights, no
+   training — blind pairs give *bit-identical* readouts and a WL-splittable
+   pair splits, because the theorem is about the architecture, not the
+   optimizer.
+3. **Augmentations on trial** (exercise 3): triangle counts separate different
+   graphs *and* spare relabeled copies; random IDs pass the first test and fail
+   the second — the false alarm, caught by assert.
+4. **CSL, cracked honestly** (exercise 4): build $\mathrm{CSL}(11,2)$ and
+   $\mathrm{CSL}(11,3)$, verify 4-regular + WL-blind + non-isomorphic, then
+   open the safe with random-walk return probabilities you can also count by
+   hand ($6/64$ vs $0$ at three steps).
+5. **Oversquashing to the decimal** (exercise 5): the barbell's 290× influence
+   crush at $K{=}5$, the *exactly zero* unreachability at $K{=}4$ (a different
+   thing, and the assert makes you know why), and the one-edge, 25× rescue.
+
+Stretch (ungraded): find a 3-regular blind pair of your own, preview subgraph
+GNNs by node deletion, meet the Laplacian PE sign wrinkle, and compare
+effective resistance with your sensitivity ratios.
+
+**Submitting.** One executed notebook on Moodle: five checks ✓ + three
+reflections; *Restart and run all* takes about two minutes. Grading: assertions
+70% · reflections 30%. AI-assistant use allowed with disclosure, per the honor
+code — the final cell restates the policy.

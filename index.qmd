@@ -32,10 +32,11 @@ week by week through [classical graph ML](lectures/02-classical-graph-ml.qmd),
 [reasoning and GraphRAG](lectures/05-kg-reasoning.qmd)) — with
 [Homework 1](homeworks/hw1.qmd) out in Week 4 and the
 [course project](project/index.qmd) launching in Week 5. The GNN arc is also
-underway — [message passing and GCN](lectures/06-gcn.qmd), then
-[the design space: SAGE, GAT, GIN](lectures/07-gnn-design.qmd) — and shows where the
-course is headed: interactive lecture pages you can manipulate, and Colab labs that
-build each method from scratch before reaching for the library. The midterm's
+underway — [message passing and GCN](lectures/06-gcn.qmd),
+[the design space: SAGE, GAT, GIN](lectures/07-gnn-design.qmd), and
+[the theory of what GNNs can never see](lectures/09-expressiveness.qmd) — and shows
+where the course is headed: interactive lecture pages you can manipulate, and Colab
+labs that build each method from scratch before reaching for the library. The midterm's
 [review page](exams/midterm.qmd) and a full
 [sample exam with solutions](exams/midterm-sample.qmd) are posted under
 Assessments, with [Homework 2](homeworks/hw2.qmd) following after exam week.

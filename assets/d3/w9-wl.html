@@ -1,0 +1,25 @@
+```{=html}
+<div class="interactive-container" id="w9-wl-widget">
+  <div class="fig-label">Interactive · WL refinement, one round at a time</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-pair="0" type="button">triangles vs hexagon</button>
+    <button class="pill-btn" data-pair="1" type="button">decalin vs bicyclopentyl</button>
+    <button class="pill-btn" data-pair="2" type="button">P₄∪P₃ vs P₅∪P₂</button>
+    <button class="pill-btn" id="w9-wl-step" type="button">step</button>
+    <button class="pill-btn" id="w9-wl-reset" type="button">reset</button>
+  </div>
+  <div id="w9-wl-svg" role="img" aria-label="Two graphs whose nodes are colored by Weisfeiler-Leman refinement round by round, with the color histograms of both graphs and a verdict on whether WL can distinguish them"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the molecules figure below shows the stabilized WL coloring for the
+    decalin/bicyclopentyl pair.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 1.</strong> The 1968 algorithm, one round per
+  click, with a shared color table across both graphs: matching histograms mean WL
+  sees no difference. <strong>Try this:</strong> step the first two pairs to
+  stability and watch the histograms stay locked — then take the third pair, which
+  has the <em>same degree sequence</em>, and find the exact round where the
+  histograms split. Predict it before you click: which node of P₃ has a
+  neighborhood no node of P₅ can imitate?</p>
+</div>
+```

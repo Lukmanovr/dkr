@@ -17,7 +17,7 @@ weeks will follow.
 | 6 | Oct 1 | [GNNs I: message passing and the GCN](lectures/06-gcn.qmd) | [GCN from scratch → PyG on Cora](labs/lab06.qmd) | [HW1 due](homeworks/hw1.qmd) |
 | 7 | Oct 8 | [GNNs II: the design space](lectures/07-gnn-design.qmd) | [SAGE, GAT, GIN + the ablation grid](labs/lab07.qmd) | |
 | 8 | **Oct 15** | [**Midterm exam**](exams/midterm.qmd) (written, full session, Wks 1–7 · [sample](exams/midterm-sample.qmd)) | [Midterm debrief + project kickoff](labs/lab08.qmd) | [HW2 out](homeworks/hw2.qmd) |
-| 9 | Oct 22 | GNN theory: WL test, expressiveness, oversmoothing, oversquashing | WL implementation; expressiveness experiments | Project proposal due |
+| 9 | Oct 22 | [GNN theory: the 1-WL ceiling, oversquashing](lectures/09-expressiveness.qmd) | [WL from scratch; the ceiling verified](labs/lab09.qmd) | [Project proposal due](project/index.qmd) |
 | 10 | Oct 29 | Heterogeneous & relational GNNs: RGCN, HAN/HGT, GNNs on KGs | RGCN: hetero node classification + KG link prediction | HW2 due |
 | 11 | Nov 5 | Scaling GNNs: sampling, Cluster-GCN, GraphSAINT, SGC | ogbn-arxiv at scale; profiling | |
 | 12 | Nov 12 | Link prediction & graph generation: VGAE, SEAL, GraphRNN, diffusion | VGAE + SEAL; a small generative model | HW3 out |

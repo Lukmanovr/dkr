@@ -7,7 +7,8 @@ const chrome = ["C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "/usr/bin/google-chrome"].find(existsSync);
 const slugs = process.argv.slice(2).length ? process.argv.slice(2) :
   ["01-why-graphs", "02-classical-graph-ml", "03-embeddings",
-   "04-knowledge-graphs", "05-kg-reasoning", "06-gcn", "07-gnn-design"];
+   "04-knowledge-graphs", "05-kg-reasoning", "06-gcn", "07-gnn-design",
+   "09-expressiveness"];
 
 const browser = await puppeteer.launch({ executablePath: chrome, headless: "new", args: ["--disable-gpu"] });
 const page = await browser.newPage();
