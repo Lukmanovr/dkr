@@ -1,0 +1,687 @@
+---
+title: "Classical Graph ML: Structure as Features"
+subtitle: "Week 2 · Thursday, September 3, 2026 · 90 minutes"
+description: "What structure alone can tell you, computed by hand: four centralities and how to choose one, PageRank as a fixed point, clustering and graphlets, communities via modularity and the Laplacian, the 1968 Weisfeiler–Leman relabeling trick — and the ceiling all hand-crafted features share."
+date: 2026-09-03
+date-modified: last-modified
+format:
+  html:
+    toc-depth: 3
+---
+
+::: {.content-visible when-format="html"}
+
+::: {.callout-tip title="Learning objectives" icon="false"}
+After this lecture (and Lab 2) you can:
+
+1. **compute** degree, closeness, betweenness, and eigenvector centrality by hand on small graphs — and **select** the right centrality for a stated question, with a justification;
+2. **derive** PageRank as the fixed point of a random surfer, run two or three power iterations by hand, and explain what damping, teleport, and *personalized* PageRank each buy you;
+3. **compute** clustering coefficients and explain graphlet features as a systematic subgraph census;
+4. **define** modularity against its null model, step through Louvain's local-moving phase, and explain why the Laplacian's second eigenvector splits a graph;
+5. **run** one round of Weisfeiler–Leman color refinement by hand and state exactly what the WL fingerprint can and cannot distinguish;
+6. **build** a feature-based classifier from all of the above — and articulate why hand-crafted features hit a ceiling that no amount of engineering lifts.
+:::
+
+## The web is a graph, and importance is a fixed point
+
+In 1998, two Stanford graduate students looked at the web the way Zachary had looked at
+his karate club: as a graph whose *structure* knew something no individual page said out
+loud. Every hyperlink, they argued, is a tiny endorsement. But endorsements can't just be
+counted — a link *from an important page* should count for more, which is circular:
+importance defined in terms of importance.
+
+::: {.predict}
+**Commit before you look.** Page Q has **one** incoming link. Page V has **four**. Which
+page should a search engine rank higher — or can't you tell yet?
+
+::: {.predict-answer}
+**You can't tell yet — and that is the entire idea.** If Q's single link comes from a
+major hub while V's four come from pages nobody links to, Q outranks V. Counting links
+is degree centrality; *weighting them by the linker's own importance* is the recursion
+that made a search engine. The figure below shows exactly this happening on a toy web.
+:::
+:::
+
+{{< include ../assets/figures/fig-w2-hero.html >}}
+
+The circularity turns out to be a feature: "importance flows along links" has a unique
+self-consistent solution, you can compute it by iterating a matrix product, and it is —
+with refinements — what founded Google. That is today's centerpiece, and it is
+**classical** graph machine learning: no training, no labels, no gradients. Pure
+structure, squeezed until numbers come out.
+
+Last week you learned to *hold* a graph. This week the graph starts talking. Everything
+we extract — centralities, cluster scores, community labels, refinement colors — is a
+**feature**: a number per node or per graph, computed from structure alone. Stack the
+features into vectors, feed them to any classifier from your ML course, and you have
+graph ML as the field practiced it for decades. At the end we will find the precise
+place where this recipe stalls — which is the door the rest of the course walks through.
+
+**Roadmap.** (1) *Who matters?* — four centralities and how to pick one. (2) PageRank:
+importance as a fixed point, plus the two knobs (damping, teleport) that make it work
+and the personalized variant that powers recommendations. (3) *How tight-knit?* —
+triangles, clustering coefficients, graphlets. (4) *Who belongs together?* — cuts and
+the Laplacian's return, then modularity and Louvain. (5) A relabeling trick from 1968
+that fingerprints whole graphs — and quietly bounds what GNNs will ever see. (6) The
+feature-vector recipe, and its ceiling.
+
+::: {.callout-note title="Recap — what this lecture assumes" collapse="true"}
+All from Week 1:
+
+- The **cast graph**: nodes $A\ldots F$, edges $AB, AC, AD, BC, CE, CF, EF$, degrees $(3,2,4,1,2,2)$. It is on the board again today.
+- $(\mathbf{A}^k)[u,v]$ counts length-$k$ walks ([Week 1's Proposition 1](01-why-graphs.qmd#prp-walks)) — today it counts triangles.
+- The Laplacian $\mathbf{L} = \mathbf{D} - \mathbf{A}$ and its quadratic form $\mathbf{x}^\top\mathbf{L}\mathbf{x} = \sum_{(u,v)\in\mathcal{E}}(x_u - x_v)^2$. In Week 1's Q4 you showed that for an indicator vector this **counts cut edges** — hold that thought for §4.
+- BFS gives shortest-path distances in unweighted graphs.
+:::
+
+## 1. Who matters? Four answers before you choose one
+
+"Which node is most important?" is not a question — it is four questions wearing one
+coat. Each formalization below is a
+<span class="term" data-def="Centrality: any function assigning each node a score meant to capture some notion of structural importance. There are dozens; the four here (plus PageRank) cover most real use.">**centrality**</span>,
+and they genuinely disagree, so the skill worth having is not computing them (machines
+do that) but *matching the definition to the question being asked*.
+
+**Degree** $d_u$ — how many connections. On the cast graph the champion is $C$ with
+$d_C = 4$. Cheap, local, and surprisingly hard to beat as a baseline; but it sees only
+one step.
+
+**Closeness** — how near to everyone:
+$$
+c_{\text{clo}}(u) \;=\; \frac{n-1}{\sum_{v \neq u} d(u,v)},
+$$
+the inverse of $u$'s average distance to the rest. On the cast graph, from $C$ the
+distances are $1,1,2,1,1$ (to $A,B,D,E,F$) — sum $6$, closeness $5/6 \approx 0.83$.
+From $D$: $1,2,2,3,3$ — sum $11$, closeness $5/11 \approx 0.45$. If you are placing a
+warehouse, a fire station, or a broadcast source, this is your question.
+
+**Betweenness** — how often *on the way*:
+$$
+c_{\text{btw}}(v) \;=\; \sum_{\{s,t\},\, s \neq v \neq t} \frac{\sigma_{st}(v)}{\sigma_{st}},
+$$
+where $\sigma_{st}$ counts shortest $s$–$t$ paths and $\sigma_{st}(v)$ those passing
+through $v$. It measures brokerage: remove a high-betweenness node and traffic reroutes
+or dies. On the cast graph you can enumerate by hand: every shortest path between
+$\{A,B,D\}$-side and $\{E,F\}$-side threads through $C$ — six pairs, all with a unique
+shortest path — so $c_{\text{btw}}(C) = 6$; the paths from $D$ to everything except $A$
+thread through $A$, giving $c_{\text{btw}}(A) = 4$; everyone else scores $0$.
+
+**Eigenvector centrality** — important is who important people know. Score each node by
+the total score of its neighbors, $x_u \propto \sum_{v \in \mathcal{N}(u)} x_v$ — in
+matrix form $\mathbf{A}\mathbf{x} = \lambda\mathbf{x}$: the importance vector is the
+leading eigenvector of $\mathbf{A}$, computable by repeated multiplication (power
+iteration — sum your neighbors, normalize, repeat until it stops changing). This is the
+recursion from the hero figure, one teleport short of PageRank.
+
+Now stop reading definitions and *push on them* — every score below recomputes live as
+you edit the graph:
+
+{{< include ../assets/d3/w2-centrality.html >}}
+
+The kite in the widget is a famous ten-person network built by David Krackhardt
+precisely because the measures disagree on it:
+
+{{< include ../assets/figures/fig-w2-centralities.html >}}
+
+Diane has the most friends, but her friends all know each other — she reaches nobody new.
+Fernando and Garth are closest to everyone. Heather has few connections, yet *every*
+path to Ike and Jane crosses her: pure brokerage. And eigenvector centrality sides with
+degree here — measures can agree, and when they do, that agreement is itself information
+about the network.
+
+The selection discipline, in one table:
+
+| The question sounds like… | Reach for | Because it measures |
+|---|---|---|
+| "who has the most direct exposure?" | degree | raw connection count |
+| "where do we place the depot / who spreads news fastest?" | closeness | average distance to all |
+| "whose removal fragments the network / who brokers?" | betweenness | shortest-path traffic through a node |
+| "who is influential among the influential?" | eigenvector / PageRank | recursive endorsement |
+
+A warning that saves exam points and real projects: centrality scores are
+*graph-relative*. A betweenness of $6$ means nothing across graphs of different sizes;
+comparisons are only meaningful within one graph (or after normalization, which every
+library offers and every paper forgets to state).
+
+## 2. PageRank: importance as a fixed point
+
+Eigenvector centrality has two cracks on directed graphs, and the web is very directed.
+A page with no inlinks scores zero — and then contributes nothing to the pages it links
+to, so zeros propagate. Worse, on a graph that is not strongly connected the leading
+eigenvector can concentrate all mass in one corner and ignore the rest. Both cracks are
+sealed by one story.
+
+**The random surfer.** Imagine someone clicking links forever: at a page with $d^{\text{out}}_u$
+outlinks they follow one uniformly at random. Define importance as *the fraction of time
+the surfer spends at each page* in the long run — the
+<span class="term" data-def="Stationary distribution: a probability vector r with M r = r — running the process one more step changes nothing. For PageRank's Google matrix it exists, is unique, and is what power iteration converges to.">**stationary distribution**</span>
+of the walk. Collect the click probabilities into the **column-stochastic** matrix
+$$
+M_{vu} \;=\; \begin{cases} 1/d^{\text{out}}_u & \text{if } u \to v \\ 0 & \text{otherwise,}\end{cases}
+$$
+(column $u$ says where mass at $u$ flows). Importance must satisfy
+$\mathbf{r} = M\mathbf{r}$ — a fixed point: what flows in equals what is there.
+
+Two web-shaped pathologies break the plain walk. A **dead end** (page with no outlinks)
+swallows mass — columns of zeros make $M$ sub-stochastic and $\mathbf{r} \to \mathbf{0}$.
+A **spider trap** (a cycle with no exits) collects mass forever — the walk enters and
+never leaves, so the trap ends up with everything. The fix is almost comically direct:
+*get bored sometimes*. With probability $\beta$ follow a link; with probability
+$1-\beta$ jump to a uniformly random page:
+$$
+\mathbf{r} \;=\; \beta M \mathbf{r} \;+\; (1-\beta)\,\tfrac{1}{n}\mathbf{1}.
+$$
+The damping factor $\beta$ is traditionally $0.85$ — roughly, five or six clicks before
+boredom. Teleporting rescues dead ends (mass reappears everywhere) and drains spider
+traps (the trap leaks $1-\beta$ of its mass per step).
+
+::: {#prp-pagerank .proposition name="PageRank exists, is unique, and power iteration finds it"}
+For any $0 < \beta < 1$ the equation above has exactly one solution with
+$\mathbf{r} \ge 0$, $\sum_u r_u = 1$, and iterating
+$\mathbf{r}^{(k+1)} = \beta M \mathbf{r}^{(k)} + (1-\beta)\frac{1}{n}\mathbf{1}$ from
+any starting distribution converges to it at rate $\beta^k$.
+:::
+
+<details><summary>Proof (a contraction on the simplex — no Perron–Frobenius needed)</summary>
+Let $G(\mathbf{r}) = \beta M\mathbf{r} + (1-\beta)\frac{1}{n}\mathbf{1}$. If
+$\mathbf{r}$ is a probability vector, so is $G(\mathbf{r})$: entries are nonnegative,
+and since $M$'s columns each sum to $1$, $\|M\mathbf{r}\|_1 = 1$, so
+$\|G(\mathbf{r})\|_1 = \beta + (1-\beta) = 1$. For two probability vectors
+$\mathbf{r}, \mathbf{s}$:
+$\|G(\mathbf{r}) - G(\mathbf{s})\|_1 = \beta\,\|M(\mathbf{r}-\mathbf{s})\|_1 \le \beta\,\|\mathbf{r}-\mathbf{s}\|_1$,
+because multiplying by a column-stochastic matrix cannot increase the $1$-norm (each
+column redistributes its entry's mass without creating any). So $G$ is a
+$\beta$-contraction on a complete space; by Banach's fixed-point theorem the solution
+exists, is unique, and iteration converges geometrically at rate $\beta$. This is also
+why large $\beta$ means slow convergence — try it in Figure 2. $\square$
+</details>
+
+::: {#exm-pr-hand .example name="Two power iterations, by hand"}
+A three-page web: $X$ links to $Y$ and $Z$; $Y$ links back to $X$; $Z$ links to $Y$.
+Take $\beta = 1$ for clean fractions (no teleport — this tiny web has no dead ends).
+Columns of $M$: from $X$, half to $Y$, half to $Z$; from $Y$, all to $X$; from $Z$, all
+to $Y$. Start uniform, $\mathbf{r}^{(0)} = (\tfrac13, \tfrac13, \tfrac13)$:
+$$
+\mathbf{r}^{(1)} = \left(\tfrac13,\; \tfrac16 + \tfrac13,\; \tfrac16\right) = \left(\tfrac13, \tfrac12, \tfrac16\right),
+\qquad
+\mathbf{r}^{(2)} = \left(\tfrac12,\; \tfrac16+\tfrac16,\; \tfrac16\right) = \left(\tfrac12, \tfrac13, \tfrac16\right).
+$$
+The exact fixed point solves $x = y$, $y = \tfrac{x}{2} + z$, $z = \tfrac{x}{2}$:
+$\mathbf{r} = (0.4, 0.4, 0.2)$. Notice $X$ and $Y$ tie — $Y$ has fewer inlinks but its
+single inlink carries half of a big page's mass. This is the midterm's favorite
+computation; practice until the update is mechanical.
+:::
+
+**Personalized PageRank.** One word in the story is load-bearing: teleport to a
+*uniformly random* page. Change the teleport distribution to a single page $q$ — or a
+set of pages, say *this user's* purchases — and the whole rank distribution reorganizes
+around $q$'s neighborhood. That variant, **Personalized PageRank (PPR)**, is the
+workhorse of graph-based recommendation ("random walks with restarts"): importance
+*relative to a viewpoint*. Same theorem, same iteration, one changed vector.
+
+Watch all of it — convergence, damping, personalization — happen:
+
+{{< include ../assets/d3/w2-pagerank.html >}}
+
+PageRank will return twice: in Week 3, random-walk *embeddings* replace the fixed
+teleport with learned co-occurrence statistics; and in Week 11, PPR-style diffusion is
+how production systems localize a GNN's computation on billion-edge graphs.
+
+## 3. How tight-knit? Triangles, clustering, graphlets
+
+Centralities rank single nodes. The next family of features asks about a node's
+*neighborhood texture*: are my friends friends with each other?
+
+::: {#def-clustering .definition name="Local clustering coefficient"}
+For a node $u$ with degree $d_u \ge 2$,
+$$
+C_u \;=\; \frac{\#\{\text{edges among } \mathcal{N}(u)\}}{\binom{d_u}{2}}
+\;=\; \frac{\#\{\text{triangles at } u\}}{\binom{d_u}{2}} \;\in\; [0,1].
+$$
+The fraction of your friend-pairs who are themselves friends.
+:::
+
+On the cast graph: $C$'s neighbors are $\{A, B, E, F\}$; among the $\binom{4}{2} = 6$
+pairs, exactly two are edges ($AB$ and $EF$), so $C_C = 2/6 = 1/3$. Node $A$'s
+neighbors $\{B, C, D\}$ contain one edge ($BC$): $C_A = 1/3$ as well. Social networks
+run high ($0.1$–$0.6$ — friends introduce friends); the web and citation graphs run much
+lower; a value near the random-graph baseline $\bar d / n$ is a warning that "community
+structure" may be your imagination.
+
+Where do triangle counts come from? You already own the tool:
+
+::: {#prp-triangles .proposition name="The diagonal of A³ counts triangles"}
+$(\mathbf{A}^3)[u,u] = 2 \times \#\{\text{triangles containing } u\}$, and
+$\operatorname{tr}(\mathbf{A}^3) = 6 \times \#\{\text{triangles in } G\}$.
+:::
+
+<details><summary>Proof (two lines, standing on Week 1's shoulders)</summary>
+By [Week 1's walk-counting proposition](01-why-graphs.qmd#prp-walks),
+$(\mathbf{A}^3)[u,u]$ counts closed walks of length 3 at $u$.
+A closed 3-walk cannot repeat a vertex (it would need a self-loop), so it is exactly a
+triangle at $u$ traversed in one of its 2 orientations. The trace then counts each
+triangle twice at each of its 3 vertices. $\square$
+</details>
+
+**Graphlets.** Triangles are one member of a family: count *all* small subgraph shapes
+— the wedge, the triangle, the 4-path, the 4-star, the square, and so on — around each
+node, position by position. The resulting count vector (the *graphlet degree vector*)
+is a structural fingerprint far sharper than degree: two nodes can agree on degree and
+clustering yet live in completely different local architectures. The price is
+combinatorial: exact counts beyond 5-node graphlets are expensive, which is one reason
+the next section's *iterative* fingerprint took over. In molecular graphs, graphlet-like
+counts are literal chemistry — rings and motifs are function — which is why Lab 2 aims
+them at protein graphs.
+
+## 4. Who belongs together? Cuts, spectra, and modularity
+
+Zachary's club is back, and this time we do not know the split — we want the algorithm
+to *find* it. "Community" needs a definition before it needs an algorithm, and the field
+settled on two families that you will now be able to derive rather than memorize.
+
+### 4.1 The Laplacian returns: cutting where it is cheapest
+
+In Week 1's Q4 you computed that for an indicator vector $\mathbf{x} \in \{0,1\}^n$
+marking a group $S$, the quadratic form $\mathbf{x}^\top\mathbf{L}\mathbf{x}$ counts the
+**cut edges** between $S$ and the rest. "Find a community" ≈ "find a cut that severs few
+edges" — but *minimize the cut* alone and the optimizer cheats: cutting off a single
+degree-1 node severs one edge. Real objectives (RatioCut, Normalized Cut) divide by the
+group sizes to force balance, and the discrete problem promptly becomes NP-hard.
+
+The escape is one of the prettiest moves in applied math: relax $\mathbf{x}$ from
+$\{0,1\}$ labels to real numbers, and the balanced-cut problem becomes an eigenvector
+problem. First, a fact that makes the smallest eigenvalues of $\mathbf{L}$ meaningful:
+
+::: {#prp-components .proposition name="Zero eigenvalues count components"}
+$\mathbf{L}$ is positive semidefinite, and the multiplicity of its eigenvalue $0$
+equals the number of connected components of $G$.
+:::
+
+<details><summary>Proof (the quadratic form does all the work)</summary>
+PSD: $\mathbf{x}^\top\mathbf{L}\mathbf{x} = \sum_{(u,v)\in\mathcal{E}}(x_u - x_v)^2 \ge 0$
+for every $\mathbf{x}$. A vector satisfies $\mathbf{L}\mathbf{x} = \mathbf{0}$ iff
+$\mathbf{x}^\top\mathbf{L}\mathbf{x} = 0$ (PSD makes the form's null set equal the
+kernel) iff $x_u = x_v$ across every edge iff $\mathbf{x}$ is constant on each connected
+component. The space of such vectors has exactly one free value per component: its
+dimension is the number of components. $\square$
+</details>
+
+So on a connected graph, $0 = \lambda_1 < \lambda_2$, and the eigenvector for
+$\lambda_2$ — the **Fiedler vector** — is the *smoothest possible signal that is not
+constant*: it minimizes disagreement-across-edges $\mathbf{x}^\top\mathbf{L}\mathbf{x}$
+among unit vectors orthogonal to $\mathbf{1}$ (this variational characterization is
+proved in Week 6, where these eigenvectors become the graph's *frequencies*). A signal
+that varies as little as possible across edges but must go somewhere has one option:
+sit near one value on one well-knit region, near another value on the other, and pay
+its disagreement only on the thin boundary between them. Threshold it at zero and you
+have cut the graph where it is cheapest.
+
+::: {.predict}
+**Commit before you look.** One eigenvector of the karate club's Laplacian, thresholded
+at zero, against the real 1977 split. Zachary's hand-built min-cut model got 33 of 34.
+How many does this fully automatic spectral method get?
+
+::: {.predict-answer}
+**32 of 34.** The two misses are boundary members with ties into both camps — exactly
+where a smooth signal must pass through zero. No labels, no training, no model of the
+conflict: one eigenvector of a matrix you already knew.
+:::
+:::
+
+{{< include ../assets/figures/fig-w2-fiedler.html >}}
+
+For $k$ communities, take eigenvectors $2 \ldots k$ as $k{-}1$ coordinates per node and
+run $k$-means in that space — **spectral clustering**, the version you will implement
+in the lab's stretch goal.
+
+### 4.2 Modularity: communities against a null model
+
+Spectral methods need $k$. The other family scores a *given* partition and searches for
+a good one. The naive score — fraction of edges inside communities — is broken (put
+everyone in one community: score $1$). The repair is a null model:
+
+::: {#def-modularity .definition name="Modularity"}
+For a partition assigning node $u$ to community $c_u$,
+$$
+Q \;=\; \frac{1}{2m}\sum_{u,v}\left(\mathbf{A}[u,v] - \frac{d_u d_v}{2m}\right)\delta(c_u, c_v)
+\;=\; \sum_{c}\left[\frac{e_c}{m} - \left(\frac{D_c}{2m}\right)^{\!2}\right],
+$$
+where $e_c$ counts edges inside community $c$ and $D_c$ sums its degrees. In words:
+**edges observed inside, minus edges *expected* inside** if every edge were rewired at
+random while preserving all degrees.
+:::
+
+The null model is the load-bearing wall. $d_u d_v / 2m$ is the expected number of edges
+between $u$ and $v$ under degree-preserving random rewiring — so two hubs being
+connected earns a community almost no credit (hubs connect to everyone), while two
+low-degree nodes being connected is genuine evidence of togetherness. $Q$ ranges over
+roughly $[-\tfrac12, 1)$; hand-waving calibration: real community structure typically
+lands in $0.3$–$0.7$.
+
+::: {#exm-q-hand .example name="Modularity by hand, and a lesson"}
+Cast graph, $m = 7$. Partition $\{A,B,C,D\}\,|\,\{E,F\}$: internal edges
+$AB, AC, AD, BC$ and $EF$ — $e$-total $5$; degree sums $10$ and $4$. So
+$Q = \tfrac{5}{7} - \left(\tfrac{10}{14}\right)^2 - \left(\tfrac{4}{14}\right)^2 \approx 0.122$.
+Now move $C$ across: $\{A,B,D\}\,|\,\{C,E,F\}$ — *still* $5$ internal edges
+($AB, AD$; $CE, CF, EF$), but degree sums $6$ and $8$:
+$Q = \tfrac{5}{7} - \left(\tfrac{6}{14}\right)^2 - \left(\tfrac{8}{14}\right)^2 \approx 0.204$.
+Same cut size, better modularity — the null model rewards taking the hub $C$ out of the
+group whose expected internal edges its degree was inflating. Modularity is *not* a cut
+count; it is a comparison against chance.
+:::
+
+**Maximizing Q: Louvain.** Exact maximization is NP-hard; the algorithm everyone
+actually runs — from the 2008 Louvain paper, one of the most-used algorithms in all of
+network science — is aggressive greed in two phases. **Phase 1 (local moves):** start
+with every node in its own community; sweep the nodes, moving each into the neighboring
+community with the best positive $\Delta Q$, until no single move helps.
+**Phase 2 (aggregation):** collapse each community into a super-node (edges become
+weighted) and run phase 1 on the smaller graph. Repeat until $Q$ stops improving.
+
+<details><summary>The ΔQ that phase 1 computes (derivation for the simplest move)</summary>
+Moving an isolated node $i$ (degree $d_i$) into community $c$ changes the two terms of
+$Q$'s community form: the internal-edge term gains $k_{i \to c}/m$, where $k_{i \to c}$
+counts $i$'s edges into $c$, and the expected term changes by
+$-\left(\tfrac{D_c + d_i}{2m}\right)^2 + \left(\tfrac{D_c}{2m}\right)^2 + \left(\tfrac{d_i}{2m}\right)^2 = -\tfrac{D_c\, d_i}{2m^2}$. So
+$$
+\Delta Q \;=\; \frac{k_{i \to c}}{m} \;-\; \frac{D_c\, d_i}{2m^2}:
+$$
+real connections in, minus expected connections in. The widget's very first move is this
+formula verbatim: node 0 joining node 1's singleton community, $k_{i\to c} = 1$,
+$d_i = D_c = 3$, $m = 18$, giving $\Delta Q = \tfrac{1}{18} - \tfrac{9}{648} \approx +0.042$
+— check the readout. Production implementations maintain $D_c$ and $k_{i \to c}$
+incrementally, which is how Louvain handles hundreds of millions of edges.
+</details>
+
+{{< include ../assets/d3/w2-louvain.html >}}
+
+The widget's stall is not a bug in the demo — it *is* the lesson. Greedy node-moves
+reach a local optimum below the planted split, and the aggregation phase exists
+precisely to escape such plateaus by moving whole groups at once. One caution before
+you trust any $Q$: Louvain can produce internally *disconnected* communities as moves
+interact; the **Leiden** algorithm (2019, optional reading) repairs this with a
+refinement step and is what you should reach for in production. `networkx` ships both.
+
+## 5. The 1968 relabeling trick
+
+Everything so far scores nodes. To classify whole graphs — is this molecule toxic? is
+this binary malware? — you need features *per graph* that can be compared across graphs
+of different sizes with no shared node identity. The tool the field converged on is a
+relabeling procedure published by Boris Weisfeiler and Andrei Leman in 1968, decades
+before anyone needed graph features: it was built to test
+<span class="term" data-def="Graph isomorphism: a bijection between two graphs' node sets that exactly preserves edges — the graphs are 'the same drawing with different names'. No polynomial-time algorithm is known for testing it in general.">**graph isomorphism**</span>
+cheaply.
+
+**Color refinement.** Give every node the same color. Then repeat: each node's new
+color is a hash of *(its color, the multiset of its neighbors' colors)* — identical
+inputs, identical new color. Colors can only split, never merge, so on $n$ nodes the
+process stabilizes within $n$ rounds; the final **histogram of colors** is the graph's
+WL fingerprint.
+
+{{< include ../assets/figures/fig-w2-wl.html >}}
+
+Read the figure bottom-up: the hash table *is* the algorithm. Round 1 rediscovers
+degree — but round 2 sees deeper. $B$, $E$, and $F$ all have degree 2 and share a color
+after round 1; in round 2, $B$ splits away, because $B$'s neighbor-colors are
+$\{1, 3\}$ (a degree-3 node and the hub) while $E$'s and $F$'s are $\{2, 3\}$ (the hub
+and *each other's* class). The refinement sees *structure around* a node, not just its
+degree: after $k$ rounds, a node's color encodes the shape of its entire $k$-hop
+neighborhood.
+
+{{< include ../assets/d3/w2-wl.html >}}
+
+What is the fingerprint good for?
+
+::: {#prp-wl .proposition name="WL is sound, not complete"}
+If two graphs' WL color histograms differ at any round, the graphs are **not
+isomorphic**. The converse fails: non-isomorphic graphs can share identical histograms
+at every round — two triangles versus one hexagon is the smallest natural example.
+:::
+
+<details><summary>Proof sketch (one direction each)</summary>
+Soundness: an isomorphism maps each node to a node with the same degree, the same
+neighbor-degrees, and inductively the same color at every round — a bijection
+preserving colors makes the histograms equal. So differing histograms forbid any
+isomorphism. Incompleteness: in both ring graphs every node has exactly two neighbors,
+and by induction every node has the same color as every other in *both* graphs at every
+round (round $k{+}1$ hashes identical pairs everywhere). The histograms agree forever,
+yet one graph is connected and the other is not — you just watched this in the widget's
+second scene. $\square$
+</details>
+
+**From test to feature: the WL kernel.** Shervashidze et al. (2011 — this week's
+required reading) turned the fingerprint into machine learning: run $h$ rounds,
+concatenate the color histograms of all rounds into one long count vector per graph,
+and let the similarity of two graphs be the inner product of their vectors. Cost
+$O(hm)$ — linear in edges — while beating the combinatorially expensive graphlet
+kernels on most chemistry benchmarks. For a decade this was *the* way to classify
+graphs, and it is the classifier you will build for protein graphs in the lab.
+
+File one sentence away for later: **in Week 9 we will prove that message-passing GNNs
+can never distinguish two graphs that WL cannot distinguish.** The 1968 trick is not
+just a feature extractor — it is the ceiling of an entire architecture class you have
+not met yet. When the hexagon returns, remember it fooled us honestly today.
+
+## 6. Features into a classifier — and the ceiling
+
+You now hold a toolbox that turns any graph into rectangles of numbers with no learning
+at all:
+
+| level | features from today | feeds |
+|---|---|---|
+| node | degree, closeness, betweenness, eigenvector, PageRank/PPR, clustering coefficient, graphlet degrees, community id | logistic regression, gradient boosting |
+| graph | WL histogram vector, graphlet counts, size/density/degree stats | SVM with a graph kernel, gradient boosting |
+
+This *is* a complete ML pipeline — assemble features, fit a classical model — and Lab 2
+runs it three times, with a twist you should predict now. On Cora's citation graph,
+seven structural *statistics* (centralities, clustering, and friends) score a dismal
+≈19% against 14% chance: a paper's topic has almost nothing to do with how *important*
+or *tight-knit* it is — statistics are topic-blind. Add crude *position* features — a
+one-hot of the node's Louvain community — and the same classifier jumps to ≈62%,
+because under homophily, topic lives in *where you sit*. That 62% is the semester's
+baseline number. And on protein graphs, WL features remain close to the state of the
+art *to this day* on small datasets.
+
+So where is the ceiling? Three places, and they are structural, not fixable by more
+engineering:
+
+1. **The features are task-blind.** Betweenness does not know you are predicting paper
+   topics — and the 19% above is what that blindness costs. Whatever the task actually
+   needs — position in the right cluster, some pattern of co-citation, some asymmetric
+   role — either survives compression into your chosen statistics or is gone before the
+   classifier ever sees data. The feature designer is the bottleneck.
+2. **They ignore what nodes *say*.** Cora's papers have bags-of-words; molecules have
+   atom types. Today's pipeline processes structure and features in separate universes
+   (concatenation at the end is a handshake, not a marriage). The whole point of
+   Weeks 6–9 is machinery where structure and attributes are computed *together*.
+3. **They do not improve with data.** A hundred labeled nodes or a hundred thousand —
+   degree is degree. Nothing in the pipeline gets *better* by seeing more of the task.
+   The defining property of representation learning, starting next week, is that the
+   features themselves are what training improves.
+
+Hold on to the baseline numbers, though. A GNN that cannot beat "logistic regression on
+seven structural features" is not a deep insight — it is a bug report, and in this
+course you will treat it as one.
+
+## Common pitfalls
+
+::: {.callout-warning title="Pitfall 1 · Reporting 'the' centrality" icon="false"}
+There is no such thing as *the* most important node — only the most important node
+*under a definition*. Deliverables that say "we ranked nodes by importance" without
+naming the measure and defending the match to the question are unreviewable. Say
+"betweenness, because the client asked about single points of failure."
+:::
+
+::: {.callout-warning title="Pitfall 2 · PageRank with β = 1 because teleport 'felt like a hack'" icon="false"}
+Without teleport, dead ends leak all mass and any spider trap absorbs it: the iteration
+converges to zeros or to the trap, both meaningless. The hack is the theorem: $\beta < 1$
+is what makes @prp-pagerank's contraction argument work at rate $\beta$. If your ranks
+are all near zero or all in one clique, check β before checking your code.
+:::
+
+::: {.callout-warning title="Pitfall 3 · Comparing modularity across graphs, or trusting its resolution" icon="false"}
+$Q$ is calibrated against *this graph's* null model: $Q = 0.42$ on one network versus
+$0.38$ on another says nothing about which is 'more clustered'. And modularity has a
+**resolution limit**: on large graphs it refuses to see communities below roughly
+$\sqrt{2m}$ internal edges, merging small genuine groups. If small communities matter,
+scan a resolution parameter or use Leiden with a different objective.
+:::
+
+::: {.callout-warning title="Pitfall 4 · Reading equal WL fingerprints as 'same graph'" icon="false"}
+@prp-wl is one-directional. Equal histograms mean "WL cannot tell them apart," not
+"isomorphic" — the rings pair fails it, and chemistry is full of WL-equivalent
+non-identical structures. In the other direction you are safe: different fingerprints
+*prove* non-isomorphism.
+:::
+
+::: {.callout-warning title="Pitfall 5 · A fancy feature that is degree in a costume" icon="false"}
+On many graphs, eigenvector centrality, PageRank, and even betweenness correlate with
+degree at $0.8{+}$. Before celebrating that your feature 'predicts', check whether
+plain degree predicts the same — as a control, always run the one-feature degree
+baseline. (This foreshadows a Week-9 result: several published GNN gains evaporated
+against properly tuned simple baselines.)
+:::
+
+## In this week's lab
+
+[Lab 2](../labs/lab02.qmd) turns every section into running code and one honest
+measurement: compute all four centralities plus PageRank on the karate club and check
+your power iteration against `networkx` to six decimals; implement clustering
+coefficients via $\mathbf{A}^3$ and catch the factor of two yourself; implement
+modularity and verify this lecture's pencil fractions exactly, then run Louvain and
+spectral bisection on the club and score both against the real 1977 split; implement
+one WL round and reproduce both verdicts (path–star: caught in one round;
+triangles–hexagon: never); and close with the two-stage Cora measurement — statistics
+≈19%, plus community position ≈62% — that fixes your baseline for the semester.
+
+## Required reading
+
+**1 · Shervashidze, Schweitzer, van Leeuwen, Mehlhorn & Borgwardt — *Weisfeiler-Lehman Graph Kernels* (JMLR 2011).** [jmlr.org/papers/v12/shervashidze11a](https://jmlr.org/papers/v12/shervashidze11a.html)
+
+::: {.reading-annotation}
+The paper that turned a 1968 isomorphism test into the decade-defining graph feature.
+Read §1–3 closely: the relabeling algorithm (their Fig. 2 is our Figure 4 with more
+nodes) and the kernel construction; note the $O(hm)$ complexity argument, which is the
+whole game. Skim the experiments with one question: on which datasets do cheap WL
+features *beat* expensive graphlet kernels? When GIN appears in Week 9, this paper is
+the yardstick it is measured with.
+:::
+
+**2 · Blondel, Guillaume, Lambiotte & Lefebvre — *Fast unfolding of communities in large networks* (2008).** [arXiv:0803.0476](https://arxiv.org/abs/0803.0476)
+
+::: {.reading-annotation}
+The Louvain paper: four pages of algorithm, tens of thousands of citations. Read for
+the two-phase structure you stepped through in Figure 3 and for the engineering candor
+— the $\Delta Q$ bookkeeping *is* the contribution; the objective was Newman's. As you
+read, keep two critiques in mind: the resolution limit (they discuss it) and the
+disconnected-communities defect (they missed it; Leiden, in the optional list, is the
+repair). Both critiques are exam-eligible.
+:::
+
+**Also see:** Hamilton, *GRL book*, §2.1–2.3 (graph statistics, kernels, and spectral
+methods — today in 20 pages) · CS224W, "Traditional Methods for Machine Learning on
+Graphs".
+
+**Optional:** Newman, [Modularity and community structure in networks](https://arxiv.org/abs/physics/0602124)
+(PNAS 2006) — where $Q$ meets eigenvectors; elegant and short ·
+Traag, Waltman & van Eck, [From Louvain to Leiden](https://arxiv.org/abs/1810.08473)
+(Sci. Rep. 2019) — read §2's catalogue of Louvain failure modes ·
+Gleich, [PageRank beyond the Web](https://arxiv.org/abs/1407.5107) (SIAM Review 2015) —
+PageRank in chemistry, biology, and sports; the survey that shows a fixed point can be
+a hammer · Shervashidze et al., [Efficient graphlet kernels](https://proceedings.mlr.press/v5/shervashidze09a.html)
+(AISTATS 2009) · Kriege, Johansson & Morris, [A Survey on Graph Kernels](https://arxiv.org/abs/1903.11835)
+(2020).
+
+## Check your understanding
+
+<details><summary>Q1 · Selection — An epidemiologist asks: "we can vaccinate 50 airport staff; which airports?" A city planner asks: "where should the new depot go?" A regulator asks: "which bank's failure endangers the most others?" Choose a centrality for each and defend it.</summary>
+Vaccination: **betweenness** (or degree as a cheap proxy) — you want to interrupt
+shortest transmission paths through broker airports. Depot: **closeness** — minimize
+average distance to everywhere. Contagion: **eigenvector/PageRank-family** — a bank
+matters through exposure *to other exposed banks*, recursively (regulators literally
+compute variants of eigenvector centrality, e.g. DebtRank). One question, one measure,
+one justification — never "we used centrality".
+</details>
+
+<details><summary>Q2 · Hand computation — On the cast graph, compute the closeness of A and the betweenness of B. One of them should surprise you slightly; say which and why.</summary>
+From $A$: distances $1, 1, 1, 2, 2$ to $B, C, D, E, F$ — sum $7$, closeness
+$5/7 \approx 0.71$ (second best after $C$'s $0.83$). Betweenness of $B$: every pair's
+shortest paths avoid $B$ — pairs within $\{A, C\}$ are direct, and everything routes
+through $A$ or $C$, so $c_{\text{btw}}(B) = 0$. The mild surprise: $B$ has degree 2,
+same as $E$ and $F$, and closeness $5/8$ — well-connected by distance — yet carries
+zero traffic: nearness and brokerage are different resources.
+</details>
+
+<details><summary>Q3 · PageRank — For the three-page web of the worked example (X→Y, X→Z, Y→X, Z→Y), start from r⁽⁰⁾ = (1, 0, 0) instead of uniform and run two iterations with β = 1. Compare with the lecture's trajectory and state which theorem explains what you observe.</summary>
+$\mathbf{r}^{(1)} = (0, \tfrac12, \tfrac12)$ (all of $X$'s mass splits to $Y, Z$);
+$\mathbf{r}^{(2)} = (\tfrac12, \tfrac12, 0)$. Different trajectory, same destination
+$(0.4, 0.4, 0.2)$: @prp-pagerank guarantees a *unique* fixed point with convergence
+from **any** starting distribution (with teleport, at rate $\beta^k$; here even the
+plain walk converges because the graph is strongly connected and aperiodic). The
+initialization-independence is exam-relevant: it is why nobody worries about
+warm-starting PageRank.
+</details>
+
+<details><summary>Q4 · Modularity — Compute Q for the cast-graph partition {A,B,C}|{D}|{E,F}. Compare with the two partitions from the worked example and rank all three. What is the singleton {D} costing or earning?</summary>
+Internal edges: $AB, AC, BC$ in the first group, none for $\{D\}$, $EF$ in the third —
+$4$ of $7$. Degree sums: $9, 1, 4$. So
+$Q = \tfrac{4}{7} - \left(\tfrac{9}{14}\right)^2 - \left(\tfrac{1}{14}\right)^2 - \left(\tfrac{4}{14}\right)^2 \approx 0.572 - 0.413 - 0.005 - 0.082 = 0.072$.
+Ranking: $\{A,B,D\}|\{C,E,F\}$ ($0.204$) $>$ $\{A,B,C,D\}|\{E,F\}$ ($0.122$) $>$ this
+($0.072$). The singleton earns almost nothing in the null term ($-0.005$) but *costs*
+the internal edge $AD$ — a leaf node nearly always belongs with its only neighbor,
+which is exactly the first kind of move Louvain's phase 1 executes.
+</details>
+
+<details><summary>Q5 · WL — Run one WL round on (a) the path A–B–C–D versus the star with center X and leaves Y,Z,W; (b) the cycle C₆ versus two disjoint triangles. For each pair: distinguished or not, and what does that prove?</summary>
+(a) Path: degrees $(1,2,2,1)$ — histogram after round 1: two colors, counts
+$\{2, 2\}$. Star: degrees $(3,1,1,1)$ — colors with counts $\{1, 3\}$. Histograms
+differ ⇒ **not isomorphic**, proved by @prp-wl's sound direction (obvious here, but the
+same certificate works when graphs have $10^6$ nodes). (b) Every node in both graphs is
+degree 2 with degree-2 neighbors, forever: identical histograms at every round.
+This proves *nothing* about isomorphism — and indeed they are not isomorphic
+(connected vs. not). WL's verdict "same" is an abstention, not a certificate.
+</details>
+
+<details><summary>Q6 · Invariance — Why is the WL feature the histogram of colors rather than the list of colors in node order? Connect your answer to Week 1's ordering trap.</summary>
+The list depends on node numbering: renumber the same graph and the list permutes,
+so two storage orders of one graph would get different features — the exact failure of
+Week 1's "first 100 rows of A" model. The histogram forgets order: it is invariant
+under node permutation, hence a function of the graph itself. This is the course's
+deepest running theme in miniature — every legitimate graph feature must be
+permutation-invariant (per graph) or -equivariant (per node), and you should run this
+check on any feature you ever invent.
+</details>
+
+<details><summary>Q7 · The ceiling — In the lab, seven structural statistics score ≈19% on Cora, and adding a one-hot of Louvain communities lifts the same classifier to ≈62%. A colleague concludes "so we just need better community detection". Explain what the 19→62 jump actually demonstrates, and give two structural reasons the community-feature road also plateaus.</summary>
+The jump shows *which kind* of structural information carries the label signal under
+homophily: **position** (which region of the graph you occupy), not **statistics**
+(how central or clustered you are) — topic correlates with neighborhood, not with
+importance. But the road plateaus: (1) a hard partition is a lossy, task-blind
+compression of position — boundary nodes get one community id and lose their mixed
+affiliations, and the partition was chosen to maximize modularity, not your accuracy;
+(2) the pipeline still cannot read node attributes — Cora's words never enter, and no
+structural feature conjures them. What works: *continuous, learned* position (Week 3's
+embeddings — trained coordinates instead of one-hot membership), then models computing
+on structure and attributes jointly (Week 6 — on Cora, that road ends near 81%).
+</details>
+
+## Where this leaves us
+
+Today you extracted everything a graph will confess without being trained: who matters
+(five ways), who clusters, who belongs together, and a fingerprint for whole graphs
+that a 1968 pencil-and-paper procedure computes in linear time. You also hit the wall:
+every one of these features was designed by a human who did not know your task, and
+none of them improves with data.
+
+Next week we stop designing features and start *learning* them: every node gets a
+vector of free parameters, and the graph itself — through random walks that you now
+understand as PageRank's cousins — trains those vectors so that nearby nodes land
+nearby in space. The method arrives from an unexpected direction: a 2013 breakthrough
+about *words* that graph people hijacked within a year. Bring your intuition about
+random surfers; in Week 3 they learn to write.
+
+:::
+
+::: {.content-visible when-format="html"}
+{{< include ../assets/d3/w2-scripts.html >}}
+:::

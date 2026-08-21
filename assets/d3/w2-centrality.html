@@ -1,0 +1,25 @@
+```{=html}
+<div class="interactive-container" id="w2-ce-widget">
+  <div class="fig-label">Interactive · Centrality playground</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-measure="degree" type="button">degree</button>
+    <button class="pill-btn" data-measure="closeness" type="button">closeness</button>
+    <button class="pill-btn" data-measure="betweenness" type="button">betweenness</button>
+    <button class="pill-btn" data-measure="eigenvector" type="button">eigenvector</button>
+    <button class="pill-btn" data-measure="pagerank" type="button">PageRank</button>
+    <button class="pill-btn" id="w2-ce-reset" type="button">reset graph</button>
+  </div>
+  <div id="w2-ce-svg" role="img" aria-label="Krackhardt's kite network with nodes sized by the selected centrality measure; the current champion is highlighted and every edge can be toggled"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: Krackhardt's ten-person kite network with node sizes proportional to the chosen
+    centrality; degree crowns Diane, closeness the tied Fernando &amp; Garth, betweenness
+    Heather.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 1.</strong> Five definitions of "important",
+  computed live. Every score recomputes when you edit the graph — click two nodes to add
+  or remove their edge. <strong>Try this:</strong> delete the edge Heather–Ike. Whose
+  betweenness collapses, and whose jumps? Then delete Heather–Fernando too and watch
+  closeness change while degree barely notices.</p>
+</div>
+```

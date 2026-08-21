@@ -12,6 +12,7 @@ __pycache__/
 venv/
 
 # Data downloaded by notebooks (never commit datasets)
+/data/
 /labs/data/
 /labs/**/dataset/
 *.pt

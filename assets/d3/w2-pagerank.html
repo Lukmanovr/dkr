@@ -1,0 +1,30 @@
+```{=html}
+<div class="interactive-container" id="w2-pr-widget">
+  <div class="fig-label">Interactive · The random surfer, one step at a time</div>
+  <div class="widget-controls">
+    <button class="pill-btn" id="w2-pr-step" type="button">step</button>
+    <button class="pill-btn" id="w2-pr-step10" type="button">step ×10</button>
+    <button class="pill-btn" id="w2-pr-reset" type="button">reset</button>
+    <label style="font-size:0.85rem">damping β
+      <input type="range" id="w2-pr-beta" min="0" max="0.99" step="0.01" value="0.85" style="width:140px">
+      <span id="w2-pr-betaval">0.85</span>
+    </label>
+    <label style="font-size:0.85rem">
+      <input type="checkbox" id="w2-pr-tele"> teleport only to Q (personalized)
+    </label>
+  </div>
+  <div id="w2-pr-svg" role="img" aria-label="The ten-page toy web with node sizes showing the current PageRank estimate, a ranked bar list, and a convergence readout"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the toy web from the opening figure with every page at rank 0.100; repeated
+    updates concentrate rank on the hub and on Q.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 2.</strong> Power iteration is just the surfer's
+  routine repeated: follow a random outlink with probability β, teleport otherwise.
+  <strong>Try this:</strong> (1) step until the change readout freezes — count the
+  iterations; (2) drag β to 0 and explain the ranking you get; (3) drag it to 0.99
+  and watch convergence slow down; (4) tick the personalized box, reset, and see rank pool
+  around Q and its neighborhood — that checkbox is how "recommendations near <em>this</em>
+  user" works.</p>
+</div>
+```

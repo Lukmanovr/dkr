@@ -16,6 +16,8 @@ await withBrowser(async (browser) => {
       for (const width of WIDTHS) {
         await page.setViewport({ width, height: 200 });
         await page.goto(url, { waitUntil: "networkidle0" });
+        // let lazyBoot-ed widgets finish their first render
+        await page.evaluate(() => new Promise((r) => setTimeout(r, 180)));
         const height = await page.evaluate(() => Math.ceil(document.body.scrollHeight));
         await page.setViewport({ width, height: Math.min(height + 8, 2200) });
         const out = join(QADIR, `${name}-${theme}-${width}.png`);

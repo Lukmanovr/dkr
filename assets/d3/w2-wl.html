@@ -1,0 +1,23 @@
+```{=html}
+<div class="interactive-container" id="w2-wl-widget">
+  <div class="fig-label">Interactive · Weisfeiler–Lehman refinement</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-scene="cast" type="button">the cast graph</button>
+    <button class="pill-btn" data-scene="rings" type="button">two 3-rings vs one 6-ring</button>
+    <button class="pill-btn" id="w2-wl-step" type="button">refine once</button>
+    <button class="pill-btn" id="w2-wl-reset" type="button">reset</button>
+  </div>
+  <div id="w2-wl-svg" role="img" aria-label="WL color refinement stepped one round at a time, on the cast graph and on the two-triangles-versus-hexagon pair, with live color histograms"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the cast graph refines from one color to a stable five-color partition in two
+    rounds; the two-triangles and hexagon graphs never leave one shared color.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 4.</strong> The 1968 relabeling trick, one round
+  per click: each node's new color hashes (my color, my neighbors' colors). The histogram
+  on the right is the graph's evolving fingerprint. <strong>Try this:</strong> on the cast
+  graph, predict before each click which nodes will split apart next — then switch to the
+  rings scene and watch WL refuse to distinguish two graphs your eyes tell apart
+  instantly. Hold that thought until Week 9.</p>
+</div>
+```

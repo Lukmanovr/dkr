@@ -3,3 +3,4 @@
 torch_geometric==2.8.0.post1
 matplotlib
 networkx
+scikit-learn

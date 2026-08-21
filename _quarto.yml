@@ -35,12 +35,16 @@ website:
         contents:
           - href: lectures/01-why-graphs.qmd
             text: "1 · Why Graphs? Representing Relational Data"
+          - href: lectures/02-classical-graph-ml.qmd
+            text: "2 · Classical Graph ML: Structure as Features"
           - href: lectures/06-gcn.qmd
             text: "6 · GNNs I: Message Passing & GCN"
       - section: Labs
         contents:
           - href: labs/lab01.qmd
             text: "Lab 1 · Hello, graphs"
+          - href: labs/lab02.qmd
+            text: "Lab 2 · Structure as features"
           - href: labs/lab06.qmd
             text: "Lab 6 · GCN from scratch → PyG"
       - section: Course

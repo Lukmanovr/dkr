@@ -1,0 +1,38 @@
+---
+title: "Lab 2 · Structure as features"
+subtitle: "Week 2 · centralities, PageRank, communities, WL — and the semester's baseline"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab02_classical.ipynb)
+
+**≈ 25 minutes of compute · free Colab or any CPU · no GPU needed**
+
+Everything the [Week 2 lecture](../lectures/02-classical-graph-ml.qmd) computed by
+hand, you now compute at scale — checked against the pencil results first, real
+libraries second:
+
+1. **Five importances, one club** — rank the karate club by every centrality and watch
+   the champions disagree (predict who wins betweenness before you run).
+2. **PageRank from scratch** (exercise 1): the damped power iteration, matched against
+   `networkx` to six decimals — the assertion messages name the classic bugs.
+3. **Triangles by matrix power** (exercise 2): clustering coefficients via the diagonal
+   of $\mathbf{A}^3$; the factor of 2 is yours to place.
+4. **Modularity from the definition** (exercise 3): reproduce the lecture's exact
+   fractions $6/49$ and $10/49$, then run Louvain on the club and score it against
+   1977 reality.
+5. **One eigenvector against reality** (exercise 4): spectral bisection of the club —
+   the assertion knows the answer is 32/34.
+6. **WL refinement** (exercise 5): implement the 1968 relabeling round and reproduce
+   both verdicts — path–star caught in one round, triangles–hexagon never.
+7. **The measurement** (exercise 6): structural statistics on Cora score ≈19% (that low
+   number is the finding); adding Louvain-community position lifts the same classifier
+   to ≈62% — the baseline the rest of the course must beat. Then your WL features
+   classify real protein graphs at 2011-state-of-the-art level.
+
+Stretch (ungraded): personalized PageRank as a friend recommender, breaking modularity
+with a ring of cliques, and reading the classifier's coefficients for Pitfall 5.
+
+**Submitting.** One executed notebook on Moodle: all six exercise checks ✓, the Louvain
+figure, three reflection answers. Grading: assertions 70% · reflections 30%.
+*Restart and run all* before you submit. AI-assistant use is allowed with disclosure,
+per the honor code — the notebook's final cell restates the policy.

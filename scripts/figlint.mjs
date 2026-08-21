@@ -19,11 +19,14 @@ await withBrowser(async (browser) => {
     for (const theme of ["light", "dark"]) {
       const url = writeHarness(name, theme, harnessFor(name, theme));
       await page.goto(url, { waitUntil: "networkidle0" });
+      // let lazyBoot-ed widgets finish their first render
+      await page.evaluate(() => new Promise((r) => setTimeout(r, 180)));
       const { problems, notes } = await page.evaluate(() => {
         const problems = [], notes = [];
         const svg = document.querySelector("svg");
         if (!svg) return { problems: ["no <svg> found"], notes };
-        if (!svg.getAttribute("aria-label")) problems.push("a11y: svg lacks aria-label");
+        if (!svg.getAttribute("aria-label") && !svg.closest("[role='img'][aria-label]"))
+          problems.push("a11y: svg lacks aria-label (own or on a role=img ancestor)");
         if (!document.querySelector("figcaption, .fig-caption"))
           notes.push("note: no caption element in the include (caption must exist in surrounding prose)");
 

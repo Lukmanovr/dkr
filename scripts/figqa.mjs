@@ -55,23 +55,32 @@ export function stripFences(text) {
 export const WIDGETDIR = join(ROOT, "assets", "d3");
 // Widget includes with meaningful static (pre-JS) rendering, QA'd like figures.
 const STATIC_WIDGETS = ["w6-eq-linked"];
+// JS-rendered widgets: the harness loads their real scripts so shot and lint
+// exercise the initial rendered state, not an empty container.
+const JS_WIDGETS = ["w2-centrality", "w2-pagerank", "w2-wl", "w2-louvain"];
 
 export function listFigures() {
   return readdirSync(FIGDIR).filter((f) => f.endsWith(".html")).map((f) => f.replace(/\.html$/, ""))
-    .concat(STATIC_WIDGETS);
+    .concat(STATIC_WIDGETS, JS_WIDGETS);
 }
 
 export function harnessFor(name, theme) {
-  const dir = name.startsWith("w6-") ? WIDGETDIR : FIGDIR;
+  const dir = /^w\d+-/.test(name) ? WIDGETDIR : FIGDIR;
   const frag = stripFences(readFileSync(join(dir, `${name}.html`), "utf8"));
   const vars = Object.entries(THEMES[theme]).map(([k, v]) => `${k}: ${v};`).join(" ");
+  const scripts = JS_WIDGETS.includes(name)
+    ? ["d3.v7.min.js", "_dkr.js", `${name}.js`]
+        .map((f) => `<script src="${pathToFileURL(join(WIDGETDIR, f)).href}"></script>`).join("")
+    : "";
   return `<!doctype html><html><head><meta charset="utf-8"><style>
     :root { ${vars} }
     body { margin: 0; padding: 16px; background: var(--dkr-bg); font-family: sans-serif; }
     figure { margin: 0 auto; max-width: 720px; }
     svg { width: 100%; height: auto; display: block; }
     figcaption, .fig-caption { font-size: 13px; color: var(--dkr-muted); text-align: center; }
-  </style></head><body>${frag}</body></html>`;
+    /* the site themes force mono text inside widgets — lint must measure that reality */
+    .interactive-container svg text { font-family: "JetBrains Mono", Consolas, monospace; }
+  </style></head><body>${frag}${scripts}</body></html>`;
 }
 
 export async function withBrowser(fn) {
