@@ -71,6 +71,24 @@ await withBrowser(async (browser) => {
           }
         }
 
+        // edge-clip: a text whose center is OUTSIDE a stroked shape but whose box
+        // cuts into it (the "label clips the box corner" bug class)
+        const strokedRects = els.filter((e) => e.tagName === "rect" &&
+          e.getAttribute("stroke") && e.getAttribute("stroke") !== "none");
+        for (const { t, b } of texts) {
+          const cx = (b.left + b.right) / 2, cy = (b.top + b.bottom) / 2;
+          for (const shp of strokedRects) {
+            const r = rect(shp);
+            const centerIn = cx > r.left && cx < r.right && cy > r.top && cy < r.bottom;
+            if (centerIn) continue; // that's band territory, handled above
+            const ox = Math.min(b.right, r.right) - Math.max(b.left, r.left);
+            const oy = Math.min(b.bottom, r.bottom) - Math.max(b.top, r.top);
+            if (ox > 3 && oy > 3) {
+              problems.push(`edge-clip: "${label(t)}" cuts into a box edge by ${Math.round(Math.min(ox, oy))}px`);
+            }
+          }
+        }
+
         for (const { t } of texts) {
           const fs = parseFloat(getComputedStyle(t).fontSize) *
             (S.width / svg.viewBox.baseVal.width);

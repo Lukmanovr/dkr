@@ -52,12 +52,18 @@ export function stripFences(text) {
   return text.replace(/^```\{=html\}\r?\n/, "").replace(/\r?\n```\r?\n?$/, "");
 }
 
+export const WIDGETDIR = join(ROOT, "assets", "d3");
+// Widget includes with meaningful static (pre-JS) rendering, QA'd like figures.
+const STATIC_WIDGETS = ["w6-eq-linked"];
+
 export function listFigures() {
-  return readdirSync(FIGDIR).filter((f) => f.endsWith(".html")).map((f) => f.replace(/\.html$/, ""));
+  return readdirSync(FIGDIR).filter((f) => f.endsWith(".html")).map((f) => f.replace(/\.html$/, ""))
+    .concat(STATIC_WIDGETS);
 }
 
 export function harnessFor(name, theme) {
-  const frag = stripFences(readFileSync(join(FIGDIR, `${name}.html`), "utf8"));
+  const dir = name.startsWith("w6-") ? WIDGETDIR : FIGDIR;
+  const frag = stripFences(readFileSync(join(dir, `${name}.html`), "utf8"));
   const vars = Object.entries(THEMES[theme]).map(([k, v]) => `${k}: ${v};`).join(" ");
   return `<!doctype html><html><head><meta charset="utf-8"><style>
     :root { ${vars} }
