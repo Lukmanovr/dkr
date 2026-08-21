@@ -62,3 +62,20 @@ Structural colors always via CSS custom properties with light-theme fallbacks �
   `.interactive-container`, fig-label, controls, `<noscript>` static description,
   caption. First render deferred via `DKR.lazyBoot`; theme reactivity via
   `DKR.onThemeChange`; reduced motion respected via `DKR.motionOK`.
+
+## The Figure Protocol (F1–F5, mandatory for every new or edited figure)
+
+**F1 · Author** to the grammar above. Any content that derives from data — adjacency
+patterns, computed values, eigen-colorings — is emitted by a generator in
+`scripts/figgen/` (committed beside the figure), never hand-placed.
+**F2 · Render**: `node scripts/figshot.mjs [name…]` — screenshots every figure in both
+themes (tokens extracted live from the theme SCSS) at 760 px and 360 px into
+`qa/figshots/` (git-ignored).
+**F3 · Lint**: `node scripts/figlint.mjs [name…]` — screen-space geometry checks:
+canvas overflow, text–text collisions, band padding (≥6 px per side), minimum rendered
+font size (≥11 px), svg aria-label. Wired into CI; exit 1 on any failure.
+**F4 · Look**: the author reads every screenshot (light + dark) and walks Checklist F
+(design.md §14) explicitly. The lint catches geometry; only the eye catches meaning.
+Any edit re-runs F2–F4.
+**F5 · Sign off**: the commit lists each touched figure with its lint result and a
+one-line visual verdict. No recorded F4 pass → the figure does not ship.

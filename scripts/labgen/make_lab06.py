@@ -80,6 +80,11 @@ print(f"torch {torch.__version__} · device {device} · SMOKE={SMOKE}")"""),
 Cora: 2,708 papers, 5,429 citations, 1,433-word vocabulary, 7 topics, and — the
 semi-supervised twist — only 140 training labels. `Planetoid` hands us the standard
 splits used by every paper since 2016.
+
+**Predict before you run the next cell** (write both guesses down): out of 2,708 papers,
+how many cite or are cited by *nobody* (degree 0)? And what is the *maximum* degree —
+tens? hundreds? Your intuition about real graph degree distributions is being calibrated
+here; check yourself against the printout.
 """),
 
     code("""from torch_geometric.datasets import Planetoid
@@ -135,7 +140,10 @@ expected = torch.tensor([
     [1/6**0.5,       1/3,      1/6**0.5],
     [0.0,            1/6**0.5, 1/2],
 ])
-assert torch.allclose(A_hat_path, expected, atol=1e-6), f"A_hat mismatch:\\n{A_hat_path}"
+assert torch.allclose(A_hat_path, expected, atol=1e-6), (
+    f"A_hat mismatch — check: (1) self-loops added BEFORE computing degrees? "
+    f"(2) scaled by d^-1/2 on rows AND columns?\\ngot:\\n{A_hat_path}"
+)
 assert torch.allclose(A_hat_path, A_hat_path.T), "A_hat must stay symmetric"
 print("exercise 1 ✓ — A_hat matches the hand computation")""",
          stub="""def to_dense_adj(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
@@ -163,7 +171,10 @@ expected = torch.tensor([
     [1/6**0.5,       1/3,      1/6**0.5],
     [0.0,            1/6**0.5, 1/2],
 ])
-assert torch.allclose(A_hat_path, expected, atol=1e-6), f"A_hat mismatch:\\n{A_hat_path}"
+assert torch.allclose(A_hat_path, expected, atol=1e-6), (
+    f"A_hat mismatch — check: (1) self-loops added BEFORE computing degrees? "
+    f"(2) scaled by d^-1/2 on rows AND columns?\\ngot:\\n{A_hat_path}"
+)
 assert torch.allclose(A_hat_path, A_hat_path.T), "A_hat must stay symmetric"
 print("exercise 1 ✓ — A_hat matches the hand computation")"""),
 
@@ -401,7 +412,10 @@ construction.
 # equivalence with the dense builder — on the path graph AND on Cora
 assert torch.allclose(normalize_adjacency_sparse(path, 3).to_dense(), A_hat_path, atol=1e-6)
 A_hat_sparse = normalize_adjacency_sparse(data.edge_index, data.num_nodes).to(device)
-assert torch.allclose(A_hat_sparse.to_dense(), A_hat, atol=1e-5), "sparse != dense on Cora"
+assert torch.allclose(A_hat_sparse.to_dense(), A_hat, atol=1e-5), (
+    "sparse != dense on Cora — check: coalesce() called? degrees via bincount on the "
+    "SELF-LOOPED row index (minlength=num_nodes)?"
+)
 print("exercise 4 ✓ — sparse construction matches the dense one")""",
          stub="""def normalize_adjacency_sparse(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
     \"\"\"Sparse A_hat = D̃^{-1/2} (A + I) D̃^{-1/2}, built straight from edge_index.
@@ -417,7 +431,10 @@ print("exercise 4 ✓ — sparse construction matches the dense one")""",
 # equivalence with the dense builder — on the path graph AND on Cora
 assert torch.allclose(normalize_adjacency_sparse(path, 3).to_dense(), A_hat_path, atol=1e-6)
 A_hat_sparse = normalize_adjacency_sparse(data.edge_index, data.num_nodes).to(device)
-assert torch.allclose(A_hat_sparse.to_dense(), A_hat, atol=1e-5), "sparse != dense on Cora"
+assert torch.allclose(A_hat_sparse.to_dense(), A_hat, atol=1e-5), (
+    "sparse != dense on Cora — check: coalesce() called? degrees via bincount on the "
+    "SELF-LOOPED row index (minlength=num_nodes)?"
+)
 print("exercise 4 ✓ — sparse construction matches the dense one")"""),
 
     code("""import time
@@ -444,7 +461,9 @@ print("On Cora both are fast — the point is the SCALING: n² vs m. Re-read lec
     md("""## 8 · The SGC ablation: how much was the filter?
 
 The lecture's honest remark: on homophilous benchmarks, the fixed low-pass filter does
-most of the GCN's work. Test it. SGC (Wu et al., 2019) deletes every nonlinearity, so a
+most of the GCN's work. **Predict before running:** within how many accuracy points of
+your GCN will plain logistic regression on the precomputed features land — 15? 5? 1?
+Commit to a number. Then test it. SGC (Wu et al., 2019) deletes every nonlinearity, so a
 2-layer GCN collapses into logistic regression on the *precomputed* features
 $\\hat{\\mathbf{A}}^2\\mathbf{X}$ — no message passing at training time at all.
 """),
@@ -485,8 +504,10 @@ with torch.no_grad():
 out_ours = ours(X_small, A_hat_path)
 out_theirs = theirs(X_small, path)
 
-assert torch.allclose(out_ours, out_theirs, atol=1e-5), \\
-    f"max diff {(out_ours - out_theirs).abs().max():.2e}"
+assert torch.allclose(out_ours, out_theirs, atol=1e-5), (
+    f"max diff {(out_ours - out_theirs).abs().max():.2e} — check: GCNConv built with "
+    f"bias=False? weights copied under no_grad BEFORE the forward pass?"
+)
 print("from-scratch == GCNConv ✓ (max diff",
       f"{(out_ours - out_theirs).abs().max().item():.2e})")"""),
 
@@ -520,6 +541,11 @@ cell's assertions passing, the PCA figure rendered, the timing measurements prin
 the SGC check ✓, the `GCNConv` equivalence ✓, and all three reflection answers filled
 in. Grading: assertions 70% · reflections 30%. Run *Runtime → Restart and run all*
 before submitting — a notebook that doesn't execute top-to-bottom scores 0.
+
+**AI policy reminder** (course honor code): AI assistants are allowed for this lab *with
+disclosure* — add a line here naming any tools you used and for what. You must be able to
+explain any line of your submission on request; undeclared use or inability to explain is
+a violation.
 """),
 ]
 

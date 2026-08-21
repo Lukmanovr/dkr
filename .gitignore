@@ -33,3 +33,8 @@ Thumbs.db
 *.fls
 
 **/*.quarto_ipynb
+
+# figure QA output (protocol F2/F3)
+/qa/
+
+scripts/node_modules/

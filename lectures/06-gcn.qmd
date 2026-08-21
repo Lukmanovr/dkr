@@ -918,31 +918,6 @@ down-weight neighbors (GAT, Week 7), or filters that pass high frequencies (the
 $w_1 > 0$ region in Figure 2's filter mode — spectral methods, Week 13).
 </details>
 
-## Teaching script
-
-::: {.callout-note title="For the instructor — the 90-minute run of show (teach from this page, projected)" collapse="true"}
-This course has no slide decks: the lecture page *is* the classroom artifact. Project it,
-scroll section by section, and drive the widgets live. Beats marked 🗳 are quick votes
-(hands or chat), 🗣 are ask-the-room prompts, ✋ is the timed pencil-and-paper pause.
-
-| When | Segment | Run of show |
-|---|---|---|
-| 0:00–0:08 | Cora hook + the two wrong answers | 🗳 **Before scrolling past the hero figure:** "MLP on bag-of-words alone — what accuracy? ~40 / ~60 / ~80?" Collect hands, then reveal 60 and immediately pose the GNN number. The 60/82 pair anchors the whole lecture. One-minute history (Scarselli → Bruna → ChebNet → GCN → MPNN) off the roadmap paragraph |
-| 0:08–0:18 | Message passing (Def 1) + computation trees + **Figure 1 live** | 🗣 "What could go in the box? sum? mean? a little MLP?" — collect three answers before revealing all are legal (that *is* Week 7). 🗳 "If I keep pressing Step forever — what happens?" Commit the room, then step ~8 times and watch convergence; name it oversmoothing, promise the theorem in §3 |
-| 0:18–0:30 | Prop 1 spectra → normalization → GCN layer + **Figure 3 live** | 🗣 "Node with 500 neighbors vs node with 5 — after one sum, whose vector is bigger, and after five layers?" Rayleigh-with-𝟙 on the board (it is three lines); 🗳 "which line on the log chart goes ballistic?" — then run the widget 5 steps |
-| 0:30–0:38 | Hand-simulation (Example 1 + matrix form) | ✋ **The 90-second pause**: "pens out — compute node D." Actually wait. The ReLU clip to zero is the teaching moment; announce this is literally a midterm format |
-| 0:38–0:50 | Spectral view: GFT, frequencies + **Figure 2 eigenvector mode** | 🗣 "Two-community graph: before I slide k — predict what u₂ looks like, and why do you already know it?" (Week 2 callback.) Then ring mode: the sinusoids appear — Fourier is the cycle-graph special case |
-| 0:50–1:02 | Polynomial filters → ChebNet → Theorem 1 collapse → Prop 4 low-pass | Walk the K=1 collapse slowly on the page; renormalization = Prop 1.3's spectrum shrink; tie Prop 4 back to what the room predicted at Figure 1 |
-| 1:02–1:07 | Breathing room / questions | The reliable question: "so is GCN just smoothing?" — answer with SGC and promise the Lab 6 ablation and Week 9 |
-| 1:07–1:17 | Equivariance (Def 6, Thm 2) + **Figure 4 live** | 🗳 "I shuffle the storage order: GNN outputs — change or hold? MLP score — change or hold?" Vote first, then shuffle 3–4 times. State the CNN/Transformer/DeepSets table |
-| 1:17–1:24 | Code + loss + recipe + cost accounting | 23k parameters lands well; connect sparse-vs-dense to self-check Q7 |
-| 1:24–1:30 | §6 triangles-vs-hexagon (five lines, do it verbally) + pitfalls + lab preview | End on the limitation — Week 9 becomes a cliffhanger, not an appendix |
-
-Contingency: if the spectral section runs long, Prop 4's proof and the ChebNet recurrence
-are the cuttable material — state both results, point at the page, and protect §4
-(equivariance) and §6 (the limitation) instead. Lab 6 does not depend on the cut pieces.
-:::
-
 :::
 
 ::: {.content-visible when-format="html"}

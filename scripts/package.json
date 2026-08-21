@@ -1,0 +1,8 @@
+{
+  "name": "dkr-scripts",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "puppeteer-core": "^24.0.0"
+  }
+}

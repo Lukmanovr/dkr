@@ -27,6 +27,19 @@ jobs:
       - name: Check links (internal + external)
         run: python scripts/check_links.py _site
 
+  figures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install QA tooling
+        working-directory: scripts
+        run: npm ci || npm install
+      - name: Figure geometry lint (Protocol F3)
+        run: node scripts/figlint.mjs
+
   notebooks:
     runs-on: ubuntu-latest
     timeout-minutes: 90
