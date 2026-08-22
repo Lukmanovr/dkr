@@ -1,0 +1,826 @@
+---
+title: "Beyond Message Passing: Graph Transformers"
+subtitle: "Week 13 · Thursday, November 19, 2026 · 90 minutes"
+description: "Attention arrives on graphs: why locality was a choice, how the graph re-enters as features (RWSE computed by hand — the tail node's k=3 return is exactly zero), Graphormer's three bias doors, the GraphGPS recipe — and our measured ZINC ladder, where the encoding paid (0.349→0.296, free) and the attention did not (0.303 at 2.7× the time)."
+date: 2026-11-19
+date-modified: last-modified
+format:
+  html:
+    toc-depth: 3
+---
+
+::: {.content-visible when-format="html"}
+
+::: {.callout-tip title="Learning objectives" icon="false"}
+After this lecture (and Lab 13) you can:
+
+1. **explain** why locality limits message passing (oversquashing, the 1-WL ceiling — Week 9's walls) and precisely what full attention changes, at what cost;
+2. **define** Laplacian positional encodings and random-walk structural encodings, compute RWSE by hand on small graphs, and explain the eigenvector sign-ambiguity problem and its treatments;
+3. **describe** Graphormer's three encodings — centrality, spatial, edge — and how attention *bias* injects structure into a standard transformer;
+4. **explain** the GraphGPS recipe (parallel MPNN + attention + PE/SE) and when the hybrid beats either extreme;
+5. **choose** between an MPNN and a graph transformer for a stated task and scale, with attention's $O(n^2)$ reality priced in.
+:::
+
+## Locality was a choice, not a law
+
+For eight weeks this course has treated one sentence as bedrock: *messages
+flow along edges.* Week 9 measured what that sentence costs — signal crushed
+290× through a bridge, cycles invisible above the 1-WL ceiling — and Weeks
+9–12 sold increasingly clever workarounds: rewiring, structural features,
+labeling tricks, a fully-adjacent final layer. Look at that last one again.
+Alon and Yahav's cheapest oversquashing fix — *let every node talk to every
+node, once* — is a single layer of something you already know intimately
+from every other corner of deep learning. This week we stop treating it as
+a patch and ask the full question: what happens when the architecture is
+**attention all the way down** — every node attending to every node, every
+layer, the edge list demoted from law to hint?
+
+Two things happen, and the whole lecture lives in their tension. First, the
+walls fall: information travels anywhere in one hop, so oversquashing's
+bridges and oversmoothing's depth pressure simply dissolve — the
+$O(n^2)$ pairs are all *there*, priced identically. Take one second to
+feel how completely: every pathology Weeks 9 and 11 measured — the 290×
+bridge crush, the $|\lambda_2|^K$ collapse, the depth-vs-diameter
+bookkeeping — was a *consequence of iterated local averaging*, and a
+single global layer performs no iteration and respects no locality; the
+diseases don't get treated, their preconditions get deleted. Second —
+and this is the part naive "graph transformer" attempts learned
+painfully — the graph disappears with the diseases. Attention over a
+node *set* is permutation-blind in the wrong way: shuffle the atoms of
+two different molecules with the same atom counts and pure attention
+cannot tell them apart, because nothing in $\mathrm{softmax}(QK^\top)$
+knows an edge from a stranger. The entire craft of this week is
+*re-injecting the graph as features and biases* — and every ingredient
+the modern recipes inject is something this course already computed by
+hand: random-walk returns (Week 9 cracked CSL with them), Laplacian
+eigenvectors (Week 6's frequencies), shortest-path distances (Week 2).
+The graph transformer literature is, to a first approximation, this
+course's toolbox being fed to a transformer — which is also why this
+week, the second-to-last lecture of new machinery, reads like a
+reunion: the payoff of teaching fundamentals over frameworks is that
+the newest architecture in the field is assembled entirely from parts
+you already own.
+
+The collision was inevitable and dated. By 2020, transformers had annexed
+language and were annexing vision, and a widely-circulated observation
+pointed out what Week 7's template makes obvious: **a transformer *is* a
+message-passing network — on the complete graph.** Set the template's
+neighborhood to "everyone," the message to a value vector, the aggregation
+to attention-weighted summation, and the update to the feed-forward block:
+self-attention drops out of the MPNN template as the special case
+$N(v) = V$. The two literatures were one literature with different
+sparsity patterns, and everyone knew which direction the prestige was
+flowing. Yet the first serious attempts to run transformers on graph
+benchmarks *lost to GCNs* — the "do transformers really perform bad for
+graph representation?" of Graphormer's title is not rhetorical; it was the
+community's genuine, measured position. The resolution, and this lecture's
+plot: attention was never the problem — the missing *graph* was. A
+transformer given the edge information as features and biases stopped
+losing, and won an OGB large-scale challenge outright in 2021. The rest of
+the field followed within eighteen months.
+
+### One screen of attention, from zero
+
+Because this course assumed no NLP prerequisite, here is the mechanism
+itself, small enough to hold. Each node $v$ manufactures three vectors
+from its features by learned linear maps: a **query** $q_v = W_Q h_v$
+("what am I looking for"), a **key** $k_v = W_K h_v$ ("what do I offer"),
+and a **value** $v_v = W_V h_v$ ("what do I actually send"). Node $v$
+scores every node $u$ by the dot product $q_v^\top k_u / \sqrt d$,
+pushes the scores through a softmax so they become positive weights
+summing to one, and receives the weight-averaged values. That is the
+whole machine. Feel it on three nodes: if $v$'s query matches the first
+key strongly and the others not at all — logits $[2, 0, 0]$ — the
+softmax hands out weights $[e^2, 1, 1]/(e^2{+}2) \approx
+[0.787, 0.107, 0.107]$: attention is a *soft dictionary lookup*, mostly
+fetching the match but hedging. And if the query matches nothing —
+logits $[0, 0, 0]$ — the weights are exactly $[\tfrac13, \tfrac13,
+\tfrac13]$: **attention with nothing to say degenerates to
+mean-pooling**, a fact that looks like trivia now and becomes a theorem
+about the 1-WL ceiling later this lecture. Multi-head attention runs $H$
+of these machines in parallel on split dimensions and concatenates —
+$H$ independent listening policies per layer, which is the slot where
+Graphormer will later install $H$ independent *distance* policies.
+
+Hold the identity from the previous paragraph formally for a moment,
+because it sharpens everything after. In Week 7 notation, one attention layer is
+$h'_v = \mathrm{UPDATE}\big(h_v, \sum_{u \in V} \alpha_{vu}\,
+\mathrm{MSG}(h_u)\big)$ with $\alpha_{vu} =
+\mathrm{softmax}_u(q_v^\top k_u / \sqrt d)$ — message passing where the
+"adjacency" $\alpha$ is *dense, learned, and input-dependent*. Three
+consequences fall out. The receptive field is everything at depth 1
+(range solved). The cost is the dense matrix: $n^2$ scores per layer per
+head (Week 11's bill returns with an exponent). And nothing constrains
+$\alpha$ toward the actual edges — the model must *discover* structure
+that the MPNN got for free, or be told it. Discovering it from scratch is
+wasteful and, on small data, often simply fails; telling it is the craft:
+
+{{< include ../assets/figures/fig-w13-attention.html >}}
+
+{{< include ../assets/d3/w13-attn.html >}}
+
+::: {.predict}
+**Commit before you look.** We trained three models on ZINC molecular
+property regression at an identical 100-epoch budget: a plain 4-layer MPNN;
+the same MPNN with 16-dimensional random-walk encodings added to its
+inputs; and a GPS-style hybrid running MPNN and global attention in
+parallel. Predict the ordering of their test errors — and which of the two
+upgrades costs more compute.
+
+::: {.predict-answer}
+Measured: MPNN **0.349** → +RWSE **0.296** → GPS-lite **0.303** (MAE, lower
+is better). The structural encoding bought 0.053 for *six extra seconds*;
+the attention block bought *nothing over RWSE* while tripling the time —
+because ZINC molecules average 23 atoms and four local layers already reach
+everything: range was not the bottleneck, expressiveness was, and the
+encoding is what treats that. The tuned literature does get GPS to ≈0.070
+at ~10× the schedule — both facts are true, and holding them together is
+this week's version of the course's oldest lesson.
+:::
+:::
+
+## The graph, re-entering as position
+
+A transformer needs to be told where its tokens *are* — in text, positions
+1, 2, 3; on a graph, there is no such order, and "where" must mean
+*structure*. Two families dominate.
+
+**Random-walk structural encodings (RWSE).** For each node $v$, the vector
+of return probabilities $\big[(M^1)_{vv}, (M^2)_{vv}, \dots,
+(M^K)_{vv}\big]$ with $M = D^{-1}A$ — computed once, offline (Week 11's
+precompute discipline), then added to node features through a small linear
+map. You have computed these before; now compute them *as a hand exercise*
+on the triangle-with-tail, because the numbers teach the concept better
+than the definition does:
+
+{{< include ../assets/figures/fig-w13-rwse.html >}}
+
+Walk one entry to own it. The hub (node 2, degree 3) at $k{=}2$: each
+neighbor holds probability $\tfrac13$; the two triangle neighbors return
+with probability $\tfrac12$ each, the tail with probability 1 — total
+$\tfrac13 \cdot \tfrac12 + \tfrac13 \cdot \tfrac12 + \tfrac13 \cdot 1 =
+\tfrac23$. And the $k{=}3$ column is the star: $\tfrac16$ for every
+triangle node (walk your triangle around, either direction:
+$\tfrac13 \cdot \tfrac12 + \tfrac13 \cdot \tfrac12$), and **exactly zero**
+for the tail — a 3-step return needs a 3-cycle, and node 3 has none. The
+$k{=}3$ return probability *is a triangle detector*, the $k{=}4$ a
+4-cycle-and-backtrack accountant, and the whole vector a structural
+fingerprint that Week 9's theorems said message passing cannot compute
+about itself. That is the entire pitch: the encoding hands the model
+answers to questions the architecture provably cannot ask.
+
+{{< include ../assets/d3/w13-rwse.html >}}
+
+Complete the hand table with the tail's $k{=}4$ entry, because it teaches
+the accounting style: a 4-step return from node 3 must go out to the hub
+and come back twice-removed — $3 \to 2 \to x \to 2 \to 3$ for
+$x \in \{0, 1, 3\}$ — with probability $1 \cdot \big[\tfrac13 \cdot
+\tfrac12 + \tfrac13 \cdot \tfrac12 + \tfrac13 \cdot 1\big] \cdot \tfrac13
+= \tfrac23 \cdot \tfrac13 = \tfrac29 \approx 0.222$: the hub's own
+2-step return rate, rented. Every entry of every RWSE vector decomposes
+into such stories, which is why the encoding is *interpretable* in a way
+learned embeddings never are — and why Lab 13's asserts can demand your
+implementation match to four decimals.
+
+Practicalities, quickly. $K$ (vector length) is a budget knob — 16 to 32
+in practice; entries beyond the graph's mixing time flatten toward the
+stationary distribution and stop informing (Week 2's convergence,
+setting a feature dimension). The whole family generalizes: replace
+$M^k$'s diagonal with heat-kernel diagonals or personalized-PageRank
+columns and you get sibling encodings with different locality profiles —
+the "small zoo of diffusions" from Week 11's SIGN, feeding a transformer
+instead of an MLP. And the compute is a Week 11 story: sparse
+matrix powers, offline, once, cacheable forever.
+
+Before leaving the definition, collect the payment it makes on a debt
+this course has carried since Week 9. The CSL graphs — the two circulant
+rings, every node degree-4, that message passing *provably* cannot tell
+apart, our cleanest exhibit of the 1-WL ceiling — fall to RWSE at
+$k{=}3$: one ring's skip pattern closes triangles, so every node has a
+positive 3-step return; the other's does not, so every node's is exactly
+zero. Two graphs indistinguishable to arbitrary depths of message
+passing are separated by the *third entry* of a vector you can compute
+by hand — and in Lab 13 you do exactly that, on your own
+implementation, and then separate the triangle-with-tail's members from
+its tail node with nothing but a threshold on that entry. The week's
+pitch in one artifact: the ceiling was never about how much computation
+the network does; it was about which quantities the computation can
+express, and the encoding simply hands the unreachable ones in through
+the front door.
+
+**Laplacian positional encodings (LapPE).** Take the graph Laplacian's
+first $k$ nontrivial eigenvectors — Week 6's low-frequency modes — and give
+each node its coordinates in that basis: a soft global coordinate system,
+"where am I on the graph's large-scale shape," complementary to RWSE's
+"what does my local structure look like." You have seen these coordinates
+*work* already without the name: the Fiedler vector that split the karate
+club in Week 2 assigns every node a signed scalar whose sign is the
+faction and whose magnitude is depth-within-faction — one LapPE
+dimension, and already a useful position. Stack the next few eigenvectors
+and nodes acquire addresses on the graph's principal shapes, the discrete
+cousin of sinusoidal positions on a sequence (which are, exactly, the
+Laplacian eigenvectors of a path graph — the connection that motivated
+LapPE in the first place).
+
+That parenthesis rewards thirty seconds of hand computation, because it
+turns "positional encoding" from a metaphor into an identity. The
+4-node path's Laplacian eigenvectors are sampled cosines,
+$v_k(j) = \cos\!\big(k\pi\,(j + \tfrac12)/4\big)$: the first
+nontrivial one reads $(0.924,\; 0.383,\; -0.383,\; -0.924)$ down the
+path — strictly monotone, a *coordinate along the graph*, with the sign
+change marking the midpoint exactly as the karate Fiedler vector's sign
+marked the faction line. The transformer literature's sinusoidal
+position vectors for sequences are this same object at more frequencies;
+LapPE is not "inspired by" transformer positions — on a path graph it
+*is* them, and on a general graph it is what they become when the
+domain stops being a line. That is why the analogy runs so deep, and
+why the same failure (what happens off the training distribution of
+positions) recurs in both literatures.
+
+The wrinkle you met in Week 6 bites harder here: an eigenvector is
+defined only up to **sign** — $v$ and $-v$ are the same eigenvector — and
+within a *degenerate* eigenspace (repeated eigenvalues, guaranteed by any
+symmetry in the graph) only up to rotation, so the same graph can hand
+the model different encodings on different days, and a test graph's
+encoding can be systematically flipped relative to everything seen in
+training. Treatments, in ascending sophistication and cost: randomize
+signs during training (augmentation teaches the invariance, spends
+capacity), take absolute values (cheap, invariant, lossy — genuinely
+different positions collapse), or use architectures invariant by
+construction (the SignNet line, optional reading — functions of the form
+$f(v) + f(-v)$, extended to full basis invariance). RWSE's quiet
+advantage — no sign to flip, no basis to rotate, twins provably identical
+— is much of why it became the era's default diet; the widget above shows
+Week 12's wallflower twins agreeing to machine precision. The two
+families are complements, not rivals — local fingerprint and global
+address — and serious recipes (GPS included) happily feed both.
+
+## Graphormer: three doors into a standard transformer
+
+The 2021 result that ended "transformers don't work on graphs" deserves
+its context, because the stakes were unusually legible. OGB's
+large-scale challenge that year was PCQM4M: predict a quantum-chemical
+property (the HOMO-LUMO gap) for **3.8 million molecules**, a proxy task
+for replacing expensive density-functional-theory computation with
+learned models — chemistry's compute bill as an ML benchmark, with
+industrial teams competing in public. Message-passing entries crowded
+the leaderboard; Graphormer — a Microsoft Research team — took first
+place with a *standard transformer* whose slogan deserves quoting
+precisely: *keep the architecture standard; smuggle the graph in through
+the inputs and the attention bias.* The win mattered beyond the trophy:
+molecules are small (attention's $n^2$ is cheap), data was large
+(transformers' appetite finally fed), and the field's null hypothesis —
+that graph structure demands graph-shaped architectures — lost a fair
+fight on the biggest stage available. Every recipe since is a footnote
+to that afternoon, including the hybrid that closes this lecture.
+
+{{< include ../assets/figures/fig-w13-graphormer.html >}}
+
+Door one, **centrality encoding**: each node's degree indexes a learned
+embedding added to its features — "how important am I," Week 2's first
+lesson as a lookup table (in-degree and out-degree get separate tables on
+directed graphs, Week 10's direction discipline persisting). Door two,
+the deep one, **spatial encoding**: for every pair $(u, v)$, the
+shortest-path distance indexes a learned scalar $b_{\phi(u,v)}$ *added to
+the attention logit before the softmax* — not a feature, a **prior over
+who should listen to whom**, shared across heads' content whims. The
+table is tiny (one scalar per distance value per head) but its reach is
+total: every pair's logit, every layer. Door three, **edge encoding**:
+features of the edges along the shortest path between $u$ and $v$ —
+averaged against learned per-hop weights — enter as a second logit bias,
+so a bond's type modulates how two atoms attend across it.
+
+One more Graphormer device deserves its sentence because you met its
+ancestor in Week 9: a **virtual node** ([VNode]) connected to every real
+node — the transformer's rendition of the master-node rewiring that
+treated oversquashing, now doubling as a whole-graph readout token, the
+[CLS] of molecules. When you meet "global token" tricks anywhere in this
+literature, this is the lineage.
+
+Sit with the spatial bias until it reorganizes the week for you, and then
+drive it yourself:
+
+{{< include ../assets/d3/w13-bias.html >}}
+
+If the learned $b$ decays with distance, attention concentrates on
+neighbors — the model has *rediscovered message passing* as a soft
+preference. If $b$ is flat, the graph dissolves. If it rises, the model
+attends far-first — an anti-oversquashing specialist no MPNN can imitate.
+Message passing is no longer a rival architecture; it is **one point in
+the transformer's hypothesis space**, reachable by one bias profile among
+many. That reframing — locality as a learnable prior rather than an
+architectural law — is the deepest sentence of the week, and the exam will
+ask for it.
+
+## GraphGPS: the recipe, and our measured verdict
+
+Graphormer's biases need all-pairs shortest paths — $O(n^2)$ memory before
+training starts — and pure attention still scales quadratically. The
+pragmatic synthesis, GraphGPS (required reading, literally titled a
+*recipe*), runs in every layer **two channels in parallel**: a local MPNN
+over the real edges (structure, exactly, cheaply) and a global attention
+over all nodes (range, when needed), summed and normalized, with PE/SE
+features (RWSE, LapPE) feeding both. Modular by construction: swap the
+MPNN flavor, swap the attention flavor (including linear-time
+approximations when $n$ grows), choose your encodings per task.
+
+Write the block down once, because Lab 13 makes you build it and the
+equations are the specification: per layer,
+$$X_{\text{loc}} = \mathrm{MPNN}(X, E), \qquad
+X_{\text{glob}} = \mathrm{Attn}(X), \qquad
+X' = \mathrm{LN}\big(X + X_{\text{loc}} + X_{\text{glob}}\big), \qquad
+X'' = \mathrm{LN}\big(X' + \mathrm{FFN}(X')\big),$$
+with the PE/SE vectors linearly mapped into $X$ once at the input. Note
+what is deliberately boring: residuals everywhere (Week 7's repair shop,
+standard-issue), LayerNorm rather than BatchNorm (Week 11's batch-
+statistics pitfall, pre-solved), and *sum* as the channel combiner — the
+two channels are colleagues writing to a shared workspace, not rivals to
+arbitrate. The modularity is the point: the MPNN slot takes any Week 6–10
+convolution; the attention slot takes full softmax attention at small $n$
+or a linear-time approximation (kernel tricks that compute
+attention-shaped aggregation in $O(n)$ — accepting approximation where
+Week 11 accepted sampling variance, the same negotiation one level up)
+when $n$ grows; the encoding slot takes whatever your task's structure
+demands. A recipe, exactly as titled.
+
+The engineering reality of the attention slot deserves its own honest
+paragraph before any table, because $O(n^2)$ is a phrase until it is a
+number. Full attention materializes an $n \times n$ score matrix per head
+per layer: at $n = 23$ (a ZINC molecule) that is 529 scores — invisible;
+at $n = 10{,}000$, one hundred million scores per head-layer — about
+400 MB in float32, times heads, times layers, before gradients (Week
+11's audit, squared as promised); at arxiv's $n = 169{,}343$, the score
+matrix alone is 114 GB. Batching pads every graph to the batch's largest
+member (our implementation's `to_dense_batch`), so one big molecule taxes
+the whole batch. This is why "graph transformer" and "web-scale graph"
+appear in the same sentence only alongside linear attention, sampling, or
+a hybrid whose global channel is rationed — and why the *decision* this
+section ends with has a cost column, not just an accuracy one.
+
+Since the linear-attention escape hatch carries the whole "graph
+transformers at scale" story, see how the trick actually works — it is
+one associativity move. The expensive object in
+$\mathrm{softmax}(QK^\top)V$ is the $n \times n$ score matrix, forced
+into existence because the softmax couples each row's entries. Suppose
+instead the attention weight factorized as $\phi(q_v)^\top \phi(k_u)$
+for some feature map $\phi$: then node $v$'s output
+$\sum_u \phi(q_v)^\top \phi(k_u)\, v_u^{\phantom\top} =
+\phi(q_v)^\top \big(\sum_u \phi(k_u)\, v_u^\top\big)$ — and the
+bracketed sum is one $d \times d$ matrix, computed once for the whole
+graph in $O(n)$ and reused by every query. Reordering the parentheses
+deletes the quadratic term. The catch: no finite $\phi$ reproduces the
+softmax kernel exactly, so linear attentions (the Performer family)
+approximate it with randomized features, trading exactness for
+tractability — precisely the negotiation Week 11 ran with sampling, one
+level up the stack. When a paper says "our transformer scales to
+million-node graphs," this bracket, or a sparsity pattern doing the same
+job, is what it means.
+
+Implementation notes from building exactly this — the details that cost
+an afternoon each when unshared. ZINC's atoms arrive as integer types
+(28 of them) and bonds as integers (4): both become learned embedding
+tables, the atom embedding summed with the linearly-mapped RWSE vector
+at the input — *summed, not concatenated*, so the encoding lives in the
+same space the attention reasons in. Batching many small graphs for the
+attention channel requires densification: `to_dense_batch` pads every
+graph to the batch's largest and returns the mask that must reach
+attention as `key_padding_mask` — forget the mask and your model attends
+to phantom atoms, a bug whose only symptom is mediocrity (Lab 13's
+asserts check mask-invariance directly: adding a padded node must not
+change any real node's output). And the local channel needs edge
+features (`GINEConv`), or bond types silently vanish from the model that
+was supposedly reading molecules. None of this is in the papers;
+all of it is in the difference between reproducing a number and almost
+reproducing it.
+
+We built the budget version and ran the honest ladder — same data, same
+100-epoch budget, same seed protocol:
+
+{{< include ../assets/figures/fig-w13-results.html >}}
+
+{{< include ../assets/d3/w13-results.html >}}
+
+First, the protocol card, because a table without one is an anecdote:
+ZINC-subset (10,000 train / 1,000 val / 1,000 test molecules, the
+community's standard 12k slice), constrained-solubility regression graded
+by mean absolute error; every model 4 blocks of hidden width 64 with the
+same GINE-style local convolution reading bond types; 100 epochs of Adam
+at $10^{-3}$ under one cosine schedule; test MAE reported at the best
+validation epoch; one seed protocol shared by all rows. What we
+deliberately did *not* do: per-model tuning, warmup schedules, larger
+budgets — the comparison isolates *ingredients at matched cost*, which is
+the question a working team actually faces on a Tuesday.
+
+Read the result with Week 7's eyes. The **encoding paid**: 0.349 → 0.296,
+six seconds of precompute, no architecture change — consistent with
+everything Week 9 taught about what molecular tasks need (rings!) and
+what MPNNs can't see about themselves. The **attention did not pay
+here**: 0.303 at 2.7× the wall-clock, and the diagnosis is not
+"attention is bad" but a sentence you can now write yourself: *ZINC
+molecules average 23 atoms with single-digit diameters, so four local
+layers already reach every atom — range was never the binding
+constraint, and buying more of it bought nothing.* One measured surprise
+deserves its own sentence: the naive expectation "GPS ⊇ MPNN+RWSE, so
+GPS ≥ MPNN+RWSE" is *false at fixed budget* — the attention channel's
+extra parameters and slower steps are not free, and a superset
+hypothesis class with the same optimizer time can land lower. (Week 9
+said expressiveness is not a leaderboard; here even *capacity* isn't.)
+Meanwhile the tuned literature reaches ≈0.070 with ~10× schedules,
+warmups, and architecture polish — a number our table neither
+contradicts nor reproduces, because *budget moves everything* and
+comparing across budgets is the leaderboard sin this course has spent a
+semester prosecuting. Both rows of truth fit in one honest paragraph;
+most blog posts pick one.
+
+When *does* the hybrid win decisively? Exactly where the diagnosis
+predicts, and the field built a benchmark suite to prove it: the
+long-range graph benchmarks assemble tasks where the label provably
+couples distant nodes — peptides whose properties depend on residues far
+apart in the chain, image-derived graphs with global layout, code graphs
+pairing definitions with distant uses — and on those leaderboards the
+global channel's premium finally purchases accuracy that no depth of
+local layers recovers (Week 9's sensitivity collapse said why: the
+signal cannot squeeze through). GPS-style hybrids and their descendants
+own those tables; plain MPNNs trail by margins no tuning closes. The
+suite's existence is itself a methodological lesson worth copying: when
+a community suspects an architecture's advantage is regime-specific,
+the honest move is to *construct the regime* and measure — precisely
+what our 23-atom molecules could not do for attention.
+
+So the decision procedure is Week 11's constraint-first reading with one
+new column: **estimate the task's required range against the graph's
+diameter and bottlenecks** (the $(\hat A^K)_{uv}$ probe from Week 9 is
+the instrument, and it costs one matrix power). Range needed and
+structure needed → GPS-style hybrid. Structure only → MPNN + RWSE, the
+quiet winner of our table and the option that also survives Week 11's
+scale bills. Range only, enormous $n$ → linear attention or sampling,
+and every Week 11 bill applies, squared. And in all three branches, the
+encodings ride along near-free — the one ingredient with no failure
+regime on this menu.
+
+Run the procedure once on graphs you have already touched, as a
+calibration. ZINC molecules: diameter single-digit, four layers cover
+it — the range column is empty, buy encodings, which is our table's
+verdict derived rather than observed. The arxiv citation graph:
+$n = 169{,}343$ kills dense attention outright (that 114 GB score
+matrix), so the menu is MPNN+RWSE or a linear-attention hybrid, and
+Week 11's sampling bills decide between them. A blockchain-fraud graph
+whose labels depend on funds hopping through long mule chains: range is
+the *task*, locality is the failure — this is the hybrid's home turf,
+and the one branch where paying attention's premium is not optional.
+Three graphs, three different winners, one procedure — which is what
+"architecture choice" should feel like by Week 13.
+
+## What this does to Week 9's ceiling
+
+A theory checkpoint, because the marketing in this genre routinely
+garbles it. Does attention *itself* exceed the 1-WL ceiling? **No** — and
+you can prove it with Week 9's own tools: on uniform features with no
+encodings, every node of a regular graph presents identical queries,
+keys, and values, attention weights come out uniform, and the update
+reduces to mean-pooling everyone — *below* GIN, blind to everything WL is
+blind to and more. What exceeds the ceiling is the **encodings**: RWSE
+carries cycle counts, LapPE carries spectral coordinates, spatial biases
+carry distances — each a quantity provably outside message passing's
+reach, injected as input. That is Week 9's Route 2 (structural features),
+industrialized; the transformer is the *vehicle* that spends the extra
+information well at range, not the source of it. Hence the honest slogan
+for the whole genre, worth memorizing for the exam: **attention buys
+range; encodings buy expressiveness; neither buys the other.** Our
+measured table is that slogan wearing numbers — the encoding moved the
+MAE, the attention moved the wall-clock.
+
+The checkpoint deserves its formal statement, because it is the week's
+most-garbled claim in the wild.
+
+::: {.proposition #prp-w13-attn-wl}
+Pure self-attention with no positional or structural input computes a
+function of the *multiset of node features only*. Consequently any two
+graphs with the same feature multiset — regardless of their edges —
+receive identical outputs, and the model is strictly weaker than 1-WL:
+it cannot even separate the 4-node path from the 4-node star on uniform
+features, which 1-WL distinguishes in one round.
+:::
+
+The proof is the mean-pooling fact from this lecture's first section,
+run by induction. With identical features, every node emits the same
+query, key, and value; all logits tie; every softmax row is uniform;
+every node receives the same mean and applies the same update — so
+representations stay identical layer after layer, and nothing
+edge-dependent ever enters (the edge set appears nowhere in the
+computation). 1-WL, by contrast, reads degrees off the graph in its
+first refinement — the path's multiset $\{1,1,2,2\}$ against the
+star's $\{1,1,1,3\}$ — and separates immediately. Attention without a
+positional diet is not "expressive but expensive"; it is blind *and*
+expensive, and every impressive graph-transformer number in the
+literature is therefore a claim about its encodings.
+
+And a forward pointer that explains the field's current excitement:
+because a transformer's input is "a set of feature vectors plus biases,"
+it is *format-agnostic* in a way message passing never was — the same
+architecture ingests molecules, KGs (Week 10's ULTRA runs on this
+insight), text-attributed graphs, and mixtures, which is precisely the
+substrate a *foundation model* needs. The graph-transformer literature
+of this week is, among other things, the plumbing being laid for
+pretrained graph models; when they arrive in force, their positional
+diets will be the encodings you hand-computed today.
+
+## The method: positioning a new "graph transformer" paper in five questions
+
+The genre is prolific; the questions that sort it are stable. **Where does
+the graph enter** — features, attention bias, masking, or auxiliary loss?
+(Everything else is marketing; this is the architecture.) **What does
+attention cost** — full $O(n^2)$, sparse, or linear approximation — and at
+the paper's own benchmark sizes, does that matter? **Which encodings carry
+the load** — and does the ablation table separate their contribution from
+attention's? (Ours did; many don't — and RWSE-vs-attention is exactly the
+confound to check.) **What is the MPNN baseline** — tuned with the same
+budget, with the same encodings? (An MPNN+RWSE baseline beats naive
+transformers on many published tables once someone bothers to run it.)
+**Does the win survive the budget column?** Same epochs, same tuning
+effort, or the comparison is a schedule masquerading as an architecture.
+Five questions, and you can locate any paper in this literature in ten
+minutes — including the ones not yet written.
+
+Watch the questions run on a composite of the genre — call it
+*GraphMegaFormer*, claiming "+2.1 over GCN on four benchmarks." Where
+does the graph enter? Appendix C reveals: RWSE plus a distance bias —
+so the architecture is GPS-shaped, whatever the branding. Attention
+cost? Full $O(n^2)$; the largest benchmark graph has 500 nodes — fine
+there, silent about scale. Which encodings carry the load? The ablation
+removes attention (−0.3) but never removes RWSE — the biggest
+ingredient is uncredited, and our table says it may be most of the 2.1.
+The baseline? GCN *without* encodings, on 2019 hyperparameters. Budget?
+Their model gets 400 epochs with warmup; the GCN gets 100 flat. Verdict
+in ten minutes: a probably-fine architecture wrapped in a comparison
+that overstates it — read the idea, re-run the table yourself. That
+skill, exercised on a paper that does not exist, is the actual
+deliverable of this section.
+
+For the map's completeness, three named landmarks you will meet when
+the questions run on real papers, each slotting instantly once you ask
+*where does the graph enter*. SAN feeds *learned functions of the
+Laplacian spectrum* as positions — LapPE with the sign problem attacked
+by architecture — and pays full quadratic attention. TokenGT goes
+radical: edges become *tokens* alongside nodes, the graph serialized
+into a longer sequence for an utterly standard transformer — maximal
+standardization, maximal sequence length, the bet being that
+transformer infrastructure improves faster than graph-specific code
+(a bet the LLM era keeps paying out). Exphormer answers the cost
+question instead: attention restricted to the real edges *plus* a
+random expander overlay — Week 9's rewiring vocabulary returning as a
+sparsity pattern, global mixing at $O(n)$ edges without global cost.
+Three papers, three doors, no new questions needed — the five you have
+already sort them, which is the point of owning questions rather than
+paper lists.
+
+One synthesis before the pitfalls, reading this week's widget quartet as
+a single argument. The reach-vs-cost toggle showed the bare trade —
+range for $n^2$ — and its molecule-sized loophole (144 pair scores is
+nothing). The RWSE fingerprints showed the graph re-entering as numbers
+with meanings — twins identical to machine precision, hubs and leaves
+separated by a vector you can audit entry by entry. The bias explorer
+showed the deepest reframe: locality as one *setting* of a learned dial,
+message passing demoted from law to prior. And the measured ladder
+showed the market clearing: at honest prices, the encoding sold and the
+attention sat on the shelf — for this task, at this size, at this
+budget. Four interactives, one thesis: *the graph transformer is not a
+new species; it is the old toolbox, re-plumbed through attention, and
+every purchasing decision in it is one this course has already taught
+you to price.*
+
+A caution that spans both encoding families before the list: encodings
+are *statistics of the training distribution's graphs*, and they shift
+when the graphs do. A model trained on 20-atom molecules meets a
+40-atom molecule at test time: its RWSE entries land in ranges the
+linear map never saw, its LapPE coordinates live on different spectra —
+and degradation arrives without any error message. Size
+extrapolation is a known soft spot of the whole genre; if your
+deployment's graphs grow, your validation set should grow first.
+
+## Common pitfalls
+
+**Feeding attention a graph with no positional diet.** Pure attention on
+raw node features is a set model: two different molecules with equal atom
+multisets are *provably identical* to it — below even the 1-WL ceiling.
+The encodings are not a garnish; they are the graph — and the symptom
+is sneaky, because the model still trains and still scores above chance
+on feature-heavy tasks, so nothing crashes while structure silently
+contributes zero.
+
+**Comparing a transformer-with-RWSE against an MPNN-without.** The most
+common confound in the genre, and our table shows why it matters: RWSE
+alone was worth 0.053 MAE — likely more than many published
+architecture margins. Give both sides the same diet before crediting the
+attention; when a paper doesn't, you can often reconstruct the honest
+comparison from its own ablation appendix.
+
+**LapPE without sign handling.** Train with one eigenvector sign, test
+with the flip — silent degradation that reproduces nowhere and varies
+across library versions (eigensolvers make different arbitrary choices).
+Randomize, absolutize, or use invariant nets; never ignore.
+
+**Forgetting the padding mask.** Batched dense attention over
+variable-size graphs attends to padding unless told not to; the model
+still trains, merely worse, and the bug survives every test that does
+not explicitly check invariance to added padding. Lab 13's assert does;
+copy it into your own code forever.
+
+**All-pairs precomputes at scale.** Graphormer's spatial table is
+$O(n^2)$ *storage*; on Week 11's graphs that is the whole GPU before a
+single parameter loads. Hybrids and linear attentions exist precisely for
+this; check the paper's largest graph before importing its architecture.
+
+**Treating our 0.303 as "attention doesn't work."** It is one budget, one
+scale, one task family — the same table at 10× budget or on long-range
+tasks reverses. The transferable claim is the *diagnosis method*, not
+the row ordering; quoting the row without the regime is exactly the sin
+Figure 4's budget-reference toggle exists to inoculate against.
+
+## In this week's lab
+
+[Lab 13](../labs/lab13.qmd): you implement RWSE from the definition and
+hit the hand-computed numbers exactly — including the tail node's zero,
+asserted to four decimals, because a structural encoding you cannot
+verify by hand is a bug you cannot see; you re-crack Week 9's CSL pair
+with your own encoding (the two vertex-transitive graphs separate at
+$k{=}3$, on your numbers) and separate triangle-members from tail nodes
+with nothing but a threshold; you train the MPNN baseline on real ZINC
+molecules and then assemble the GPS block yourself — parallel local and
+global channels, LayerNorms, and the padding mask whose absence is the
+genre's quietest bug (the assert adds a phantom node and demands your
+real outputs not move). The lecture's 100-epoch table is provided for
+your claims paragraph, which must include the honest sentence about what
+attention did not buy; the stretch reruns the ladder at your own budget
+and lets you watch the ordering breathe.
+
+## Required reading
+
+- **Ying et al. — Do Transformers Really Perform Bad for Graph
+  Representation?** (NeurIPS 2021). Graphormer. §3.1's three encodings are
+  the paper; the OGB-LSC result is the receipt. Read the spatial-encoding
+  paragraph twice — it is the week's central idea.
+- **Rampášek et al. — Recipe for a General, Powerful, Scalable Graph
+  Transformer** (NeurIPS 2022). GraphGPS. Read §2 for the parallel-block
+  design and Table 4 for the ablation discipline — encodings and attention
+  credited separately, the honesty our own table imitates.
+
+Optional: Dwivedi & Bresson (2021) for the first serious generalization
+and its LapPE lineage — read it as history: written *before* the field
+knew which encodings would win, it frames the questions our five-question
+method answers. SignNet (ICLR 2023) for sign/basis invariance done
+properly — go here if the LapPE ambiguity paragraph left you wanting the
+construction rather than the workaround. Müller et al. (TMLR 2024) —
+*Attending to Graph Transformers* — the survey to consult before
+believing any claim in this genre, including ours: its taxonomy is our
+"where does the graph enter" question run over the whole literature,
+and its experiments confirm the encoding-vs-attention confound at scale.
+Reading order if you read only one: Graphormer's §3.1, then our Figure 4
+again — the pair is the week.
+
+## Check your understanding
+
+**Q1.** Compute, by hand, the $k=2$ and $k=3$ RWSE entries for the tail
+node (3) of the triangle-with-tail, and state what the $k=3$ value
+detects.
+
+<details><summary>Answer</summary>
+$k{=}2$: the tail's only move is to the hub (prob 1), which returns with
+prob $\tfrac13$: $1 \cdot \tfrac13 = 0.333$. $k{=}3$: a return in three
+steps requires a 3-cycle through node 3; there is none, so **exactly 0**.
+The $k{=}3$ diagonal of $M^3$ counts (degree-weighted) triangles at the
+node — the quantity Week 9 proved message passing cannot compute, now an
+input feature.
+</details>
+
+**Q2.** Why is pure attention on raw features *weaker* than the 1-WL
+ceiling, not stronger?
+
+<details><summary>Answer</summary>
+Without positional/structural input, attention never reads the edge set at
+all: it processes the node feature *multiset*. Two non-isomorphic graphs
+with identical feature multisets (any two graphs on the same uniform
+features!) are indistinguishable — a failure even degree-aware 1-WL
+avoids at round one. Range without structure is a downgrade; the
+encodings restore structure and only then does the range advantage exist.
+</details>
+
+**Q3.** Where exactly does Graphormer's spatial encoding enter the
+attention computation, and why is "bias" rather than "feature" the right
+word?
+
+<details><summary>Answer</summary>
+As a learned scalar $b_{\phi(u,v)}$ added to the pre-softmax logit
+$\frac{q_u \cdot k_v}{\sqrt d} + b_{\phi(u,v)}$ — pair-indexed, not
+node-indexed, so it cannot be absorbed into any node's features. It acts
+as a prior over the attention distribution itself: content can override
+it, but the default listening pattern is distance-shaped — which is why a
+decaying $b$ reproduces message passing as a special case.
+</details>
+
+**Q4.** Your colleague's new graph transformer beats their MPNN baseline
+by 0.04 MAE. Applying this lecture's method, name the two first questions
+you ask about the comparison.
+
+<details><summary>Answer</summary>
+Did the MPNN baseline get the same positional/structural encodings? (Ours
+gained 0.053 from RWSE alone — more than their whole margin.) And were
+budgets matched — epochs, schedule, tuning effort? If either answer is
+no, the table measures the confound, not the architecture. (Then: what
+does attention cost at their $n$, and does the win survive on a
+long-range task where it should be largest?)
+</details>
+
+**Q5.** A 500k-node fraud graph, task requires 6-hop context through known
+bottlenecks. Assess: pure Graphormer, GPS-hybrid, MPNN+RWSE.
+
+<details><summary>Answer</summary>
+Pure Graphormer: the all-pairs spatial table alone is $2.5 \times 10^{11}$
+entries — dead on arrival (Week 11's audit). MPNN+RWSE: cheap, but 6 hops
+through bottlenecks is Week 9's squashing regime — the exact failure the
+task description advertises. GPS-hybrid with *linear* global attention:
+the design center — local channel for structure, linear attention for
+range at $O(n)$, RWSE for both; budget the memory with Week 11's bill
+before committing.
+</details>
+
+**Q6.** State the sign-ambiguity problem in one sentence and rank the
+three standard treatments by information preserved.
+
+<details><summary>Answer</summary>
+An eigenvector $v$ and $-v$ are equally valid, so LapPE hands the model
+coordinates whose signs are arbitrary per graph and per run. Most
+preserving: sign/basis-invariant networks (SignNet — learns functions
+invariant by construction); middle: sign randomization in training
+(model must learn the invariance, costs capacity); least: absolute
+values (invariant but collapses $v$ and $|v|$ distinctions —
+genuinely different positions merge).
+</details>
+
+**Q7.** Our GPS-lite lost to MPNN+RWSE at 100 epochs, yet GPS leads
+long-range benchmarks. Reconcile in two sentences using this course's
+vocabulary.
+
+<details><summary>Answer</summary>
+ZINC's 23-atom molecules have diameters a 4-layer MPNN covers, so
+attention's only unique product — range — had no buyer, while its extra
+parameters and slower steps cost real budget (an ablation-shaped fact,
+not an architecture verdict). Long-range benchmarks are built so that
+bottlenecked, distant signal decides the task — Week 9's sensitivity
+collapse territory — where the global channel is the *only* channel that
+delivers, and the hybrid's premium finally purchases something.
+</details>
+
+**Q8.** Design the two-line experiment that decides whether a task needs
+the global channel *before* training any transformer.
+
+<details><summary>Answer</summary>
+Week 9's probe: compute $(\hat A^K)_{uv}$ sensitivities between
+task-relevant node pairs at feasible $K$ (plus the graph's diameter
+distribution). If relevant pairs sit at tiny sensitivity or beyond
+reachable depth, range binds → global channel justified; if
+neighborhoods already cover the signal, spend the budget on encodings —
+our table's exact verdict, predicted for free.
+</details>
+
+## Where this leaves us
+
+The wall between "GNNs" and "transformers" came down and revealed a dial:
+locality as a learnable prior, with message passing at one end, pure
+attention at the other, and the honest answer — measured on our own table
+— task- and budget-dependent. The graph, evicted from the architecture,
+re-entered as features you have been computing since Week 2; the sole
+genuinely new object this week was the *attention bias*, and even that is
+a distance table wearing a learned coat.
+
+Notice also what kind of week this was, because the shape recurs in
+every maturing subfield. No new theory arrived: the ceiling is still
+Week 9's, the costs are still Week 11's, the splits are still Week 12's.
+What arrived was a *recombination* — old quantities (returns,
+eigenvectors, distances) meeting an old architecture (attention) under
+an old discipline (matched-budget measurement) — and recombinations are
+where most working progress in mature fields actually lives. The
+student who memorized architectures has to start over this week; the
+student who owns the quantities just watched them get re-plumbed. That
+asymmetry is the course's whole bet, and next week — the production
+tour — is where it pays out in job descriptions rather than benchmarks.
+
+Close the loop — one minute, no notes: the tail node's $k{=}3$ return and
+what it detects; the three Graphormer doors; the two-channel GPS block;
+and our ladder's verdict with its one-sentence diagnosis. Then rehearse
+the five paper-sorting questions once — they are the part you will still
+use when this week's architectures are historical footnotes.
+
+One lecture of new machinery remains, and it is the one that pays the
+bills. Next week: graphs in *production* — time entering the picture
+(temporal graphs and TGN's memory), recommenders at planetary scale
+(LightGCN, and the PinSage story completing), relational deep learning
+(Week 10's bridge, driven across at last), and the map of where this
+field actually employs people. Bring Week 11's cost instincts and Week
+12's split discipline; production is where both stop being homework.
+
+:::
+
+::: {.content-visible when-format="html"}
+{{< include ../assets/d3/w13-scripts.html >}}
+:::

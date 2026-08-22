@@ -65,7 +65,8 @@ const JS_WIDGETS = ["w2-centrality", "w2-pagerank", "w2-wl", "w2-louvain",
                     "w9-wl", "w9-trees", "w9-power", "w9-squash",
                     "w10-typed", "w10-params", "w10-metapath", "w10-showdown",
                     "w11-explosion", "w11-sampler", "w11-sgc", "w11-table",
-                    "w12-split", "w12-heuristic", "w12-vgae", "w12-generate"];
+                    "w12-split", "w12-heuristic", "w12-vgae", "w12-generate",
+                    "w13-attn", "w13-rwse", "w13-bias", "w13-results"];
 // widgets whose scripts depend on baked data files (loaded first)
 const DATA_DEPS = { "w12-vgae": ["w12-vgae-data.js"], "w12-generate": ["w12-gen-data.js"] };
 

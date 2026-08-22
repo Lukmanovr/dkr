@@ -21,7 +21,7 @@ weeks will follow.
 | 10 | Oct 29 | [Heterogeneous & relational GNNs: R-GCN, HAN/HGT](lectures/10-hetero-rgcn.qmd) | [Typed classification + the encoder showdown](labs/lab10.qmd) | [HW2 due](homeworks/hw2.qmd) |
 | 11 | Nov 5 | [Scaling GNNs: sampling, clustering, SGC](lectures/11-scaling.qmd) | [The explosion, the sampler, the table](labs/lab11.qmd) | |
 | 12 | Nov 12 | [Link prediction & graph generation](lectures/12-link-generation.qmd) | [Splits, VGAE, SEAL, GraphRNN](labs/lab12.qmd) | [HW3 out](homeworks/hw3.qmd) |
-| 13 | Nov 19 | Beyond message passing: positional encodings, graph transformers | GPS-style model on ZINC molecules | Project midway |
+| 13 | Nov 19 | [Beyond message passing: positional encodings, graph transformers](lectures/13-transformers.qmd) | [RWSE by hand, the CSL crack, the GPS block](labs/lab13.qmd) | Project midway |
 | 14 | Nov 26 | Graphs in production: temporal, recommenders, relational DL, GraphRAG | LightGCN on MovieLens | HW3 due |
 | 15 | **Dec 3** | **Final exam** (written, cumulative) | Project presentations | Report due |
 

@@ -1,0 +1,22 @@
+```{=html}
+<div class="interactive-container" id="w13-at-widget">
+  <div class="fig-label">Interactive · Reach vs cost</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-m="1" type="button">MPNN · 1 layer</button>
+    <button class="pill-btn" data-m="2" type="button">2 layers</button>
+    <button class="pill-btn" data-m="3" type="button">3 layers</button>
+    <button class="pill-btn" data-m="attn" type="button">one attention layer</button>
+  </div>
+  <div id="w13-at-svg" role="img" aria-label="A twelve-node molecule-like graph of two rings joined by a bridge, showing which nodes the starred node can hear under one to three message-passing layers versus a single full-attention layer, with the message or pair-score cost counted"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the locality-vs-attention figure above.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 1.</strong> The trade in one toggle.
+  <strong>Try this:</strong> step MPNN depth until the far ring lights up — three
+  layers, because the bridge charges per hop — then press attention and watch
+  everything light at once for 144 pair scores. On a 23-atom molecule that price
+  is pocket change; on Week 11's graphs it is the whole budget. Range is what
+  attention sells; n² is the invoice.</p>
+</div>
+```

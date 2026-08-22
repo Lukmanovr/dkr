@@ -1,0 +1,41 @@
+---
+title: "Lab 13 · The graph re-enters as features"
+subtitle: "Week 13 · RWSE by hand and at scale, the CSL crack, the honest ladder, and the GPS block with its padding-mask tripwire"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab13_transformers.ipynb){target="_blank"}
+
+**≈ 10 minutes of compute · CPU-friendly; GPU shaves the ZINC runs**
+
+The [Week 13 lecture](../lectures/13-transformers.qmd), executed with your
+own hands:
+
+1. **RWSE from the definition** (exercise 1): your implementation must hit
+   the lecture's hand table on the triangle-with-tail *exactly* — including
+   the tail node's $k{=}3$ return of **exactly zero**, asserted at
+   $10^{-9}$, because a structural encoding you cannot verify by hand is a
+   bug you cannot see.
+2. **The CSL crack** (exercise 2): you first watch 1-WL declare
+   $\mathrm{CSL}(11,2)$ and $\mathrm{CSL}(11,3)$ identical, then separate
+   them with the third entry of your own encoding (0.094 vs 0) — and
+   classify the triangle-with-tail's nodes with nothing but a threshold.
+3. **The ladder, at your budget** (exercise 3): you wire RWSE into the
+   molecule pipeline and train MPNN-only and MPNN+RWSE on real ZINC
+   molecules under one shared protocol; the asserts hold your numbers to
+   measured bands.
+4. **The GPS block** (exercise 4): you implement the global attention
+   channel — densify, mask, attend, re-flatten — and the harness adds
+   phantom padding nodes and demands your real outputs *not move*; then it
+   sabotages the mask and demands they *do*. The genre's quietest bug,
+   turned into a pair of asserts.
+
+The lecture's 100-epoch table is provided as constants for your claims
+paragraph, which must include the honest sentence about what attention did
+not buy at matched budget. Stretch: LapPE with sign flips, the $K$
+ablation, a mini distance-bias head, and re-running the ladder at a budget
+you choose.
+
+**Submitting.** One executed notebook on Moodle, run **full**: four checks
+✓, claims, reflections. *Restart and run all* first. Grading: assertions
+60% · claims 15% · reflections 25%. AI use with disclosure per the honor
+code.

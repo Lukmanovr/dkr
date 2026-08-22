@@ -1,0 +1,22 @@
+```{=html}
+<div class="interactive-container" id="w13-bi-widget">
+  <div class="fig-label">Interactive · The spatial bias, driven by hand</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-p="decay" type="button">decaying bias</button>
+    <button class="pill-btn" data-p="flat" type="button">flat bias</button>
+    <button class="pill-btn" data-p="invert" type="button">inverted bias</button>
+  </div>
+  <div id="w13-bi-svg" role="img" aria-label="A ten-node branched path where attention weights from a starred node are computed purely from a distance bias profile: decaying bias concentrates attention on neighbors, flat bias spreads it uniformly, inverted bias attends to the farthest nodes"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the Graphormer figure above shows where the bias enters the formula.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 3.</strong> Graphormer's deepest idea, isolated:
+  the graph enters attention as a learned <em>prior over distances</em>.
+  <strong>Try this:</strong> with the decaying profile, read the weights — this IS
+  message passing, rediscovered as one point in the transformer's hypothesis space;
+  flat dissolves the graph entirely; inverted builds the long-range specialist no
+  MPNN can be (Week 9's oversquashing, treated by architecture). The lesson: MPNN
+  vs transformer is not a rivalry — it is a dial this model learns per head.</p>
+</div>
+```

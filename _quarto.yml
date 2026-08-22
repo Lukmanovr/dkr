@@ -55,6 +55,8 @@ website:
             text: "11 · Scaling GNNs"
           - href: lectures/12-link-generation.qmd
             text: "12 · Link Prediction & Generation"
+          - href: lectures/13-transformers.qmd
+            text: "13 · Graph Transformers"
       - section: Labs
         contents:
           - href: labs/lab01.qmd
@@ -81,6 +83,8 @@ website:
             text: "Lab 11 · Scaling, by hand"
           - href: labs/lab12.qmd
             text: "Lab 12 · Leak-proof links & generation"
+          - href: labs/lab13.qmd
+            text: "Lab 13 · RWSE, CSL & the GPS block"
       - section: Assessments
         contents:
           - href: homeworks/hw1.qmd
