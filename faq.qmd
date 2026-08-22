@@ -1,0 +1,107 @@
+---
+title: "FAQ"
+subtitle: "The questions that reach the instructor's inbox, answered once"
+---
+
+## Setup & running things
+
+**Do I need my own GPU?** No. Every lab and homework runs top-to-bottom on
+free Colab (CPU included) within its stated time budget — the badge at the
+top of each lab links the exact notebook. A GPU shortens the training
+cells; it never changes what passes.
+
+**A lab says "≈ 10 min of compute" but mine took 40.** CPU vs GPU, mostly.
+Check that you didn't run in SMOKE mode's *opposite* — full mode is the
+default; SMOKE (`SMOKE=1` environment variable) is the tiny-budget mode CI
+uses, and *submitting* a SMOKE run is the most common submission mistake
+in the course. The submission cell of every lab restates this.
+
+**`torch_geometric` won't install / version errors.** Use the pinned
+install in each notebook's setup cell (`torch_geometric==2.8.0.post1` at
+the time of writing) — unpinned installs against a mismatched torch are
+the source of nearly every environment mystery we see. On Colab, run the
+setup cell *first*, before anything imports torch.
+
+**The dataset download fails mid-lab.** Re-run the setup cell —
+loaders resume/re-verify. Behind a campus proxy, Colab is the path of
+least resistance. See the [datasets page](datasets.qmd) for what each lab
+pulls and how big it is.
+
+**Restart & run all fails but my cells worked one at a time.** Then some
+cell depends on state a later edit changed — exactly what *Restart & run
+all* exists to catch, and why it is required before submission. Fix the
+order, not the requirement.
+
+## Grading mechanics
+
+**How exactly are labs graded?** Assertion checks 60% (the ✓ lines — they
+either pass or they don't), claims paragraph 15% (your numbers, your
+cells cited, honest reading), reflections 25% (graded for engagement with
+*your* results, not word count). Best 12 of 14 count —
+[full policy](policies.qmd).
+
+**Can I discuss homework with classmates?** Discuss approaches, yes;
+share code, no; explain-on-request applies to every line you submit. The
+[honor code](policies.qmd#honor-code-ai-policy) is one sentence long and
+means it.
+
+**Where are the solutions?** Lab and homework solutions live in a private
+repository and are discussed in lab sessions after deadlines pass. The
+*sample* exams (with full solutions) are public:
+[midterm](exams/midterm-sample.qmd), [final](exams/final-sample.qmd) —
+they are the intended study material, sit them cold.
+
+**I think my grade is wrong.** Regrade window is 7 days, in writing,
+pointing at the rubric line — [policy](policies.qmd#grading).
+
+## AI use
+
+**Can I use Claude/ChatGPT/Copilot on labs?** Yes, with a disclosure line
+in the submission and the standing rule that you can explain any line on
+request. Undeclared use, or declared use you can't explain, is a
+violation. Exams: no AI, no devices.
+[Full policy](policies.qmd#honor-code-ai-policy).
+
+**Why do the labs still have hand-computation exercises in the AI era?**
+Because every lab's asserts are built from quantities you verify by hand
+first (Week 13's RWSE table, Week 14's 0.250 hop) — that is the course's
+answer to the era: make the graded thing be *understanding of your own
+notebook's outputs*, which no assistant can carry for you into the exam
+room or the interview.
+
+## Exams
+
+**What's on the final?** Cumulative, centered on Weeks 9–14; ~20
+questions, half MCQ, half open; one-sided hand-written A4 + basic
+calculator allowed. The [review page](exams/final.qmd) has the week-by-
+week checklist and cheat-sheet advice; the
+[sample](exams/final-sample.qmd) is a full dress rehearsal.
+
+**What goes on a good cheat sheet?** Recipes and measured tables, not
+prose — the review page's first section is exactly this list.
+
+## Project
+
+**Team size? Topic?** See the [project page](project/index.qmd) for
+milestones and rubric and the [topic list](project/topics.qmd) for 16
+curated directions (your own topic is welcome at proposal time).
+Milestones: proposal Week 9, midway feedback Week 13, report +
+presentation Week 15 ([Lab 15](labs/lab15.qmd) format).
+
+**My project's graph model loses to the baseline.** That may be a *good*
+result — the rubric grades protocol and diagnosis, not the sign of the
+delta. Week 13's lecture lost its own headline comparison and taught more
+because of it; present the honest table and the mechanism, and you are in
+the top half of outcomes.
+
+## Course meta
+
+**Which weeks matter most for jobs?** The dishonest answer is "all";
+the measured one is the [production map](lectures/14-production.qmd) —
+pick your sector, it lists its weeks. Recruiters in this field
+increasingly ask protocol questions (splits, baselines, leaks), and that
+skill is Weeks 9–14's spine.
+
+**Something on the site is broken.** Every page has a "Report an issue"
+link (top of the sidebar) straight into the repository's issue tracker —
+screenshots welcome, fixes usually land the same week.

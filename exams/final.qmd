@@ -1,0 +1,106 @@
+---
+title: "Final · review & logistics"
+subtitle: "Thursday, December 3 · in the Week-15 lecture slot · 90 minutes · 20% of the course grade"
+---
+
+## Logistics
+
+| | |
+|---|---|
+| **When & where** | Thursday, Dec 3, usual lecture time and room — the exam *is* the Week-15 lecture slot |
+| **Format** | Written, on paper: ~20 questions of equal weight, roughly half multiple-choice, half open (hand computations and short explanations) |
+| **Covers** | Cumulative, Weeks 1–14, with its center of mass on Weeks 9–14 (roughly fourteen post-midterm questions, six reaching back) |
+| **Aids** | One **hand-written, one-sided A4 sheet** of your own notes + a **basic calculator**. Nothing else — no books, no devices |
+| **Weight** | 20% of the course grade |
+| **After** | Week-15 lab slot = [project presentations](../labs/lab15.qmd); project reports due the same week |
+
+The **[sample exam](final-sample.qmd)** is a full-length rehearsal with
+solutions — same length, same difficulty, same aids, different questions.
+Sit it *cold*, in one timed 90-minute block, with your cheat sheet and
+calculator, before reading any solution: rehearsing the real conditions is
+the single highest-yield hour of revision this course can offer you.
+
+## The cheat sheet is the revision
+
+Writing the A4 sheet **is** the studying — design it, don't transcribe onto
+it. What earns its square centimeters, in order: (1) the hand-computation
+recipes (RWSE entries, WL refinement, $\hat A$ construction and one-step
+propagation, CN/AA, Recall@K/NDCG@K, TransE/DistMult scoring, R-GCN
+parameter counts, fanout bounds); (2) the course's measured tables with
+their one-sentence verdicts — each is one exam question waiting to be
+read correctly; (3) the pattern/limitation tables (which KGE model
+represents which relation pattern; the three GCN deletions; the four split
+buckets; TGN's three components). What wastes them: derivations, prose,
+anything you'd recognize but never compute from.
+
+## What "ready" means, week by week (post-midterm core)
+
+**Week 9 · [The ceiling](../lectures/09-expressiveness.qmd).** Run 1-WL on
+two ~6-node graphs and state precisely what stable identical histograms do
+and do not prove; produce the classic blind pairs (regular graphs, $C_6$
+vs $2C_3$, the CSL family); compute RWSE entries by hand and say which
+structures each $k$ detects; compute a 2-layer sensitivity $(M^2)_{uv}$
+through a bottleneck and name oversquashing; state GIN's sum-vs-mean
+argument and the Route-1/Route-2/Route-3 escape map.
+
+**Week 10 · [Typed graphs](../lectures/10-hetero-rgcn.qmd).** Count R-GCN
+parameters with and without basis decomposition and say when sharing
+hurts; choose and defend a metapath (against a degree-matched null); read
+our encoder-vs-lookup table honestly (frozen lookup 0.110 vs trained
+R-GCN 0.179 at 5 epochs on equal footing — architecture is not
+automatically signal); explain direction discipline (separate in/out
+tables).
+
+**Week 11 · [Scale](../lectures/11-scaling.qmd).** Compute fanout bounds
+($1 + f + f^2 + \dots$) and activation-memory bills; explain the
+neighbor-sampling estimator and its variance; read the cluster-training
+result (0.628 on 2.5% of edges) as a task property, not a law; state what
+SGC precomputation reduces training and serving to, and its
+expressiveness price.
+
+**Week 12 · [Links & generation](../lectures/12-link-generation.qmd).**
+Compute CN/AA by hand (and explain AA's rare-witness weighting); name the
+four split buckets and write the auditor's key assert; explain the SEAL
+leak mechanism and why sub-random AUC (our 0.363) is *stronger* leak
+evidence than random AUC; grade a graph generator by statistics (TV
+distance) and state the evaluator's blind spot.
+
+**Week 13 · [Graph transformers](../lectures/13-transformers.qmd).**
+Prove-in-one-line that pure attention on uniform features is below 1-WL;
+compute RWSE on the triangle-with-tail and $C_4$ (odd-$k$ zeros =
+bipartite certificate); name Graphormer's three doors and what "bias, not
+feature" means; write the GPS block; read our matched-budget ladder
+(0.349 / 0.296 / 0.303 vs tuned 0.070) and state what it does and does
+not license; run the five paper-sorting questions on a described paper.
+
+**Week 14 · [Production](../lectures/14-production.qmd).** Derive
+LightGCN's three deletions; hand-propagate on a small bipartite graph
+(the widget's 0.250-at-$K{=}2$ style); write and unit-check BPR (the
+log-2 tie point); compute Recall@K and NDCG@K; defend the temporal split
+and quote the measured inflation (×1.77); explain why popularity beat
+MF on our honest split; TGN's memory / message / embedding loop and the
+one-batch-late trick; the RDL "database is a graph" correspondence.
+
+## The pre-midterm six (what reaches back)
+
+The cumulative questions are integrative, not archival — they test the
+tools you have used weekly since: graph representations and density
+(Week 1); centrality, PageRank power iteration, WL (Week 2); skip-gram
+with negative sampling and node2vec's $p, q$ (Week 3); TransE/DistMult
+scoring and the relation-pattern table, filtered ranking (Week 4); query
+formalization and when RAG needs a graph (Week 5); $\hat A$ construction
+and one-step propagation, the GCN layer's anatomy (Week 6); the
+aggregator zoo, GraphSAGE/GAT, oversmoothing and its treatments (Week 7).
+If your midterm went well, one evening over the
+[midterm review page](midterm.qmd) restores the edge.
+
+## How to spend the last week
+
+Three sessions beat ten: (1) sit the [sample](final-sample.qmd) cold and
+sort the misses; (2) redo, on paper, every hand computation your misses
+touched — the labs' exercise-1 cells are the perfect drill set; (3) walk
+the [production map](../lectures/14-production.qmd)'s sectors and, for
+each "taught in" week, reconstruct its measured table and one-sentence
+verdict from memory onto your cheat sheet. Most points on this exam are
+earned by knowing *which question each number answers* — which is,
+deliberately, the thing this course has graded all semester.

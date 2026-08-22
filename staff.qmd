@@ -1,0 +1,38 @@
+---
+title: "Staff"
+subtitle: "Who to ask, and when"
+---
+
+## Instructor
+
+**Rustam Lukmanov** — Innopolis University.
+Lectures, project supervision, exam and policy questions.
+
+- **Office hours:** to be announced in Week 1 (they will live in this
+  table and in the Moodle calendar; expect one fixed weekly slot plus
+  by-appointment).
+- **Contact:** via Moodle messages for anything grade-adjacent (it leaves
+  a record, which protects you); course email for the rest — announced in
+  Week 1 alongside the Moodle page.
+
+## Teaching assistants
+
+To be announced before the semester starts — the course is budgeted for
+lab support and grading TAs, and their names, lab-session assignments,
+and office hours will appear here in Week 1.
+
+## Who to ask what
+
+| Your question is about… | Ask |
+|---|---|
+| A lab exercise that won't pass, environment issues | The lab session itself (fastest), then the TA |
+| Homework clarification | The Moodle forum thread for that HW — answers there reach everyone |
+| A grade ([regrade policy](policies.qmd#grading)) | Written regrade request within 7 days |
+| Project scope, topic, or a stuck experiment | Project office hours (bring the measured table you have, however small) |
+| Exam logistics, accommodations, life events | The instructor, as early as possible — [late policy](policies.qmd#late-policy) |
+| A broken link or typo on this site | The "Report an issue" link on any page — fixes land quickly |
+
+One norm worth stating: questions asked in the open (forum, lab room)
+outrank private messages for anything that isn't personal — every answer
+in the open saves thirty people the same email, and the course treats
+asking visible questions as a contribution, not an imposition.

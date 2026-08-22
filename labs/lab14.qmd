@@ -1,0 +1,38 @@
+---
+title: "Lab 14 · The temporal wall & the honest ladder"
+subtitle: "Week 14 · deployment's contract as one assert, LightGCN reproducing the widget, BPR from the definition, and the ×1.77 you measure yourself"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab14_recsys.ipynb){target="_blank"}
+
+**≈ 10 minutes of compute · CPU-friendly; GPU shaves the training**
+
+The [Week 14 lecture](../lectures/14-production.qmd), executed with your
+own hands on MovieLens-100k:
+
+1. **The wall and its auditor** (exercise 1): the global temporal split,
+   certified by one machine-checkable assert — sizes exactly
+   80,000/1,519/1,344, and exactly **66** of 943 users surviving to be
+   evaluated honestly.
+2. **LightGCN's propagation** (exercise 2): your `propagate` must
+   reproduce the lecture widget's hand numbers on the 7-node toy graph —
+   u2 holding exactly 0.250 of u1's signal at K=2, u3 hearing exactly
+   0.0625 at K=4, layer-mean readout verified.
+3. **BPR and the ladder** (exercise 3): the pairwise loss with its
+   hand-checkable tie point (log 2 exactly), then K=0 and K=3 trained
+   into measured bands — with the popularity baseline computed alongside,
+   because on this split it beats K=0, and finding that yourself is the
+   lesson.
+4. **The inflation experiment** (exercise 4): the same model, the same
+   budget, a random split — your own measured inflation must exceed ×1.4
+   (the lecture measured ×1.77). The week's central number, produced by
+   your notebook rather than a slide.
+
+Stretch: leave-last-out, NDCG's disagreement, the K ablation, a
+mini-memory re-ranker, and the temporal-sampler audit. **The final exam
+is next week** — [sample exam with solutions](../exams/final.qmd) is up.
+
+**Submitting.** One executed notebook on Moodle, run **full**: four
+checks ✓, claims, reflections. *Restart and run all* first. Grading:
+assertions 60% · claims 15% · reflections 25%. AI use with disclosure per
+the honor code.

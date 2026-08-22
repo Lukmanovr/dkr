@@ -1,0 +1,88 @@
+---
+title: "Policies"
+subtitle: "Grading · honor code & AI policy · late policy — the rules of the course, in one place"
+---
+
+## Grading
+
+| Component | Weight | Details |
+|---|---|---|
+| **Labs** | 15% | 14 graded lab notebooks; your **best 12** count, at 1.25% each. Graded on assertion checks (60%), claims paragraphs (15%), reflections (25%) |
+| **Homeworks** | 30% | 3 assignments × 10% — [HW1](homeworks/hw1.qmd) (due Oct 1), [HW2](homeworks/hw2.qmd) (due Oct 29), [HW3](homeworks/hw3.qmd) (due Nov 26) |
+| **Midterm** | 15% | Written, Week 8 slot (Oct 15), Weeks 1–7, closed book — [logistics](exams/midterm.qmd) |
+| **Project** | 20% | Team project, proposal Week 9 → midway Week 13 → report + presentation Week 15 — [details](project/index.qmd) |
+| **Final** | 20% | Written, Week 15 slot (Dec 3), cumulative with Weeks 9–14 emphasis; one-sided A4 cheat sheet + calculator allowed — [logistics](exams/final.qmd) |
+
+**Letter grades:** A ≥ 90 · B ≥ 75 · C ≥ 60 · D below 60. No curve: the
+cutoffs are fixed at the start of the semester, so classmates are
+collaborators, not competitors.
+
+**Lab grading mechanics.** Labs are due before the following week's lab
+session, submitted as one executed notebook on Moodle, run in **full** mode
+(not SMOKE), after *Restart & run all*. Because only your best 12 of 14
+count, two labs are effectively free — see the late policy below for why
+this replaces lab extensions.
+
+**Regrades.** Request within 7 days of a grade being posted, in writing,
+pointing at the specific rubric line you believe was misapplied. The whole
+item is regraded (the score can move either way).
+
+## Honor code & AI policy
+
+The course's one-sentence honor code: **submit only work you can explain.**
+
+**AI assistants** (Claude, ChatGPT, Copilot, and kin) are **allowed** for
+labs, homeworks, and the project, under two binding conditions:
+
+1. **Disclosure.** Every submission carries a line naming the tools used
+   and for what ("Claude for debugging exercise 3's sampler; Copilot for
+   plotting boilerplate"). "No AI used" is also a disclosure.
+2. **Explain on request.** At any point, in office hours or after
+   submission, you may be asked to explain any line of your submission —
+   what it does, why it is there, what would break without it. Inability
+   to explain your own submission is treated the same as undeclared use.
+
+Undeclared AI use, or declared use you cannot explain, is an honor-code
+violation: first instance zeroes the item, second goes to the university
+process. The policy's intent is not to slow you down — it is to keep the
+course's feedback loop honest: the asserts, claims, and reflections in
+every lab are designed so that *engaging with your own outputs* is the
+thing being graded, and an AI can help you get there but cannot be there
+for you.
+
+**Written exams** (midterm, final) allow **no AI and no devices**. The
+midterm is closed-book; the final allows one hand-written, one-sided A4
+sheet and a basic calculator, nothing else.
+
+**Collaboration between students** follows the same explain-on-request
+rule: discussing approaches is encouraged, sharing solution code is not,
+and every keystroke you submit must be one you can defend alone. Project
+teams share everything within the team, of course.
+
+## Late policy
+
+**Homeworks.** You have **three free late days** for the semester, usable
+in whole-day units across HW1–HW3, no questions asked — note the use in
+your submission comment. Beyond the free days, each additional day costs
+10% of that homework's score, and submissions close entirely 3 days after
+the deadline (solutions are discussed in labs after that).
+
+**Labs.** No late submissions — the best-12-of-14 rule *is* the slack: a
+missed week, a broken laptop, a bad fortnight are pre-forgiven twice, with
+no paperwork. Spend the two freebies wisely.
+
+**Project milestones.** The proposal (Week 9) and midway check (Week 13)
+are feedback gates, not graded gates — late costs you the feedback, which
+is its own penalty. The **final report and presentation (Week 15) cannot
+be late**: presentations are scheduled, and reports unlock exam-week
+grading; a report absent at the deadline scores what has been seen at the
+midway check.
+
+**Exams.** A missed exam with a documented university-approved excuse gets
+one make-up sitting with fresh questions from the same bank; anything
+else scores zero. Tell us *before* the exam when at all possible.
+
+**The blanket clause.** Life happens — medical issues, family emergencies,
+visa appointments. Write to the instructor *early*, before the deadline
+when you can; early messages get accommodations, forensic reconstructions
+after the fact mostly cannot.

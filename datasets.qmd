@@ -1,0 +1,53 @@
+---
+title: "Datasets"
+subtitle: "Every dataset the course touches — what it is, where it's used, how it downloads, and what to check before trusting a number on it"
+---
+
+Every lab and homework downloads its own data on first run (or ships with a
+loader that does), so nothing here needs manual setup — this page is the
+reference for what you are actually computing on. Sizes are approximate
+download sizes.
+
+| Dataset | What it is | Used in | Size | Source |
+|---|---|---|---|---|
+| **Zachary's karate club** | 34 members of a 1970s karate club, edges = social ties, the famous faction split | Weeks 1–2 (centrality, Fiedler), Week 12 (VGAE latent), Week 13 (RWSE fingerprints) | tiny (ships with networkx) | networkx built-in |
+| **Cora** (Planetoid) | 2,708 ML papers, 5,429 citations, bag-of-words features, 7 topics | Week 6 onward — the course's node-classification workhorse; Lab 12's link prediction | ~15 MB | via PyTorch Geometric |
+| **PROTEINS** (TUDataset) | 1,113 protein graphs, binary enzyme labels — small graph-classification suite | Lab 2 (structure-as-features baselines) | ~1 MB | via PyTorch Geometric |
+| **FB15k-237** | 14,541 entities, 237 relations, 310k triples — the KG-completion standard (inverse-leak-cleaned) | Week 4 (TransE/RotatE), Lab 4, Week 10 | ~30 MB | via PyTorch Geometric |
+| **DBLP** (hetero) | Authors/papers/terms/venues, 4 node types — typed-graph classification | Week 10, Lab 10 | ~30 MB | via PyTorch Geometric |
+| **ogbn-arxiv** | 169,343 arxiv CS papers, 1.2M citations, 40 classes, *timestamped* | Week 11 (the scaling laboratory), Lab 11, HW3's memory bills | ~90 MB | Open Graph Benchmark |
+| **ZINC (12k subset)** | 12,000 small molecules, constrained-solubility regression, bond features | Week 13 (the measured ladder), Lab 13 | ~30 MB | via PyTorch Geometric |
+| **MovieLens-100k** | 943 users × 1,682 movies, 100k *timestamped* ratings, seven months of 1997–98 | Week 14 (the protocol table), Lab 14 | ~5 MB | GroupLens |
+
+## The habits this page exists to trigger
+
+**Know the timestamps.** Two of the course's datasets (arxiv, MovieLens)
+carry real time, and both anchor a lecture about what time does to
+evaluation. If a dataset has timestamps and your split ignores them, Week
+14 measured what your number is worth (÷1.77).
+
+**Know the leaks.** FB15k-237 exists *because* its predecessor FB15k
+leaked (inverse relations made test triples trivially predictable — Week
+4's cautionary tale). Cora's citation edges make random node splits
+gently optimistic (connected test nodes see training labels two hops
+away — Week 1 said this before you had the vocabulary). Every standard
+dataset has a known-issues folklore; the reading list's papers cite it.
+
+**Know the scale class.** Karate fits on a napkin (that's its job); Cora
+fits in every model's full-batch mode; arxiv is where Week 11's bills
+start being real; industrial graphs are 3–6 orders beyond that. A method
+that only ever met Cora has never met the constraint that decides
+production architectures.
+
+**Licenses & citation.** All datasets above are standard academic
+research sets, redistributed through their official loaders (PyG, OGB,
+GroupLens) under their respective licenses; MovieLens asks for its
+[usage citation](https://grouplens.org/datasets/movielens/), and OGB
+datasets carry per-dataset citations on the
+[OGB site](https://ogb.stanford.edu/). Cite what you use in the project
+report — the rubric checks.
+
+**Project datasets.** Using something not on this list for your project
+is encouraged — the [topic list](project/topics.qmd) names candidates per
+direction, and the proposal template asks for exactly the four facts this
+page tracks: size, time structure, known leaks, license.

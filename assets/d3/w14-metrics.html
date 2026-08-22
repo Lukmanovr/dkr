@@ -1,0 +1,21 @@
+```{=html}
+<div class="interactive-container" id="w14-me-widget">
+  <div class="fig-label">Interactive · Recall@K and NDCG@K, anatomized</div>
+  <div class="widget-controls">
+    <button class="pill-btn" data-k="1" type="button">K = 1</button>
+    <button class="pill-btn" data-k="3" type="button">K = 3</button>
+    <button class="pill-btn active" data-k="5" type="button">K = 5</button>
+    <button class="pill-btn" data-k="10" type="button">K = 10</button>
+  </div>
+  <div id="w14-me-svg" role="img" aria-label="A ranked list of ten items with the three relevant ones at ranks one, four, and nine; moving the cutoff K recomputes Recall at K and NDCG at K from their definitions with all intermediate numbers shown, so at K equals five recall is two thirds and NDCG is 0.671"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 2.</strong> The two numbers every recommender
+  interview expects you to compute on a napkin, computed on a napkin.
+  <strong>Try this:</strong> go to K=10 — recall hits 1.000 (everything found) while
+  NDCG stays at 0.813, because the discount 1/log₂(r+1) never forgives rank 9 for
+  arriving late. Recall grades <em>coverage</em>; NDCG grades <em>placement</em>;
+  a ranking system needs both watched.</p>
+</div>
+```

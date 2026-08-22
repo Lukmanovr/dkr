@@ -1,0 +1,60 @@
+---
+title: "Lab 15 · Project presentations & retrospective"
+subtitle: "Week 15 · the lab slot after the final exam · presentations, then the course in one hour of hindsight"
+---
+
+No notebook this week. The final exam sits in the lecture slot
+([logistics & review](../exams/final.qmd)); the lab slot belongs to your
+projects.
+
+## Presentations
+
+**Format:** 8 minutes per team + 3 minutes of questions, order drawn at the
+start of the session. Slides optional; a live demo or a walked-through
+notebook is equally welcome. Timing is enforced kindly but firmly — a
+presentation that respects its budget is itself a graded skill.
+
+**The four slides that must exist** (however you format them):
+
+1. **The question** — the task, the graph, and why a graph model should
+   beat a non-graph baseline *here* (one slide, Week 1's discipline).
+2. **The protocol** — your split (and why it is leak-proof), your metrics,
+   your baselines. This slide earns or loses more points than any other:
+   we will look for the popularity/majority baseline, the split auditor,
+   and the honest candidate set (Weeks 12 and 14).
+3. **The measured table** — your ladder, with compute budgets stated. A
+   negative result presented honestly ("the graph did not help, and here
+   is the diagnosis") grades as well as a positive one — this course has
+   spent five weeks showing you how much that sentence is worth.
+4. **The one thing you'd do next** — with its predicted cost, in the
+   spirit of Week 11's bills.
+
+**Questions to expect from the room** (we seed them if the room is shy):
+which leak did you check for and how; what does your number answer that a
+random-split number would not; which Week's measured table does your
+result rhyme with — or argue with?
+
+**Report due** this week (see the [project page](../project/index.qmd) for
+the rubric and submission details). The report, not the talk, carries the
+grade's weight; the talk is where you find out which paragraph of the
+report is unclear.
+
+## Retrospective
+
+The last thirty minutes, after the final presentation, are the course's
+closing loop — no grades attached. Three prompts, discussed in the open:
+
+1. **The keeper.** Of everything measured this semester — the 290× crush,
+   the 0.363 leak, the ×1.77 split, the lookup that matched the encoder,
+   the popularity row — which number changed how you will work, and what
+   will you do differently because of it?
+2. **The gap.** Which week's machinery did your project actually need
+   that the course under-taught? (This answer edits next year's
+   syllabus — previous cohorts' answers already have.)
+3. **The transfer.** Name one system you interact with weekly that you
+   now read as a graph problem, and the protocol question you would ask
+   its owners first.
+
+Thank you for the semester. The [production map](../lectures/14-production.qmd)
+is yours now — go get employed by one of its sectors, and keep the
+popularity baseline in your pocket when you do.

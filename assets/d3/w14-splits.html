@@ -1,0 +1,20 @@
+```{=html}
+<div class="interactive-container" id="w14-sp-widget">
+  <div class="fig-label">Interactive · Three protocols, one truth</div>
+  <div class="widget-controls">
+    <button class="pill-btn" data-p="random" type="button">random split</button>
+    <button class="pill-btn" data-p="llo" type="button">leave-last-out</button>
+    <button class="pill-btn active" data-p="temporal" type="button">global temporal</button>
+  </div>
+  <div id="w14-sp-svg" role="img" aria-label="One user's twelve interactions on a timeline, painted train, validation, and test under three protocols: the random split scatters test items into the past so the future informs the past and scores 0.346, leave-last-out holds out each user's final item and scores 0.210, and the global temporal split draws a hard time wall and scores 0.195"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the protocol figure above carries the same three numbers.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 3.</strong> Week 12's split discipline, on a
+  clock. <strong>Try this:</strong> read the random protocol's timeline and find the
+  absurdity — the model trains on interactions 11 and 12, then "predicts" number 6.
+  Then press global temporal and watch the same model lose a third of its score: the
+  0.346 was never performance, it was leakage — ×1.77 of it, measured.</p>
+</div>
+```

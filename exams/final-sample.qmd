@@ -1,0 +1,368 @@
+---
+title: "Final · sample exam"
+subtitle: "90 minutes · 20 questions · cumulative, centered on Weeks 9–14 — the real exam follows this format exactly"
+---
+
+This is a full-length practice final **with solutions**. It mirrors the real
+exam (Thursday, December 3, in the lecture slot) in length, difficulty,
+coverage, and format; the real exam asks *different* questions from the same
+topics. Sit it cold, in one timed 90-minute block, with exactly the aids the
+real exam allows — then read the solutions and study from the misses (the
+[review page](final.qmd) says how).
+
+**Rules on the day**: written, on paper. Allowed: **one hand-written,
+one-sided A4 sheet** of your own notes and a **basic calculator**. No other
+notes, books, or devices. Multiple-choice questions have exactly one best
+answer. Open questions are graded for the reasoning, not just the final
+number. Each question is worth 2 points; 20 questions, 40 points total.
+Coverage is cumulative with its center of mass after the midterm: about
+fourteen questions from Weeks 9–14, six reaching back across Weeks 1–8.
+
+------------------------------------------------------------------------
+
+## The ceiling and its consequences (Week 9)
+
+**Q1 (open).** Let $G_1$ be the 6-cycle and $G_2$ be two disjoint triangles
+— both 2-regular on six nodes with identical (uniform) features. (a) What
+does 1-WL color refinement report about $G_1$ vs $G_2$, and after how many
+rounds does it stabilize? (b) Compute the $k{=}3$ random-walk return
+probability of a node in each graph, and state what quantity this entry
+detects.
+
+::: {.callout-note collapse="true" title="Solution"}
+(a) Every node in both graphs has degree 2 with degree-2 neighbors: the
+refinement is stable at the **first** round with one color everywhere, so
+1-WL declares the graphs indistinguishable (hence so does any MPNN on these
+features). (b) With $M = D^{-1}A$ and degree 2, each 3-step closed walk has
+probability $(1/2)^3 = 1/8$. Triangle node: two closed 3-walks (one per
+direction), so $(M^3)_{vv} = 2/8 = \mathbf{0.25}$. Cycle-of-6 node: a
+3-step return needs a 3-cycle, and $C_6$ has none — **exactly 0**. The
+entry is a (degree-normalized) **triangle detector**: a quantity provably
+invisible to message passing, delivered as a feature.
+:::
+
+**Q2 (mcq).** An MPNN must separate the two graphs of Q1. Which single
+change provably suffices?
+
+a. Add more message-passing layers.
+b. Replace mean aggregation with sum (GIN-style).
+c. ✔ Append each node's triangle count (or RWSE vector) to its input
+   features.
+d. Train longer with a better learning rate.
+
+::: {.callout-note collapse="true" title="Solution"}
+(c). Depth (a) and better aggregators (b) keep the model inside the 1-WL
+ceiling, and both graphs are 1-WL-identical; (d) cannot cross an
+expressiveness bound by optimization. Structural features change the
+*input*, which is the one door the ceiling theorem leaves open (Week 9's
+Route 2; Week 13 industrialized it).
+:::
+
+**Q3 (open).** A star graph has hub $h$ and leaves. With mean-aggregation
+message passing ($M = D^{-1}A$, no self-loops), the sensitivity of leaf
+$u$'s representation to leaf $v$'s input after 2 layers is proportional to
+$(M^2)_{uv}$. Compute it for a hub of degree 4 and a hub of degree 100, and
+name the phenomenon.
+
+::: {.callout-note collapse="true" title="Solution"}
+$(M^2)_{uv} = M_{uh} \cdot M_{hv} = 1 \cdot \tfrac{1}{d_h}$: for $d_h = 4$,
+$\mathbf{0.25}$; for $d_h = 100$, $\mathbf{0.01}$. **Oversquashing** (via
+the bottleneck hub): all leaf-to-leaf signal shares one node, and each
+leaf's contribution is diluted by the hub's full degree — the mechanism
+Week 9 measured as the 290× bridge crush, here in closed form.
+:::
+
+## Typed graphs (Week 10)
+
+**Q4 (open).** An R-GCN layer maps 32-dimensional inputs to 32-dimensional
+outputs over 10 relations. Count the relation-transform parameters (ignore
+self-loop and bias) (a) without basis decomposition, (b) with $B = 4$
+bases, and (c) state in one sentence when basis decomposition *hurts*.
+
+::: {.callout-note collapse="true" title="Solution"}
+(a) $R \cdot d^2 = 10 \cdot 1024 = \mathbf{10{,}240}$. (b) Bases:
+$B \cdot d^2 + R \cdot B = 4096 + 40 = \mathbf{4{,}136}$ — a 2.5× saving.
+(c) When relations genuinely need unrelated transforms (low-rank sharing
+underfits), or when $R$ is small enough that the full version wasn't the
+bottleneck — the decomposition is a *bet that relations share structure*.
+:::
+
+**Q5 (mcq).** In a scholar graph (author—paper—venue), you want author
+similarity for co-author recommendation. Which metapath-based comparison is
+most defensible?
+
+a. Authors linked to the same paper.
+b. ✔ Authors reachable via author–paper–author (shared papers), compared
+   against a degree-matched null.
+c. Authors whose papers share a venue, treated as equivalent to co-authors.
+d. All 2-hop neighbors regardless of node types on the path.
+
+::: {.callout-note collapse="true" title="Solution"}
+(b). A–P–A is the semantically correct "co-author" relation, and Week 10's
+discipline says any metapath count means little until compared against what
+degree alone would produce. (a) is direct co-authorship (already known,
+not a recommendation); (c) conflates venue-mates with collaborators —
+different semantics; (d) ignores types entirely, the exact failure typed
+graphs exist to prevent.
+:::
+
+## Scale (Week 11)
+
+**Q6 (open).** Neighbor sampling with fanout 10 per layer, 3 layers.
+(a) Bound the number of nodes touched to compute ONE node's output.
+(b) A colleague says "just use fanout 25 with 3 layers — memory is cheap."
+Compute their bound and give the one-sentence verdict.
+
+::: {.callout-note collapse="true" title="Solution"}
+(a) $1 + 10 + 100 + 1000 = \mathbf{1{,}111}$ nodes. (b)
+$1 + 25 + 625 + 15{,}625 = \mathbf{16{,}276}$ — nearly 15× more *per seed
+node*, multiplied across a batch; the exponent, not the fanout, is the
+enemy (Week 11's explosion measurement, in algebra).
+:::
+
+**Q7 (mcq).** Our Week 11 measurement: cluster-training with random
+partitions kept only ~2.5% of edges inside partitions, yet reached 0.628
+accuracy vs 0.665 full-batch on arxiv. The honest conclusion is:
+
+a. Inter-partition edges carry no information.
+b. The other 97.5% of edges were redundant for every task.
+c. ✔ For THIS task, most label-relevant signal was local or feature-borne,
+   so losing cross-partition edges cost little — a task property, not a
+   general license.
+d. Cluster-GCN is strictly better than full-batch training.
+
+::: {.callout-note collapse="true" title="Solution"}
+(c). The measurement shows the *cost* of the dropped edges on this
+task/dataset (−0.037), not their general uselessness; a task whose labels
+couple distant nodes (Week 13's long-range benchmarks) would punish the
+same trick severely. (a), (b) overgeneralize; (d) reverses the accuracy
+ordering we measured.
+:::
+
+**Q8 (open).** SGC removes the nonlinearities so that
+$\hat A^K X$ can be computed once, offline. State (a) what training then
+reduces to, and (b) the serving consequence that made this Week 14's
+recommender workhorse (one sentence each).
+
+::: {.callout-note collapse="true" title="Solution"}
+(a) Logistic/linear regression on precomputed features — every "graph" FLOP
+happens before the first gradient step, so training is minibatchable
+trivially and costs milliseconds per epoch (our 1.5 ms measurement).
+(b) Serving is a dot product against precomputed vectors — no graph access
+at inference time — which is exactly LightGCN's production story
+([the Week 14 proposition](../lectures/14-production.qmd#prp-w14-sgc)):
+all propagation is a fixed linear filter applied offline.
+:::
+
+## Links and leaks (Week 12)
+
+**Q9 (open).** Graph: edges $a\!-\!c$, $a\!-\!d$, $b\!-\!c$, $b\!-\!d$,
+$c\!-\!d$, $d\!-\!e$. For the candidate pairs $(a,b)$ and $(a,e)$, compute
+common-neighbors CN and Adamic–Adar
+$\mathrm{AA}(x,y) = \sum_{z \in N(x) \cap N(y)} 1/\ln d_z$, and rank the
+pairs.
+
+::: {.callout-note collapse="true" title="Solution"}
+Degrees: $d_c = 3$ (a, b, d), $d_d = 4$ (a, b, c, e). $(a,b)$: common
+neighbors $\{c, d\}$, CN $= 2$; AA $= 1/\ln 3 + 1/\ln 4 = 0.910 + 0.721 =
+\mathbf{1.63}$. $(a,e)$: common neighbor $\{d\}$, CN $= 1$; AA $=
+1/\ln 4 = \mathbf{0.72}$. Both heuristics rank $(a,b) \succ (a,e)$; note
+AA's mechanism — the shared *low-degree* neighbor $c$ contributes more
+evidence (0.91) than the popular $d$ (0.72), Week 12's "rare witnesses
+count more."
+:::
+
+**Q10 (mcq).** Week 12's leaky SEAL scored AUC 0.363 — *below* random.
+The correct reading is:
+
+a. The model underfit; train longer.
+b. The test set was too small for a reliable estimate.
+c. AUC below 0.5 is impossible without a bug in the metric.
+d. ✔ The model learned a leak-created signature present in training
+   positives and absent in test positives, so it *systematically*
+   anti-ranks the test set — strong evidence of leakage, stronger than a
+   random-looking score would be.
+
+::: {.callout-note collapse="true" title="Solution"}
+(d). The leak (target edge inside its own subgraph's labeling) gave train
+positives a signature that test positives lack; the model confidently
+fires on the signature's absence in the wrong direction. Sub-random
+performance means the model learned something *real about the pipeline*
+rather than the graph — Week 12's tripwire, and Lab 12's leak-switch
+exercise reproduced it at 0.363.
+:::
+
+**Q11 (open).** Name the four buckets of a leak-proof link-prediction
+split, one job each, and write the single assert that most often catches a
+broken pipeline.
+
+::: {.callout-note collapse="true" title="Solution"}
+**Message edges** (the graph the encoder reads), **train supervision
+positives** (edges the loss scores), **validation positives**, **test
+positives** (each with sampled negatives). Jobs: message edges must carry
+no supervision target; val/test edges must appear in *no* other bucket.
+The workhorse assert: *test (and val) positives have empty intersection
+with the message-edge set* — the leak that inflates most published
+numbers, and the first line of Lab 12's twelve-line auditor.
+:::
+
+## Attention arrives (Week 13)
+
+**Q12 (open).** For a node of the 4-cycle $C_4$, compute the RWSE entries
+$k = 2, 3, 4$ (with $M = D^{-1}A$), and state which entry certifies "this
+graph is bipartite-like around me" and why.
+
+::: {.callout-note collapse="true" title="Solution"}
+Degree 2 everywhere. $k{=}2$: return via either neighbor,
+$2 \cdot (1/2)(1/2) = \mathbf{0.5}$. $k{=}3$: needs a 3-cycle; $C_4$ has
+none — $\mathbf{0}$ (in fact **every odd $k$ is 0**: bipartite graphs
+have no odd closed walks). $k{=}4$: closed 4-walks are the $\pm 1$ step
+sequences summing to $0 \bmod 4$ — six with sum 0 plus one each all-left /
+all-right $= 8$ walks, each $(1/2)^4$: $8/16 = \mathbf{0.5}$. The *odd
+entries being zero* is the bipartite certificate (no odd cycles through
+the node).
+:::
+
+**Q13 (mcq).** Which statement about graph transformers is correct as a
+matter of *proof*, not preference?
+
+a. Full attention exceeds the 1-WL ceiling because every node sees every
+   node.
+b. ✔ Pure attention on uniform features cannot even separate the 4-node
+   path from the 4-node star; the expressiveness beyond 1-WL comes from
+   the positional/structural encodings, not the attention.
+c. Graph transformers remove the need for train/test splits at scale.
+d. Attention layers are always more expressive than GIN layers.
+
+::: {.callout-note collapse="true" title="Solution"}
+(b) — Week 13's proposition: with identical features, attention weights
+are uniform and the update is mean-pooling everyone; the edge set never
+enters, so a path and a star (different degree multisets, separated by
+1-WL in one round) are provably identical. RWSE/LapPE/distance biases —
+inputs — are what carry the beyond-WL information. (a) reverses the
+theorem; (d) is falsified by the same construction.
+:::
+
+**Q14 (open).** Our matched-budget ZINC ladder: MPNN 0.349, MPNN+RWSE
+0.296, GPS-lite 0.303 (test MAE, 100 epochs each); tuned literature GPS:
+≈0.070 at ~10× schedule. State (a) one conclusion this table licenses,
+(b) one conclusion it does NOT license, and (c) the diagnosis for why
+attention failed to pay *here*.
+
+::: {.callout-note collapse="true" title="Solution"}
+(a) Licensed: *at this budget, on this task*, the structural encoding
+delivered a large gain nearly free while global attention delivered none —
+so ingredients must be priced separately at matched cost. (b) Not
+licensed: "attention doesn't work for molecules" (the 0.070 shows the
+architecture family reaches far better MAE under a different budget —
+comparing across budgets is the leaderboard sin). (c) ZINC molecules
+average ~23 atoms with tiny diameters: four local layers already reach
+every atom, so range — attention's only unique product — had no buyer;
+the binding constraint was expressiveness, which RWSE treats.
+:::
+
+## Production (Week 14)
+
+**Q15 (open).** A ranked list of 10 items; the user's relevant items sit
+at ranks 2 and 5, and $|P| = 4$ relevant items exist in total. Compute
+Recall@5 and NDCG@5 (use $1/\log_2(r+1)$ gains; calculator allowed).
+
+::: {.callout-note collapse="true" title="Solution"}
+Hits in top 5: ranks 2 and 5 → 2 hits. Recall@5 $= 2/\min(4,5) = 2/4 =
+\mathbf{0.5}$. DCG@5 $= 1/\log_2 3 + 1/\log_2 6 = 0.631 + 0.387 = 1.018$.
+IDCG@5 $= 1/\log_2 2 + 1/\log_2 3 + 1/\log_2 4 + 1/\log_2 5 = 1 + 0.631 +
+0.5 + 0.431 = 2.562$. NDCG@5 $= 1.018 / 2.562 = \mathbf{0.397}$.
+:::
+
+**Q16 (mcq).** Your recommender's Recall@20 is 0.34 under a random split
+and 0.19 under a global temporal split (our Week 14 measurement's shape).
+Which number belongs in the report to the team deciding deployment, and
+why?
+
+a. 0.34 — it uses more test users and is statistically stronger.
+b. The average, 0.27 — balancing both protocols.
+c. ✔ 0.19 — deployment trains on the past and predicts the future, which
+   is the temporal protocol's question; the 0.34 answers an
+   interpolation question no deployed system is ever asked.
+d. Whichever is higher — protocols are conventions.
+
+::: {.callout-note collapse="true" title="Solution"}
+(c). The random split lets training interactions postdate test ones, so
+its number measures leakage-assisted interpolation (our measured
+inflation: ×1.77). Statistical width (a) does not repair asking the wrong
+question; (b) averages a truth with an artifact.
+:::
+
+**Q17 (open).** LightGCN deletes three things from a GCN layer. Name them
+and give the ID-feature justification for each in one sentence.
+
+::: {.callout-note collapse="true" title="Solution"}
+**Weight matrices** — with free embeddings as inputs there is no fixed
+feature basis to remix; any useful rotation can be absorbed into the
+embeddings, so $W$ adds only optimization burden. **Nonlinearity** —
+between averaging steps it discards sign/magnitude structure that
+dot-product scoring uses, and ablations show removing it *helps*.
+**Self-loops** — replaced by the layer-mean readout, which keeps the
+$k{=}0$ embedding in the final answer and tempers oversmoothing at the
+same time.
+:::
+
+## Across the whole course (Weeks 1–8, integrative)
+
+**Q18 (open).** DistMult scores $f(h, r, t) = \langle e_h, w_r, e_t
+\rangle = \sum_i e_{h,i} w_{r,i} e_{t,i}$. (a) Show in one line why it
+cannot represent an *asymmetric* relation. (b) Name the model fixing this
+by design and the mechanism.
+
+::: {.callout-note collapse="true" title="Solution"}
+(a) The trilinear form is symmetric in $h, t$: $f(h,r,t) = f(t,r,h)$ for
+every embedding choice, so "$h$ manages $t$" and "$t$ manages $h$" always
+tie. (b) RotatE (or ComplEx): complex-valued embeddings where $r$ acts as
+a rotation, $t \approx h \circ r$ — rotations compose and invert, so
+direction matters and asymmetry (and composition) become representable
+(Week 4's pattern table).
+:::
+
+**Q19 (mcq).** Path graph $1\!-\!2\!-\!3$, GCN normalization $\hat A =
+\tilde D^{-1/2}(A + I)\tilde D^{-1/2}$, input $x = (1, 0, 0)^\top$. One
+propagation step $\hat A x$ gives node values (calculator allowed):
+
+a. $(0.50,\ 0.41,\ 0)$ ✔
+b. $(1,\ 0.5,\ 0)$
+c. $(0.33,\ 0.33,\ 0.33)$
+d. $(0.50,\ 0.33,\ 0.17)$
+
+::: {.callout-note collapse="true" title="Solution"}
+Augmented degrees: $\tilde d = (2, 3, 2)$. $(\hat A x)_1 = x_1/\tilde d_1
+= 1/2 = 0.50$; $(\hat A x)_2 = x_1 / \sqrt{\tilde d_1 \tilde d_2} =
+1/\sqrt{6} = 0.41$; node 3 has no path to the signal in one step: 0.
+Answer (a). (d) forgets that one step reaches only neighbors; (c) is
+mean-field nonsense; (b) forgets normalization.
+:::
+
+**Q20 (open).** A 5-million-node citation graph, node classification,
+model retrained and redeployed weekly on one GPU. Recommend: (a) the
+architecture family, (b) the training strategy, (c) the split, and (d) the
+first two baselines — each with a one-sentence course-grounded reason.
+
+::: {.callout-note collapse="true" title="Solution"}
+A strong answer (grading favors constraint-first reasoning over any fixed
+choice): (a) a 2-layer GraphSAGE-style sampled GNN *or* SGC/precompute if
+homophily is high — arxiv-scale evidence says simple wins at fraction of
+cost. (b) Neighbor sampling (bounded memory per batch, Week 11's 1,111-
+node arithmetic) or full precompute for SGC; weekly retrain fits either.
+(c) **Temporal**: train on papers before a cutoff, evaluate on later
+papers — deployment predicts *future* citations, and Week 14 measured
+what random splits do to such claims. (d) Logistic regression on features
+alone, then majority-vote-of-neighbors (or label propagation): if the GNN
+cannot clearly beat both, the graph or the pipeline is not yet earning
+its complexity (the course's Week 2/6 baseline discipline).
+:::
+
+------------------------------------------------------------------------
+
+**After sitting it:** grade yourself against the solutions, sort misses
+into *couldn't start* (reread that week's lecture section), *wrong number*
+(redo the hand computation from its lab), and *wrong reading* (reread the
+relevant measured table and its verdict paragraph — most final-exam points
+in this course are earned by knowing which question a number answers).

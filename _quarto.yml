@@ -57,6 +57,8 @@ website:
             text: "12 · Link Prediction & Generation"
           - href: lectures/13-transformers.qmd
             text: "13 · Graph Transformers"
+          - href: lectures/14-production.qmd
+            text: "14 · Graphs in Production"
       - section: Labs
         contents:
           - href: labs/lab01.qmd
@@ -85,6 +87,10 @@ website:
             text: "Lab 12 · Leak-proof links & generation"
           - href: labs/lab13.qmd
             text: "Lab 13 · RWSE, CSL & the GPS block"
+          - href: labs/lab14.qmd
+            text: "Lab 14 · The temporal wall & LightGCN"
+          - href: labs/lab15.qmd
+            text: "Lab 15 · Project presentations"
       - section: Assessments
         contents:
           - href: homeworks/hw1.qmd
@@ -97,6 +103,10 @@ website:
             text: "HW2 · Deep models (due Oct 29)"
           - href: homeworks/hw3.qmd
             text: "HW3 · Frontiers (due Nov 26)"
+          - href: exams/final.qmd
+            text: "Final · review & logistics (Dec 3)"
+          - href: exams/final-sample.qmd
+            text: "Final · sample exam + solutions"
       - section: Project
         contents:
           - href: project/index.qmd
@@ -109,6 +119,14 @@ website:
             text: Reading list
           - href: notation.qmd
             text: Notation reference
+          - href: datasets.qmd
+            text: Datasets
+          - href: policies.qmd
+            text: Policies
+          - href: faq.qmd
+            text: FAQ
+          - href: staff.qmd
+            text: Staff
   page-footer:
     left: "DKR · Innopolis University · Fall 2026 · content [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), code MIT"
     right: "Built with [Quarto](https://quarto.org) · [Source](https://github.com/lukmanovr/dkr)"

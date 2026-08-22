@@ -1,0 +1,887 @@
+---
+title: "Graphs in Production"
+subtitle: "Week 14 · Thursday, November 26, 2026 · 90 minutes"
+description: "The last machinery lecture: time enters the graph (TGN's memory), recommenders from first principles (LightGCN derived, then measured: popularity 0.166 humbles K=0 at 0.156, and every propagation layer climbs past it to 0.195), the split that decides whether your number is real (random inflates ×1.77), relational deep learning, and the map of where this field employs people."
+date: 2026-11-26
+date-modified: last-modified
+format:
+  html:
+    toc-depth: 3
+---
+
+::: {.content-visible when-format="html"}
+
+::: {.callout-tip title="Learning objectives" icon="false"}
+After this lecture (and Lab 14) you can:
+
+1. **model** temporal graphs as snapshots or event streams and explain TGN's
+   memory / message / embedding loop at architecture level;
+2. **derive** LightGCN from Week 6's GCN — justifying each deletion — and
+   train it with BPR; tell the PinSage web-scale story accurately;
+3. **evaluate** a recommender properly: Recall@K and NDCG@K computed by hand,
+   and a split that respects time — with the measured cost of not doing so;
+4. **explain** Relational Deep Learning: a company database as a temporal
+   heterogeneous graph, and why RelBench threatens hand-built feature
+   pipelines;
+5. **place** GraphRAG, fraud detection, and your own project on the
+   production map of graph ML.
+:::
+
+## A Thursday at a marketplace company
+
+Picture the company this course has been secretly preparing you for: a
+marketplace — buyers, sellers, listings, payments, messages. Walk its
+machine-learning floor on a Thursday morning. One team ships the
+recommendation feed: a bipartite graph of users and items, a hundred
+million interactions a day, embeddings served in milliseconds. Two desks
+over, the integrity team hunts fraud rings: a heterogeneous graph of
+accounts, devices, cards, and addresses — Week 10's typed machinery with
+an adversary on the other side. Down the hall, the analytics-ML group is
+quietly replacing five years of hand-built features with a model that
+reads the company's *database itself* as a graph. And the newest hire is
+wiring the support chatbot to a knowledge graph so it stops inventing
+refund policies — Week 5, employed.
+
+Nothing in this picture is hypothetical: it is a composite of the job
+postings this course's final section will map, and the four desks
+disagree about almost everything — architectures, latencies, failure
+costs — except the discipline this lecture teaches.
+
+Four teams, four systems, one syllabus. Everything on that floor is
+machinery you now own: message passing, embeddings, negative sampling,
+sampling at scale, split discipline. What none of our previous weeks
+supplied — and what every desk on that floor fights daily — is **time**.
+Interactions arrive as a stream, not a matrix. The graph you trained on
+is stale by lunch. And the evaluation question stops being "how well does
+the model score on held-out edges" and becomes the only question
+production ever asks: *how well does what I trained on the past predict
+the future?* This week is about what time does to graph ML — to the
+models (a memory), to the training (an ordering), and above all to the
+evaluation (a wall). It is the last lecture of new machinery in this
+course, and it ends, fittingly, with a map of where all of it goes to
+work.
+
+One framing sentence to carry through: **production graph ML is this
+course's models under this course's discipline, with the clock as a new
+adversary.** The models will turn out to be *simpler* than what you
+built in Weeks 10–13 — the star of today's measured section deletes
+almost everything from GCN. The discipline gets *harder*, because time
+gives leakage a thousand new doors. Simple models, strict protocols:
+that inversion is the single most reliable description of the field's
+production reality, and by the end of the lecture you will have measured
+exactly why it holds.
+
+## Time enters the graph
+
+A graph, so far, has been a fact: $G = (V, E)$, frozen. Production
+graphs are histories: an **event stream** of timestamped edges
+$(u, v, t, \mathbf{x})$ — user $u$ clicked listing $v$ at time $t$ with
+context $\mathbf{x}$ — arriving forever. Two modeling stances exist, and
+the choice is the first design decision of any temporal system.
+
+**Snapshots** (discrete time): slice the stream into windows — the graph
+as of each day, each hour — and run any static GNN per slice, optionally
+with a sequence model (an RNN, a transformer) stitched across slices.
+Cheap, compatible with everything you know, and *lossy in exactly one
+way*: within a window, order disappears. If an account receives money
+and forwards it away within one window, the snapshot shows a node with
+one in-edge and one out-edge — the *sequence*, which is the entire fraud
+signal, is gone. Snapshots are the right answer when the phenomenon's
+natural timescale is slower than your window, and quietly wrong
+otherwise.
+
+**Event streams** (continuous time): consume the events one by one, in
+order, and maintain per-node *state*. This is the stance of the temporal
+graph network family, and its architecture is worth holding as one loop:
+
+{{< include ../assets/figures/fig-w14-tgn.html >}}
+
+Every event $(u, v, t)$ generates a **message** for each endpoint — a
+function of the two nodes' current states, the time gap since each was
+last seen, and the event's features. The message updates each node's
+**memory** $s_u$ through a recurrent cell (a GRU: Week 3's lookup table,
+upgraded to something that *changes* when the world does). When a
+prediction is needed, an **embedding module** — typically one or two
+layers of attention over recent temporal neighbors — computes a fresh
+representation from the memory, correcting for staleness: a node last
+seen hours ago should not be represented as if its memory were current,
+and the time-difference input lets the model learn exactly how to decay
+its confidence. Memory carries the deep past cheaply; the embedding
+layer reads the recent past sharply; the division of labor is the
+architecture.
+
+Three consequences deserve engraving. First, **inference is a stream
+too**: the deployed model updates memories as events arrive — the model
+you serve at noon is not the model you served at nine, by design.
+Second, **training must respect the arrow**: batches are consecutive
+slices of the event stream, each processed with memories as they stood
+*before* it — shuffle the events like i.i.d. samples and you have built
+a machine that reads the future, which is this lecture's evaluation sin
+committed inside the forward pass. Third, the **temporal neighbor
+sampler** — "give me this node's last 20 interactions before time $t$" —
+is Week 11's sampling machinery with a timestamp filter, and building it
+wrong (allowing neighbors *after* $t$) is the single most common
+implementation bug in the genre. Lab 14's stretch has you feel it.
+
+The training subtlety deserves one more level of detail, because it is
+where every first implementation goes wrong and where the published
+architecture is genuinely clever. Within a training batch, the naive
+order of operations — update memories with the batch's events, then
+predict the batch's events — lets each prediction read a memory that
+already contains the event being predicted: self-leakage, one event
+wide. TGN's fix is a **raw message store**: events update memories one
+batch *late*, so a batch is always predicted from state that predates
+it, and the gradient still reaches the memory functions through the
+delayed update. It is Week 12's leak taxonomy in miniature — the
+information that must not flow is not "the future" loosely, but *this
+exact edge* — and the fix is the same shape as SEAL's: remove the
+target from what the model conditions on. When you audit any temporal
+model, this is the first question: *at the moment of predicting event
+$e$, prove to me the state excludes $e$.*
+
+Also worth naming, because interviews love it: the stream stance
+handles **deletions and updates** naturally (an unfriend, a refund, a
+price change is just another event updating memory), while snapshots
+must re-materialize; and conversely, snapshots parallelize trivially
+(every slice is an independent static-GNN job — Week 11's cheapest kind
+of scale) while streams serialize on the memory. Neither stance
+dominates; the timescale of the phenomenon decides, and mature systems
+often run both — a stream model for the fast signals riding on
+snapshot-refreshed base embeddings.
+
+That is TGN at architecture level — the level this course needs, because
+the deeper lesson is not the GRU's equations but the shape: *state per
+node, updated by events, read out on demand*. You will meet the shape
+again in the fraud section, in RDL's temporal tables, and in any system
+whose graph will not sit still.
+
+## The recommender: a graph problem wearing a product
+
+Now to the floor's biggest desk. Recommendation is, by a wide margin,
+graph ML's largest production deployment, and its core object could not
+be more familiar: a **bipartite graph**, users on one side, items on the
+other, an edge per interaction. Our laboratory this week is the classic
+MovieLens-100k: 943 users, 1,682 movies, exactly 100,000 timestamped
+ratings spanning seven months of 1997–98 — about 106 interactions per
+user, a density of 6.3%. Laughably small by industry standards, and
+precisely right for the course's method: small enough to train a full
+ladder in a minute, real enough for every protocol lesson to transfer
+unchanged.
+
+Start from what Week 3 would do: give every user and every item a
+learned embedding, score a pair by the dot product
+$\hat{y}_{ui} = e_u \cdot e_i$, and train the embeddings so observed
+interactions score high. That is **matrix factorization** (MF), the recommender workhorse of two
+decades and the engine of the Netflix Prize era, and note carefully
+what it is in this course's vocabulary: a *zero-layer* GNN — embeddings straight to
+scores, the graph consulted only to say which pairs are positive. The
+co-consumption structure — users who share items, items that share
+users — never touches the model's forward pass.
+
+Week 6 taught the machine that would use it: message passing over the
+interaction graph. So run the obvious experiment — put a GCN on the
+bipartite graph. The field did, with enthusiasm: the late-2010s
+produced increasingly ornate neural recommenders, GCN variants with
+gated interactions and attention flourishes stacked on the bipartite
+graph. Then came one of the field's healthiest papers, whose
+contribution was *deletions*: the LightGCN authors took the reigning
+graph recommender, removed its pieces one ablation at a time, and
+found that accuracy went **up** with each removal — the feature
+transforms and nonlinearities were not merely dead weight but actively
+in the way, complicating optimization on a problem whose inputs carry
+no feature structure to transform. It is the cleanest published
+instance of a pattern this course has now measured three times
+(Week 10's lookup beating the R-GCN encoder; Week 13's attention
+buying nothing at matched budget): *capacity that the task cannot use
+is not neutral — it costs optimization, and honest ablations find
+this*. On interaction graphs with no features but IDs, most of the GCN
+is dead weight, and here is why each piece falls. The feature transform
+$W$? There are no feature axes to remix — every input is a free
+embedding that training can pre-rotate however it likes; a $W$ can only
+re-parameterize what the embeddings already express. The nonlinearity?
+Between two averaging steps it mostly discards sign information that
+dot-product scoring needs. The self-loop? Replaced by something better,
+as you will see. Delete all three and what survives is **LightGCN**:
+
+{{< include ../assets/figures/fig-w14-lightgcn.html >}}
+
+Propagation only:
+$$e_u^{(k+1)} = \sum_{i \in N(u)} \frac{e_i^{(k)}}{\sqrt{d_u d_i}},
+\qquad
+e_i^{(k+1)} = \sum_{u \in N(i)} \frac{e_u^{(k)}}{\sqrt{d_u d_i}},$$
+followed by the one non-obvious design choice, the **layer-mean
+readout**: the final embedding is the average of *all* layers,
+$e = \frac{1}{K+1}\sum_{k=0}^{K} e^{(k)}$. This is why the self-loop
+could go — the mean keeps every node's own signal (the $k{=}0$ term) in
+the final answer at full strength while the propagated terms add
+neighborhood context, and it simultaneously tempers Week 7's
+oversmoothing: deep layers contribute, but diluted by the average
+rather than compounding.
+
+Drive the propagation yourself before believing anything about it:
+
+{{< include ../assets/d3/w14-propagate.html >}}
+
+The widget is the argument for the whole architecture. At $K{=}0$, u1's
+signal reaches no other user: plain MF, every user an island connected
+only to its own items. At $K{=}2$, the **co-consumption hop** arrives —
+u2 holds mass 0.250 of u1's signal, received *entirely* through the
+shared item i2 — and this is the exact information MF structurally
+cannot receive: "users like you liked…" as a term in the forward pass
+rather than a slogan on a slide. At $K{=}4$ even the stranger u3 hears a
+whisper (0.063, via u2's items). Collaborative filtering's folk wisdom,
+recast as Week 6 mathematics: *similar users* means *short even-length
+paths in the bipartite graph*, and propagation depth is the radius of
+"similar."
+
+One proposition makes the connection to this course's spine exact, and
+it is worth stating formally because it explains both LightGCN's speed
+and its limits.
+
+::: {.proposition #prp-w14-sgc}
+LightGCN's encoder is linear in its parameters: with $E^{(0)}$ the
+stacked user–item embedding matrix and $\hat A$ the symmetrically
+normalized bipartite adjacency, the final embeddings are
+$E = \frac{1}{K+1}\sum_{k=0}^{K} \hat A^{k} E^{(0)}$ — a fixed
+polynomial in $\hat A$ applied to the only learnable object, $E^{(0)}$.
+LightGCN is SGC (Week 11) with identity features: all depth is
+precomputable structure, and the "network" trains nothing but the
+lookup table.
+:::
+
+The proof is the definition read twice: no $W$, no nonlinearity, so the
+layer map is multiplication by $\hat A$, and compositions of linear maps
+collapse. Week 11's consequences transfer wholesale — the polynomial
+$\frac{1}{K+1}\sum_k \hat A^k$ can be applied once, offline, making
+industrial serving a dot product against precomputed vectors — and so
+does the ceiling: whatever a fixed linear filter cannot express, no
+amount of LightGCN training recovers. Week 6's spectral eyes add the
+final reading: $\frac{1}{K+1}\sum_k \hat A^k$ is a low-pass filter on
+the interaction graph — it amplifies embedding components that vary
+smoothly across co-consumption neighborhoods and shrinks the jagged
+ones, with the layer-mean's coefficients $(1, 1, \dots, 1)/(K{+}1)$
+giving a gentler roll-off than $\hat A^K$ alone (which is why the mean
+oversmooths less than the last layer would). "Collaborative filtering"
+turns out to be literal: the collaboration is the graph, and the
+filtering is Week 6's, applied to a learned signal. The recommender that dominates
+production is, in this course's terms, the *simplest model of Week 11*
+pointed at the *simplest graph of Week 1*. Simple models, strict
+protocols.
+
+Before the loss, one structural caution that the propagation equations
+carry quietly. Averaging over neighborhoods gives high-degree items
+gravitational pull: a bestseller sits in millions of user
+neighborhoods, so every propagation layer spreads its embedding wider
+and pulls user vectors toward it — **popularity bias, amplified by the
+very mechanism that makes the model work**. The $1/\sqrt{d_u d_i}$
+normalization is the counterweight (a hub's outgoing influence is
+discounted by its own degree — Week 6's normalization debate, now with
+a business consequence), and it is only partial: production systems add
+explicit popularity corrections in sampling, in the loss, or
+post-ranking, because a feed that converges to "everyone gets the
+bestseller list" is a feed that no longer needs its model — and worse,
+its *logs* then teach the next model the same lesson. The feedback
+loop is real, it compounds quarterly, and the popularity baseline you
+are about to see embarrass MF is also the attractor the whole system
+drifts toward when nobody prices this bias.
+
+And its mirror image: **cold start**. A brand-new user or item has no
+edges, so every mechanism in this section — propagation, BPR, the dot
+product itself — has literally nothing to grip; an ID embedding with no
+interactions is a random vector. Production's answers come from
+outside the interaction graph: content features (a *two-tower* encoder
+maps item text and images, and user context, into the same space, so
+new items land near their kin by content alone), onboarding
+questionnaires, and popularity fallbacks while the first edges accrue.
+Remember this when our temporal wall discards 877 of 943 users as
+unevaluable: the discard is the honest protocol's way of *pointing at*
+the cold-start subproblem, not a license to forget it exists.
+
+**Training: BPR.** What loss? Week 4 already taught it, under another
+name. Observed interactions are positives; everything unobserved is not
+a negative but an *unknown* — the user has not seen most items, and
+"unseen" must not be taught as "disliked." So train on *pairs*: for user
+$u$, observed item $i$, and a sampled unobserved item $j$, Bayesian
+Personalized Ranking asks only that the observed one score higher:
+$$\mathcal{L} = -\log \sigma\!\big(e_u \cdot e_i - e_u \cdot e_j\big)
++ \lambda \lVert \Theta \rVert^2 .$$
+Why pairs and not labels? Because the tempting pointwise alternative —
+binary cross-entropy with observed = 1, unobserved = 0 — teaches the
+model a falsehood at scale: it spends most of its gradient pushing
+scores of *never-shown* items toward zero, including precisely the
+items the user would love, which are the ones the system exists to
+find. BPR's pairwise form only ever asserts the comparison actually
+supported by the data — "this user chose $i$ while $j$ sat unchosen" —
+and its gradient makes the mechanics vivid: the update is proportional
+to $\sigma(-x_{uij})$, the model's *disbelief* in the correct ordering,
+so confidently-ranked pairs teach nothing and each step spends itself
+on the violations. Read that twice and you will recognize Week 4's
+TransE session: push the positive pair up, the sampled negative down,
+learn from ranking violations rather than absolute labels. Ranking
+losses, negative sampling, the same worries (popular items get sampled
+as negatives too often, so production samplers correct toward
+popularity; hard negatives help until they poison — a near-duplicate
+of the watched item is a *false* negative) — the KG embedding toolbox
+transfers to recommenders nearly verbatim, because both problems are
+"score the true edge above the fake one" at heart. One course, one
+loss family, two industries.
+
+**And the web-scale coda: PinSage.** The story every practitioner should
+be able to tell in four sentences. Pinterest, 2018: three billion nodes,
+eighteen billion edges — the first GNN at genuinely industrial scale,
+years before the tooling made that routine. The architecture was Week
+7's GraphSAGE; the achievement was Week 11's chapter executed at full
+force: neighborhoods defined not by adjacency but by **random-walk
+importance** (visit counts from short walks — Week 2's PageRank
+intuition drafted into sampling), aggregation weighted by those counts,
+training with a curriculum of progressively harder negatives (Week 4's
+lesson, industrialized), and inference run as a giant MapReduce sweep so
+that every node's embedding is computed exactly once per layer.
+Nothing in PinSage is a new idea by Week 14 of this course — and that is
+the point worth saying out loud: at scale, the innovations are
+*systems*, and the model is deliberately boring.
+
+Which raises the question the papers rarely spell out: what does
+*serving* a recommender actually look like? The proposition below
+supplies the answer's first half — LightGCN's graph work can be done
+offline, leaving each user and item a fixed vector. The second half is
+one of applied ML's great workhorse tricks: with scores that are dot
+products, "find this user's top $K$ items" is a **maximum inner
+product search**, and approximate nearest-neighbor indexes answer it
+in sub-millisecond time over hundreds of millions of items — the
+difference between a ranking model and a ranking *product* is largely
+this index. Hence the canonical two-stage shape of every large feed:
+a cheap embedding **retrieval** stage narrows a hundred million
+candidates to a few hundred (this lecture's models live here), then a
+heavy **ranker** — often a plain gradient-boosted or deep tabular
+model stuffed with features, including graph-derived ones — orders the
+survivors with the expensive context (freshness, diversity, business
+rules) that dot products cannot carry. When the map at the end of this
+lecture says "recommendation employs the most graph ML," it mostly
+means that retrieval stage: embeddings from a bipartite graph, served
+from an ANN index, refreshed on a schedule whose staleness someone has
+consciously priced.
+
+## Grading a ranker: two numbers, computed on a napkin
+
+Before any measurement can be honest, the metric has to be understood at
+the fingertip level. A recommender's output is a *ranking* — for each
+user, all items they have not yet interacted with, ordered by score —
+and ranking metrics have a small anatomy that fits in one widget:
+
+{{< include ../assets/d3/w14-metrics.html >}}
+
+**Recall@K**: of the items the user actually went on to like, what
+fraction sat in the top $K$? (We cap the denominator at
+$\min(|P|, K)$ so a user with thirty positives cannot be "failed" by a
+twenty-slot window.) It grades *coverage* and ignores order within the
+window — a hit at rank 1 and a hit at rank 19 count the same.
+**NDCG@K** adds the accounting Recall refuses: each hit at rank $r$
+earns $1/\log_2(r+1)$ — rank 1 pays 1.0, rank 4 pays 0.43, rank 9 pays
+0.30 — and the sum is normalized by the best achievable arrangement, so
+1.0 means "everything found *and* front-loaded." Drive the widget's $K$
+to 10 and read the disagreement: recall reaches 1.000 (everything
+found) while NDCG sits at 0.813, still charging for the hit that
+arrived at rank 9. Coverage versus placement; a feed with eight slots
+cares desperately about the difference.
+
+You have run this metric family before, under other names. Week 4's KG
+completion graded rankings with MRR and Hits@K, and its *filtered*
+protocol — remove the already-known true triples from the candidate
+list before ranking — reappears here as masking the user's training
+items from the ranked list, same move, same justification: don't
+penalize the model for ranking highly something we *told* it. The
+recommender twist is the **candidate set**: ranking against all 1,682
+items (our protocol) and ranking against 100 sampled candidates are
+different examinations wearing the same metric's name, and the sampled
+one is dramatically easier — mid-2020s audits showed sampled metrics
+can invert system orderings outright. A reported Recall@20 without its
+candidate-set sentence is a number wearing no units.
+
+Both metrics come with a habit worth automating: **always compute the
+popularity baseline.** Rank every user the same global bestseller list
+and score it. It costs one line, and this lecture's measured section is
+about to show you why skipping that line has embarrassed more than one
+published table.
+
+## The split is the experiment
+
+Here is the week's centerpiece, and the course's oldest lesson wearing
+its production uniform. We trained the *same* LightGCN ($K{=}3$,
+$d{=}64$, BPR, seed 0) on the *same* 100,000 interactions under three
+evaluation protocols, and the three numbers it returned are not three
+estimates of one quantity — they are three different quantities:
+
+{{< include ../assets/figures/fig-w14-splits.html >}}
+
+::: {.predict}
+**Commit before you look.** The random split scored 0.346. Before
+reading on: *why* is that number a lie for a deployed recommender? Name
+the mechanism — what exactly does the model see at training time that
+deployment will never grant it?
+
+::: {.predict-answer}
+Under a random split, 20% of interactions are hidden uniformly across
+the timeline — so for a typical user, the model trains on interactions
+from *after* the ones it is tested on. It learns from March to
+"predict" January. Deployment only ever runs the other direction: train
+on everything up to now, predict what has not happened yet. The random
+number measures interpolation into a known past; the deployed system
+performs extrapolation into an unknown future; measured on the same
+model, the gap between those two tasks is a factor of 1.77.
+:::
+:::
+
+Walk the timeline yourself — one user, three protocols, and the moment
+the absurdity clicks is the moment this section is over:
+
+{{< include ../assets/d3/w14-splits.html >}}
+
+The **global temporal split** is deployment's actual contract: a hard
+wall at the 80% timestamp (for our seven months of data, March 7,
+1998), train strictly before, test strictly after — and note the
+auditing convenience that makes it Lab 14's exercise 1: the contract
+is *checkable by machine*, since `max(train timestamps) ≤ min(test
+timestamps)` is one assert, whereas "no leakage" under fancier schemes
+takes a page of argument. Protocols you can assert beat protocols you
+can only defend. It is also brutally
+honest about a cost the other protocols hide: of 943 users, only **66**
+have test interactions that the wall permits evaluating (the rest went
+quiet, or are new-and-unseen — cold start, of which more below). A
+thin, awkward, honest evaluation population. **Leave-last-out** — hold
+out each user's final interaction — is the literature's usual
+compromise: 940 evaluable users, per-user time respected, but global
+time scrambled (user A's held-out "future" may predate user B's
+training "past", so item popularity statistics still leak across the
+wall). And the **random split** is the protocol Week 12 taught you to
+refuse, now with a recommender-shaped price tag: **0.346 versus 0.195,
+a ×1.77 inflation, from the split alone.** Nothing about the model
+changed. Nothing about the data changed. The number nearly doubled.
+
+If you keep one sentence from this lecture, keep the figure's caption:
+*the metric is a property of the model AND the protocol, and quoting
+one without the other is not a result — it is an advertisement.*
+
+## The measured ladder, honestly read
+
+With the honest protocol fixed, the architecture question becomes
+answerable: what does each propagation layer actually buy? The
+protocol card first, as always: MovieLens-100k, all 100,000
+interactions as implicit positives; global temporal 80/10/10; LightGCN
+$d = 64$, BPR with uniform negatives, Adam, early stopping on
+validation Recall@20 checked every 20 epochs; one seed; popularity
+baseline included because the previous section said so. Test Recall@20,
+best-validation checkpoint:
+
+{{< include ../assets/figures/fig-w14-ladder.html >}}
+
+Read it with the widget-1 story in hand. **Popularity scores 0.1655 —
+and beats matrix factorization** ($K{=}0$: 0.1562). Sit with that
+before rushing past: a sorted list of bestsellers, no learning
+whatsoever, outperforms 60,000 trained parameters. On a temporal split
+this is not even unusual — late-1990s moviegoers really did watch what
+was popular, new releases dominate the future window, and MF's
+personalization cannot compensate for never hearing the co-consumption
+signal. Every recommender paper that skips the popularity row is hiding
+the possibility of exactly this row. **Then the graph pays, layer by
+layer**: $K{=}1$ 0.1749, $K{=}2$ 0.1851, $K{=}3$ 0.1953 — each hop of
+"users like you" worth roughly two points of recall, monotone, at a
+training cost that never exceeds ten seconds on this dataset. The
+ladder's shape *is* widget 1's story measured: what popularity gets for
+free (global co-consumption) and MF never receives, propagation
+delivers in increments.
+
+Note also what the ladder cost: the slowest rung trained in ten
+seconds, the whole table — five models, early stopping, evaluation — in
+under a minute of GPU. At this dataset's scale, *experiments are free
+and the protocol is the scarce resource*: there is no compute excuse
+for a missing baseline row or an unmeasured ablation, and when you
+graduate to graphs where a rung costs a day, the habits formed where
+rungs cost seconds are what keep the expensive table honest. That is
+half the pedagogical reason this course runs on small public data; the
+other half is that every number above is one you can reproduce tonight.
+
+Two honesty footnotes, both of the kind this course refuses to hide in
+appendices. First, NDCG@20 disagrees with Recall@20 about the interior
+of the ladder ($K{=}1$ scores 0.1675, a hair above $K{=}3$'s 0.1662,
+with $K{=}2$ at 0.1621 between them) — coverage improves monotonically
+with depth, placement does not, and a product decision between those
+models would hinge on which the surface rewards. When two reasonable
+metrics disagree about an ordering, the honest report shows both, and
+the suspicious reader asks which one the paper chose to headline.
+Second, remember the 66 users: every number in the ladder carries wide
+error bars, and the *protocol* conclusions (popularity's strength, the
+×1.77) are far more robust than any single third decimal. Small honest
+numbers beat large dishonest ones; that ranking never changes.
+
+## The database is a graph: relational deep learning
+
+Return to the marketplace floor — the analytics-ML group replacing
+feature pipelines. Their old workflow is the one most of applied ML
+still runs: to predict churn, an analyst *joins* users to orders to
+payments to tickets, *aggregates* ("orders in last 30 days", "days
+since last ticket"), and feeds the resulting flat row to a gradient-
+boosted tree. Look at that workflow with Week 14 eyes: the joins walk
+foreign keys, the aggregations pool over neighborhoods, the time
+windows filter by timestamp. **The analyst is executing a hand-rolled,
+frozen, two-layer temporal GNN** — choosing its receptive field, its
+aggregators, and its depth by hand, per task, forever.
+
+Walk one prediction to make the claim concrete. Churn, for user 4711,
+predicted as of June 1. The analyst's features: `orders_last_30d`
+(join users→orders, filter timestamp, count), `avg_ticket_sentiment`
+(join users→tickets, aggregate a text score), `favorite_category_share`
+(join through orders→items→categories, normalize). Now the graph view:
+user 4711 is a node; its foreign-key edges reach its orders, its
+tickets; theirs reach items, agents, categories. A two-layer typed GNN
+with time-masked neighborhoods computes, for this node, *learned*
+aggregations over exactly those join paths — plus every other
+two-hop path the schema affords, including the ones no analyst
+proposed, like "tickets about items from categories this user stopped
+buying." The feature pipeline is a GNN with its weights chosen by
+committee and frozen in a wiki; the GNN is a feature pipeline that
+back-propagates. Once seen, the correspondence is hard to unsee — and
+the time-masked neighborhood ("use only rows stamped before $t$") is
+the database world's beloved *as-of join*, which is to say: this
+lecture's temporal wall, discovered independently by every discipline
+that ever predicted anything.
+
+Relational Deep Learning names the systematic version of that
+replacement. A relational
+database *is* a graph, by construction: every row a node typed by its
+table, every foreign key an edge, every timestamp an event time. On
+that graph, a temporal heterogeneous GNN — Week 10's typed message
+passing plus this lecture's time discipline — learns the joins and
+aggregations end-to-end, task-supervised, instead of inheriting
+whichever ones the analyst thought to write. RelBench, the field's
+benchmark suite, poses exactly the production tasks (churn, sales
+forecasts, clinical outcomes) on real multi-table databases, with —
+note the reunion — *temporal splits mandated by the benchmark itself*:
+every task says "predict at time $t$ using only rows stamped earlier,"
+because the databases' owners live downstream of the answer. Early
+results follow a pattern you can now predict without reading the
+papers: learned models match or beat hand-featured trees on most tasks
+while deleting the per-task pipeline work, and the honest caveats live
+exactly where this lecture's discipline says to look — entity
+resolution, staleness, and whether the tabular baseline got the same
+feature budget. The bridge Week 10 built — "your company's most
+valuable graph is the one already sitting in Postgres" — is, as of the
+mid-2020s, being driven across in production, and it is the single most
+likely place a student of this course will apply graph ML without
+anyone calling it graph ML.
+
+## Fraud, GraphRAG, and the map
+
+Two shorter placements complete the floor. **Fraud and integrity** is
+Week 10 plus Week 14 under adversarial pressure: a heterogeneous graph
+(accounts, devices, cards, IPs, addresses) where the signal is
+overwhelmingly *relational* — a fraudster can fake any node's features,
+but faking a *neighborhood* means acquiring devices, cards, and
+histories, which is expensive precisely in proportion to how much the
+model reads structure. Rings show up as dense typed subgraphs sharing
+scarce resources; mule chains show up as *ordered* payment paths, which
+is why the snapshot-versus-stream decision from this lecture's opening
+is a fraud team's daily bread, and why their models are temporal, their
+labels arrive weeks late (chargebacks), and their evaluation walls are
+non-negotiable. What makes the sector intellectually distinct is that
+the distribution shift is *directed*: fraudsters A/B test the
+detector. Feature-level camouflage adapts in days (aged accounts,
+plausible profiles, human-like pacing); structural camouflage adapts
+slowly, because it is bought with real resources — which is why
+integrity models lean harder on graph signal than any other production
+sector, and why their offline metrics decay faster than anyone's. The
+honest evaluation here is not even "train past, test future" but
+"train past, test future, *assume the future has read your feature
+list*" — adversarial validation, the split discipline's final boss. **GraphRAG** you already built in Week 5: retrieval
+over a curated knowledge graph grounding a language model's answers.
+Its Week 14 lesson is operational — the graph is a *product* that
+someone must keep fresh, deduplicated, and versioned, and the retrieval
+subgraph is a *provenance trail* that makes the system auditable in a
+way embedding-only retrieval is not. The team that owns it spends its
+weeks on extraction pipelines (Week 5's information-extraction
+plumbing, now with LLMs doing the first pass and humans auditing the
+long tail), on entity resolution (the same "is this the same node"
+problem RDL hits in customer tables), and on freshness SLAs — when the
+refund policy changes at 2 p.m., the graph, not the model, is what
+makes the chatbot right by 2:05. It is the sector where this course's
+Weeks 4–5 are the whole job description.
+
+Which completes the tour, and earns the map:
+
+{{< include ../assets/d3/w14-map.html >}}
+
+Click your own project's sector and read its "taught in" line — then
+click the others anyway, because careers move sideways more often than
+job titles admit. The map
+is not a list of applications bolted onto a theory course — it is the
+syllabus, re-sorted by employer. Recommendation runs on Weeks 3, 6, 11,
+and today. Fraud runs on Weeks 2 and 10 with today's clock. Drug
+discovery runs on Weeks 7, 9, 12, 13. KG platforms run on Weeks 4 and
+5. And the frontier sector — relational deep learning — runs on
+precisely the combination (typed graphs, scale discipline, temporal
+splits) that the last five weeks assembled. Every sector lists Week 14
+because production is not a topic; it is where the topics converge
+under one constraint, the clock.
+
+## Common pitfalls
+
+**Random splits on temporal interaction data.** The ×1.77 is not a
+worst case — it is a *median* case, and it compounds: model selection
+on a leaky split picks the model best at exploiting leakage. If the
+data has timestamps, the split uses them; no exceptions survive
+contact with this lecture's figure.
+
+**The temporal neighbor sampler that peeks.** "Last 20 interactions
+before $t$" implemented as "last 20 interactions" is a one-character
+bug ( a missing `< t` filter) that silently hands every temporal model
+the future's neighborhoods; nothing crashes, metrics glow, deployment
+disappoints. Audit it the way Lab 14's stretch does: query a node at a
+timestamp in the middle of its history and assert every returned
+neighbor predates it.
+
+**Skipping the popularity baseline.** One line of code stood above
+60,000 trained parameters on our honest split. A recommender result
+without the popularity row is unfalsifiable in the cheapest possible
+way, and reviewers in this field increasingly treat its absence as a
+tell.
+
+**Reporting the metric without the candidate set.** Recall@20 against
+all 1,682 items is one problem; Recall@20 against 100 sampled
+candidates is a much easier one, and mid-2020s audits showed sampled
+metrics can even *reorder* systems. Say what was ranked against what,
+always.
+
+**Confusing offline metrics with the product.** Recall@K measured on
+logged data grades a model against yesterday's behavior — which
+yesterday's deployed model shaped (the feedback loop), and which the
+new model will change (Goodhart). Offline numbers select candidates;
+only the online A/B grades them. Teams that forget this ship models
+that win the replay and lose the quarter.
+
+**Serving stale embeddings.** Precompute-and-serve (the
+[@prp-w14-sgc] blessing) has a decay constant: the user who binged a
+new genre this morning is still yesterday's vector at noon. Staleness
+is a *choice* with a price curve — TGN-style memory, periodic refresh,
+or accepting the decay — and the wrong choice is the invisible kind,
+because the metric that would expose it is computed offline, where
+nothing goes stale.
+
+**Cold start as an afterthought.** Our temporal wall left 877 of 943
+users unevaluable — and a real system meets those users every hour.
+Pure ID embeddings have literally nothing to say about a node with no
+edges; production systems bolt on content features, two-tower
+encoders, or popularity fallbacks. If your evaluation quietly drops
+cold nodes (ours did, and said so), your headline number describes
+only the warm world.
+
+## In this week's lab
+
+[Lab 14](../labs/lab14.qmd): you build the temporal split and its
+auditor (the wall's date, the three-bucket asserts, the honest count of
+surviving test users); implement LightGCN's propagation and hit
+hand-computed masses on the widget's toy graph exactly; write the BPR
+loss and train the ladder's rungs $K{=}0$ and $K{=}3$ into measured
+bands; and run the week's signature experiment — the same model under
+the random split — asserting that your own inflation ratio exceeds 1.4,
+so that the lecture's central number becomes something your notebook
+did, not something a slide claimed. The claims paragraph asks for the
+popularity sentence, the co-consumption sentence, and the protocol
+sentence, cells cited. Stretch: leave-last-out, NDCG's disagreement,
+and a mini-TGN memory on the event stream.
+
+## Required reading
+
+- **He et al. — LightGCN: Simplifying and Powering Graph Convolution
+  Network for Recommendation** (SIGIR 2020). Read §2 for the deletion
+  experiments (what happens as each GCN part is removed) and notice the
+  ablation discipline — the paper *earns* its simplicity claim
+  empirically, which is why it aged well.
+- **Rossi et al. — Temporal Graph Networks for Deep Learning on Dynamic
+  Graphs** (2020). The memory / message / embedding decomposition of
+  §3 is the architecture-level understanding this lecture requires; the
+  staleness discussion around the embedding module is the part
+  practitioners quote.
+
+Optional: Ying et al., *PinSage* (KDD 2018) — read it as a systems
+paper and count the Week 11 techniques; Fey et al., *RelBench /
+Relational Deep Learning* (2024) — the database-as-graph position paper,
+with the temporal-split mandate worth imitating everywhere; the
+Temporal Graph Benchmark line of work, for the same protocol
+standardization applied to TGN-style models (its headline finding —
+rankings scramble when evaluation gets harder negatives and real
+temporal splits — should sound familiar five sections after our own
+table); and Ferrari Dacrema et al., *Are We Really Making Much
+Progress?* (RecSys 2019) — the audit that found simple, well-tuned
+baselines beating a decade of neural recommenders under honest
+protocols. Read that last one the way this course has taught you to:
+not as cynicism about neural methods, but as a demonstration that the
+field's tables were measuring tuning effort and protocol looseness —
+and that whoever controls the baseline controls the conclusion. It is
+this lecture's evaluation sermon delivered as a crime report, and it
+is why our own ladder carries a popularity row.
+
+## Check your understanding
+
+**Q1.** Derive LightGCN from GCN: name the three deletions and give the
+one-sentence justification for each on ID-featured bipartite graphs.
+
+<details><summary>Answer</summary>
+Delete the weight matrices $W$ (inputs are free embeddings — any
+useful linear remix can be absorbed into the embeddings themselves, so
+$W$ only adds parameters and optimization surface); delete the
+nonlinearity (between averaging steps it mostly destroys sign/magnitude
+information that dot-product scoring needs, and ablations show it
+hurts); delete the self-loop, replacing it with the layer-mean readout
+(the $k{=}0$ term keeps every node's own embedding in the final answer,
+while averaging tempers oversmoothing).
+</details>
+
+**Q2.** Your colleague's MF recommender reports Recall@20 = 0.34 on
+MovieLens with a random split. Using this lecture's measurements, what
+do you predict happens to that number under a global temporal split,
+and what *specifically* leaks under the random one?
+
+<details><summary>Answer</summary>
+Expect roughly a 40–45% drop (our K=3 fell 0.346 → 0.195, ×1.77). The
+leak: with interactions hidden uniformly in time, most users have
+training interactions that *postdate* their test interactions, so the
+model learns future co-consumption patterns (and future item
+popularity) to "predict" the past. Deployment never gets that gift —
+it extrapolates forward only.
+</details>
+
+**Q3.** Popularity beat BPR-MF on our temporal split (0.1655 vs
+0.1562) yet lost to it under leave-last-out (0.1266 vs 0.2096). Explain
+both directions in the course's vocabulary.
+
+<details><summary>Answer</summary>
+The temporal test window is dominated by what was globally popular
+*in that future period* (new releases), which the popularity ranker
+tracks for free while MF — barred from the co-consumption signal —
+cannot personalize its way past it with only past data. Leave-last-out
+evaluates one item per user scattered across the whole timeline, so
+global future popularity matters less and personalization pays;
+also its 940-user population versus temporal's 66 changes what is even
+being averaged. Same models — the protocols ask different questions.
+</details>
+
+**Q4.** State [@prp-w14-sgc] and give its two production consequences.
+
+<details><summary>Answer</summary>
+LightGCN's encoder is $E = \frac{1}{K+1}\sum_k \hat A^k E^{(0)}$ — a
+fixed polynomial in the normalized adjacency applied to the trained
+embedding table; it is SGC with identity features. Consequences:
+serving is precompute-and-dot-product (all graph work done offline,
+Week 11's discipline), and the expressiveness ceiling of a fixed linear
+filter applies — plus the corollary cost of precomputation: staleness,
+which must be managed as an explicit choice.
+</details>
+
+**Q5.** A payments fraud team debates snapshots-per-hour versus an
+event-stream model. Give one concrete fraud pattern that decides the
+question, and say which Week 14 architecture component captures it.
+
+<details><summary>Answer</summary>
+Mule-chain forwarding: money enters an account and leaves it minutes
+later, repeatedly along a path. Hourly snapshots collapse each hop's
+*order* — in-edge and out-edge coexist with no sequence — so the
+defining signal vanishes. An event-stream model's per-node memory
+(TGN's GRU state) updates on the incoming transfer *before* the
+outgoing one arrives, so the order is encoded in the state trajectory.
+</details>
+
+**Q6.** Compute by hand: ranked list of 10, relevant items at ranks 2
+and 6, $|P| = 2$. Recall@5 and NDCG@5?
+
+<details><summary>Answer</summary>
+Top 5 contains the rank-2 hit only: Recall@5 = 1/min(2,5) = **0.5**.
+DCG@5 = $1/\log_2 3 = 0.631$; IDCG@5 = $1/\log_2 2 + 1/\log_2 3 =
+1.631$; NDCG@5 = $0.631/1.631 = \mathbf{0.387}$.
+</details>
+
+**Q7.** Why does RelBench *mandate* temporal splits rather than merely
+recommending them, and what does the analyst-with-joins comparison
+predict about where learned models win most?
+
+<details><summary>Answer</summary>
+Database tasks are forecasting tasks by nature — "will this customer
+churn" is only meaningful with information up to a cutoff — so a random
+split would let the model read post-outcome rows (support tickets filed
+*after* the churn) and produce numbers unrelated to deployment; the
+mandate makes the leak impossible rather than discouraged. The
+comparison predicts learned models win most where useful signal lies in
+joins the analyst didn't think to write — deep, multi-hop, or
+cross-table interactions beyond the standard feature recipes — and win
+least where decades of feature craft already encode the graph walk.
+</details>
+
+**Q8.** Your project's offline Recall@20 improved 8% over the deployed
+model. Name the two reasons this does not yet justify shipping, and the
+mechanism behind each.
+
+<details><summary>Answer</summary>
+Feedback loop: the logged data was generated under the old model's
+exposure choices, so offline replay grades the new model on the old
+model's world — items the new model would surface were rarely shown,
+hence rarely logged as positives (the improvement may be
+under- or over-stated). Goodhart: deployment changes user behavior
+itself, and a model optimized hard against the offline proxy can win
+the proxy while degrading the product (clickbait-shaped ranking). Both
+are resolved only by an online A/B — offline metrics nominate, the
+experiment decides.
+</details>
+
+## Where this leaves us
+
+The last machinery lecture of the course closes its oldest loop. Week 1
+promised that graphs were a way of seeing systems; Week 14 showed the
+systems that pay for the seeing. The models today were deliberately
+modest — a lookup table with a memory, a GCN with everything deleted —
+and that modesty is the finding: at production scale, with the clock
+running, the winning moves are Week 11's precomputation, Week 12's
+split discipline, Week 4's ranking losses, Week 2's baselines. The
+sophistication lives in the *protocol*, which is exactly where this
+course has been putting it all semester.
+
+It is also worth saying what this week's measured table adds to the
+course's growing shelf of honest verdicts, because the shelf now reads
+as one argument. Week 10: a frozen lookup matched a trained encoder —
+architecture is not automatically signal. Week 11: a random partition
+survived on 2.5% of the edges — scale bends but rarely breaks the
+simple thing. Week 12: a leak scored *below* random — protocols fail
+loudly if you build them to. Week 13: the encoding paid and the
+attention didn't, at one budget — ingredients must be priced
+separately. Week 14: the split alone moved the number ×1.77, and a
+sorted list beat a trained model — the protocol *is* the result. Five
+tables, one thesis: in this field, at this moment, careful measurement
+is the scarcest skill — scarcer than architectural novelty, and, on
+the evidence of your own notebooks, entirely learnable.
+
+Close the loop — one minute, no notes: the three GCN deletions and why
+each is safe on ID features; the co-consumption hop's mass at $K{=}2$
+on the widget graph; the three protocol numbers and which one
+deployment signs; popularity's number and what it humbled; TGN's three
+components and the one-batch-late trick that keeps them honest. If any
+of the five stalls, its section is a four-minute reread tonight and a
+zero-minute regret on Thursday. Then do the transfer test that decides
+whether this week actually landed: pick any system you use daily — a
+feed, a map, a fraud check at checkout — and narrate its graph, its
+clock, its split, and its probable baseline. If you can, you have the
+week; if a step stalls, you have found tonight's rereading.
+
+Because next Thursday is the final exam — cumulative, with its center
+of mass on Weeks 9–14, one A4 sheet of your own notes allowed. The best
+revision artifact you own is widget 4: pick each sector, and for each
+"taught in" week, reconstruct that week's one measured table and its
+one-sentence verdict. The course taught perhaps two dozen numbers
+worth carrying; the exam, like production, mostly checks whether you
+know which question each number actually answers. Lab slot this week:
+project presentations rehearsal and the last office hours before the
+exam. Bring the cheat sheet you have already started; writing it is the
+revision.
+
+:::
+
+::: {.content-visible when-format="html"}
+{{< include ../assets/d3/w14-scripts.html >}}
+:::

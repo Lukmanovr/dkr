@@ -1,0 +1,23 @@
+```{=html}
+<div class="interactive-container" id="w14-pr-widget">
+  <div class="fig-label">Interactive · LightGCN propagation, by hand</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-k="0" type="button">K = 0</button>
+    <button class="pill-btn" data-k="1" type="button">K = 1</button>
+    <button class="pill-btn" data-k="2" type="button">K = 2</button>
+    <button class="pill-btn" data-k="3" type="button">K = 3</button>
+    <button class="pill-btn" data-k="4" type="button">K = 4</button>
+  </div>
+  <div id="w14-pr-svg" role="img" aria-label="A small bipartite user-item graph where one unit of signal starting on user u1 spreads step by step under LightGCN's degree-normalized propagation, with the exact mass on every node displayed; after two steps user u2 holds 0.250 through the shared item, and user u3 first receives mass at step four"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the LightGCN figure above shows the same graph and equations.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 1.</strong> LightGCN's entire mechanism, one
+  unit of signal at a time — every number is one multiplication by 1/√(dᵤdᵢ) you can
+  redo on paper. <strong>Try this:</strong> step to K=2 and watch the co-consumption
+  hop arrive: u2 hears about u1 <em>only</em> because they share item i2 — the exact
+  signal plain matrix factorization (K=0) never receives, and the reason the measured
+  ladder climbs with every layer.</p>
+</div>
+```
