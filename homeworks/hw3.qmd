@@ -1,0 +1,54 @@
+---
+title: "Homework 3 · Frontiers"
+subtitle: "Weeks 9–12 · out Nov 12 · due Thursday, Nov 26, 23:59"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/homeworks/hw03_frontiers.ipynb){target="_blank"}
+
+**≈ 5–10 hours · individual work · 10% of the course grade**
+
+One notebook, three parts, covering expressiveness, typed message passing,
+scaling audits, and link prediction discipline:
+
+- **Part A · Derivations (30 pts).** Four proofs in markdown cells: the
+  $K_{3,3}$-vs-prism pair no GNN can separate (and the one-scalar feature
+  that can); the R-GCN parameter audit on a skewed 58-relation schema; the
+  3-layer SGC collapse and the task where the deleted nonlinearity was
+  load-bearing; and the formal 0.5-AUC theorem for symmetric decoders on
+  direction prediction.
+- **Part B · Implementation (60 pts, autograded, fully deterministic).**
+  Three modules you will reuse for the rest of your career: the capacity
+  auditor (memory bill + fanout bound + fits/OOM verdicts, asserted on the
+  lecture's arxiv and products numbers); the split validator that must catch
+  four planted leaks by name; and the ranking-metrics module (pairwise AUC,
+  Hits@K, MRR) that must reproduce the model-A/model-B metric disagreement.
+- **Part C · Investigation (10 pts).** The negatives experiment: Adamic–Adar
+  under uniform vs degree-matched negatives, with a report on what hardening
+  costs and what that says about uniform-negative evaluations.
+
+## Rubric
+
+| Part | Points | Graded by |
+|---|---|---|
+| A1 blind pair · A2 typed audit · A3 SGC · A4 symmetric decoder | 8 + 8 + 7 + 7 | TA, per proof step |
+| B1 · B2 · B3 | 20 + 20 + 20 | autograder (visible + hidden variants) |
+| C mechanism · claims · scope | 4 + 4 + 2 | TA |
+
+Late policy: −10% per day, up to 3 days; nothing accepted after solutions
+are released. Regrade window: one week after grades post.
+
+## FAQ
+
+**Part B says deterministic — does SMOKE matter?** No: Part B has no
+training and no sampling beyond fixed seeds, so SMOKE and full runs agree
+by construction. Run *Restart and run all* and submit.
+
+**Can I hand-write Part A?** Yes — paste a *legible* photo into the
+markdown cell.
+
+**May I use an AI assistant?** Yes, with disclosure in the final cell, per
+the honor code; you must be able to explain any line and any proof step in
+person.
+
+**Something is broken / ambiguous.** Post in the course forum thread for
+HW3 — clarifications get pinned there.

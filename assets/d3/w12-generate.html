@@ -1,0 +1,24 @@
+```{=html}
+<div class="interactive-container" id="w12-ge-widget">
+  <div class="fig-label">Interactive · Judge the generator</div>
+  <div class="widget-controls">
+    <button class="pill-btn" data-src="train" type="button">training graphs</button>
+    <button class="pill-btn active" data-src="model" type="button">GraphRNN samples</button>
+    <button class="pill-btn" data-src="er" type="button">ER baseline</button>
+  </div>
+  <div id="w12-ge-svg" role="img" aria-label="Four real sample graphs from the chosen source — training community graphs, trained GraphRNN samples, or an Erdos-Renyi baseline — with degree and clustering histograms compared against the training distribution and total-variation distances computed live"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. The
+    samples are real outputs of the model trained in scripts (see the generation
+    figure above for the measured verdict).</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 4.</strong> You cannot eyeball "did the
+  generator learn the distribution" — but you can measure it: compare statistics of
+  samples against held-out graphs. <strong>Try this:</strong> flip between the RNN's
+  samples and the ER baseline and watch the clustering histogram: ER matches the
+  density but has no idea triangles cluster inside communities (TV 0.596 vs the
+  model's 0.154 in the full experiment). Evaluation-by-statistics is the field's
+  honest compromise — and its blind spots (two very different graphs can share
+  histograms — Week 9 says hello) are exam material.</p>
+</div>
+```

@@ -1,0 +1,27 @@
+```{=html}
+<div class="interactive-container" id="w12-vg-widget">
+  <div class="fig-label">Interactive · A real VGAE latent, decoded</div>
+  <div class="widget-controls">
+    <span style="font-size:0.85rem">σ(z·z) threshold:</span>
+    <button class="pill-btn" data-t="0.5" type="button">0.50</button>
+    <button class="pill-btn" data-t="0.6" type="button">0.60</button>
+    <button class="pill-btn active" data-t="0.7" type="button">0.70</button>
+    <button class="pill-btn" data-t="0.8" type="button">0.80</button>
+    <button class="pill-btn" data-t="0.9" type="button">0.90</button>
+  </div>
+  <div id="w12-vg-svg" role="img" aria-label="The two-dimensional latent means of a variational graph autoencoder trained on the karate club, with edges decoded wherever the sigmoid of the latent dot product exceeds a chosen threshold, and live counts of recovered, invented, and missed edges"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. The
+    latent coordinates are baked from a really-trained model (reconstruction AUC
+    0.929, scripts/figgen/w12_figs.py).</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 3.</strong> This is not a diagram — it is the
+  actual 2-D latent space of a VGAE we trained on the club, and the decoder is the
+  humble inner product. <strong>Try this:</strong> walk the threshold up from 0.50
+  and watch the trade announce itself: recovered edges fall, invented edges fall
+  faster. The factions separate in latent space because edges pull endpoints
+  together — Week 3's embedding story, now with a probabilistic decoder and a KL
+  leash. What the dot product can never express, Week 4 already told you: ask it
+  for an asymmetric relation and read Q-and-A below.</p>
+</div>
+```

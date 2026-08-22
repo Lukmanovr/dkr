@@ -64,7 +64,10 @@ const JS_WIDGETS = ["w2-centrality", "w2-pagerank", "w2-wl", "w2-louvain",
                     "w7-agg", "w7-sage", "w7-gat", "w7-ablation",
                     "w9-wl", "w9-trees", "w9-power", "w9-squash",
                     "w10-typed", "w10-params", "w10-metapath", "w10-showdown",
-                    "w11-explosion", "w11-sampler", "w11-sgc", "w11-table"];
+                    "w11-explosion", "w11-sampler", "w11-sgc", "w11-table",
+                    "w12-split", "w12-heuristic", "w12-vgae", "w12-generate"];
+// widgets whose scripts depend on baked data files (loaded first)
+const DATA_DEPS = { "w12-vgae": ["w12-vgae-data.js"], "w12-generate": ["w12-gen-data.js"] };
 
 export function listFigures() {
   return readdirSync(FIGDIR).filter((f) => f.endsWith(".html")).map((f) => f.replace(/\.html$/, ""))
@@ -76,7 +79,7 @@ export function harnessFor(name, theme) {
   const frag = stripFences(readFileSync(join(dir, `${name}.html`), "utf8"));
   const vars = Object.entries(THEMES[theme]).map(([k, v]) => `${k}: ${v};`).join(" ");
   const scripts = JS_WIDGETS.includes(name)
-    ? ["d3.v7.min.js", "_dkr.js", `${name}.js`]
+    ? ["d3.v7.min.js", "_dkr.js", ...(DATA_DEPS[name] || []), `${name}.js`]
         .map((f) => `<script src="${pathToFileURL(join(WIDGETDIR, f)).href}"></script>`).join("")
     : "";
   return `<!doctype html><html><head><meta charset="utf-8"><style>

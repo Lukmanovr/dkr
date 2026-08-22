@@ -1,0 +1,23 @@
+```{=html}
+<div class="interactive-container" id="w12-he-widget">
+  <div class="fig-label">Interactive · Heuristics vs ten hidden edges</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-h="cn" type="button">common neighbors</button>
+    <button class="pill-btn" data-h="aa" type="button">Adamic–Adar</button>
+    <button class="pill-btn" data-h="jac" type="button">Jaccard</button>
+    <button class="pill-btn" data-h="pa" type="button">pref. attachment</button>
+  </div>
+  <div id="w12-he-svg" role="img" aria-label="The karate club with ten edges hidden: each heuristic ranks every non-edge of the message graph, its top ten guesses are drawn bold, and hits against the hidden truth are counted"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the AUC ladder figure above carries the Cora-scale numbers.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 2.</strong> Before any learning: rank the
+  non-edges by a formula from Week 2 and see how many hidden edges the top ten
+  catches. <strong>Try this:</strong> compare common neighbors against
+  preferential attachment — degree×degree chases hubs and finds few truths, while
+  triangle-closing lenses do honest work with zero parameters. On Cora these
+  heuristics score AUC 0.72; whatever a learned model earns must be measured
+  <em>above</em> that floor, not above a coin.</p>
+</div>
+```

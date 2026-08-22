@@ -1,0 +1,894 @@
+---
+title: "Link Prediction and Graph Generation"
+subtitle: "Week 12 · Thursday, November 12, 2026 · 90 minutes"
+description: "The task flips: predicting the edges themselves — proper message/supervision splits, the heuristic floor (measured: 0.724), VGAE's variational encoder (0.903), SEAL's labeling trick (0.897 clean, 0.363 with one leaked label — worse than a coin) — and then graphs from nothing: GraphRNN's row-by-row autoregression, diffusion at a glance, and generation judged by statistics."
+date: 2026-11-12
+date-modified: last-modified
+format:
+  html:
+    toc-depth: 3
+---
+
+::: {.content-visible when-format="html"}
+
+::: {.callout-tip title="Learning objectives" icon="false"}
+After this lecture (and Lab 12) you can:
+
+1. **construct** a leakage-proof link prediction setup: message vs supervision edges, temporal vs random splits, negative sampling for evaluation, and metrics chosen to match the deployment (Hits@K/MRR vs AUC);
+2. **derive** the VGAE objective — GCN encoder, inner-product decoder, reparameterization, ELBO — and implement it;
+3. **explain** SEAL's enclosing-subgraph + labeling-trick idea, and prove why plain node embeddings cannot express what it expresses;
+4. **describe** autoregressive generation (GraphRNN's ordering and RNNs) and diffusion-based generation (DiGress, at architecture level), and evaluate generated graphs by distribution statistics;
+5. **articulate** where generation matters — molecules, synthetic data, anonymization — and what its evaluation cannot see.
+:::
+
+## The week a model scored 0.363
+
+Every predictive week of this course has assumed the graph. Nodes carried
+the labels to guess; the edges were simply *given* — the stage, never
+the play. But run
+through what the applications actually ask: recommend a product (predict a
+user–item edge), suggest a collaborator (author–author edge), flag a
+missing interaction (drug–protein edge — Week 5's toy KG was this task in
+miniature), complete a knowledge base (Week 4's whole enterprise),
+resolve duplicate records (an is-the-same-entity edge), warn about a
+likely fraud connection before it consummates. Half of applied graph ML
+is **link prediction** — the graph predicting its own missing parts — and
+you have, in fact, already done it twice without the name: Week 3's
+walk-embedding link experiment (where we measured the famous +17-point
+leak) and all of Weeks 4–5's KG completion, which is link prediction with
+typed edges. What this week adds is the *general* discipline those
+special cases hinted at, plus the strongest modern architecture for it.
+And then a second, stranger industry: **graph generation** — molecules
+designed atom by atom, synthetic networks for testing and privacy — where
+the model's output is not a score but a graph. This week is both, and its
+through-line is the discipline this course has been rehearsing since Week
+1, because no task punishes sloppy evaluation like the task where *the
+labels are edges*.
+
+Here is the week's cautionary artifact, measured on our own hardware
+before a single method is introduced. We implemented SEAL — this week's
+strongest link predictor — and made one small mistake: when building each
+candidate pair's subgraph we removed the target edge from the *edge list*
+but computed the node's distance labels from adjacency sets that still
+contained it. Training positives thereby carried a tiny signature ("my
+endpoints are adjacent") that test positives — whose edges were properly
+held out — could not have. The model found it, leaned on it, and scored
+**AUC 0.363 on test: reliably worse than flipping a coin**, because the
+feature it trusted votes exactly backwards on honest data. One line of
+labeling code separated 0.897 from 0.363. Not "the model underperformed" —
+the model *anti-performed*, which is leakage's most theatrical failure
+mode and its most diagnostic: mere uselessness scores 0.5, while a
+confidently wrong model has learned something real about the *wrong
+world*. This lecture hands you the checklist that catches it before the
+leaderboard does.
+
+::: {.predict}
+**Commit before you look.** Before any neural network: on our Cora test
+split, how well does the dumbest possible link predictor — count the
+common neighbors of the candidate pair — score in AUC? And will the
+best learned model this week beat it by 5 points or by 20?
+
+::: {.predict-answer}
+Common neighbors alone: **AUC 0.724** (Adamic–Adar's weighting adds
+one-thousandth: 0.725). The best learned models reach ~0.90 — an
+eighteen-point gap, real but humbling in both directions: a zero-parameter
+formula from Week 2 gets three-quarters of the way, and any paper that
+compares its GNN only against random guessing is hiding this floor from
+you. First lesson of the week: *the heuristic ladder is the baseline, not
+the coin.*
+:::
+:::
+
+## The split is the method
+
+Node classification could afford casual splits; link prediction cannot,
+because edges play two roles at once — they are the *medium* (messages
+flow along them) and the *label* (their existence is what we predict). An
+edge must never play both roles at once for the same example. The
+professional setup therefore gives every edge exactly one job:
+
+{{< include ../assets/figures/fig-w12-splits.html >}}
+
+**Message edges** build the graph the encoder propagates over — visible
+always. **Supervision edges** are training positives: the loss pushes
+their scores up, but they are *not in the message graph*, or the model
+reads its answers off the blackboard — an edge that both carries the
+messages and is the thing being predicted gives the encoder a one-hop
+tautology ("are these nodes linked? let me ask the link"). In practice
+many pipelines let message and supervision coincide for training
+positives and accept the softer, train-only distortion; the strict
+separation is the honest default, it is what Lab 12 builds, and the
+difference between the two conventions is one of the first things to
+check when two papers' VGAE numbers disagree by a point.
+**Validation and test edges** are invisible to everything until their
+moment — and "everything" is a longer list than it sounds: not in the
+message graph, not among training pairs, not inside any precomputed
+feature, not reachable by any walk the pipeline ever takes. Three rules complete the contract. Test edges must be
+absent from the message graph — Week 3 measured this exact leak at +17
+AUC points when walks crossed held-out edges. Negatives are sampled from
+*non-edges of the full graph* (a "negative" that is secretly a test
+positive corrupts the exam — Week 4's accidentally-true negatives,
+returning). And heuristics compute on the message graph only: common
+neighbors counted on the full graph is leakage wearing a formula.
+
+Audit yourself on the toy version — the widget's starting state is the
+single most common real-world bug:
+
+{{< include ../assets/d3/w12-split.html >}}
+
+Concretely, our own split this week — the one every measured number in
+this lecture shares: Cora's 5,278 undirected edges shuffled once with a
+fixed seed into 527 test positives (10%), 263 validation, and 4,488
+training positives, the training positives doubling as the message
+graph; 527 test negatives sampled from non-edges with their own seed.
+Every method — heuristics, VGAE, SEAL — answers the *same* 1,054
+questions. That sameness is not pedantry; it is what makes "0.897 beats
+0.725" a fact rather than two papers shouting across incompatible
+setups, and it is the first thing to check when reading anyone else's
+link prediction table.
+
+Two further choices define the evaluation. *Random vs temporal*: random
+edge splits answer "which edges exist that I haven't looked at," while
+temporal splits — train on edges before time $t$, test after — answer
+"which edges will *form*," the question production actually asks; they
+are harder, honester, and the default in industry (ogbn-arxiv's time
+split from Lab 7 was this discipline for nodes; Week 14 makes it
+strict for recommenders). Temporal splitting also dissolves a
+philosophical awkwardness of random splits worth naming: a randomly
+held-out edge *already existed* while the message graph was "current,"
+so the random task is partly archaeology (find what we hid), while the
+temporal task is genuine forecasting — and models can rank differently
+across the two, because recency signals (new nodes, growing hubs)
+matter only in the second. If your deployment forecasts, evaluate
+forecasting.
+
+*Metric* is the other axis, and it deserves numbers rather than vibes.
+AUC asks "does a random true edge outscore a random false one" —
+threshold-free, comparable, and blind to what deployments do, which is
+*rank a shortlist*. Feel the difference on a toy: 1,000 candidates, 10
+true; model A gives every true edge rank 30–40 (AUC ≈ 0.97,
+Hits@10 = 0); model B puts five true edges in the top ten and scatters
+the rest to the bottom (lower AUC, Hits@10 = 0.5). A recommender ships
+model B and a leaderboard crowns model A. Hits@K and MRR from Week 4
+transfer verbatim and match products; report AUC for comparability,
+Hits@K for truth, and distrust any table showing only the friendlier
+one.
+
+One vocabulary pair completes the setup, echoing Week 7: *transductive*
+LP predicts missing edges among nodes seen in training (our Cora setup);
+*inductive* LP scores pairs involving brand-new nodes — a new user, a
+new molecule — where lookup-style embeddings forfeit (no row in the
+table) and encoders that compute from features and neighborhoods are
+mandatory. The Week 10 showdown's moral — encoders earn their keep
+exactly where entities are new or feature-rich — applies to edges
+unchanged.
+
+## Stand on the heuristic floor
+
+{{< include ../assets/d3/w12-heuristic.html >}}
+
+The widget's ten hidden karate edges are the whole methodology in
+miniature, and its verdict line is worth an honest look before the
+formulas: common neighbors finds three of ten. Not eight — three. The
+remaining seven hidden edges have few or no common neighbors in the
+message graph (some *were* the only path between their endpoints), and
+no triangle-closing formula can see them: recall has a structural
+ceiling that no amount of formula polish lifts, which is the cleanest
+argument for why learning enters at all. Keep that 3/10 in mind as the
+Cora numbers arrive — AUC 0.724 sounds respectable precisely because
+AUC averages over easy comparisons, while the widget's Hits-style count
+tells you what a shortlist would actually contain.
+
+Before learning anything, rank candidate pairs by a formula:
+**common neighbors** $|N(a) \cap N(b)|$; **Adamic–Adar**
+$\sum_{c \in N(a) \cap N(b)} 1/\log |N(c)|$, which discounts common
+neighbors that are promiscuous hubs (a shared appearance in a
+4,000-member group means less than a shared collaborator — Week 2's
+degree skepticism, formulaized); **Jaccard**, normalizing by the union;
+**preferential attachment** $|N(a)| \cdot |N(b)|$, betting on
+rich-get-richer. Measured on our Cora split: CN 0.724, AA 0.725. These
+floors are not embarrassments to beat but *evidence about the task*:
+they say most of Cora's link signal is triangle closure. When a task's
+heuristics score high, learned models have little headroom (and a
+heuristic serving at nanoseconds per pair may be the deployment answer);
+when heuristics collapse — long-range links, bipartite graphs where CN
+is structurally zero between users — that is precisely where learning
+earns its keep. Run the floor first; it costs nothing and reads like a
+diagnosis.
+
+The family extends past two-hop formulas in directions you already own.
+Katz scores sum *all* paths between the pair with geometric damping —
+Week 2's walk machinery as a similarity; personalized PageRank from $a$,
+evaluated at $b$, does the same with the random surfer; both see beyond
+common neighbors at the price of global computation. And the heuristics'
+second career matters as much as their first: as *features*. A logistic
+regression over {CN, AA, Jaccard, PA, Katz} is a strong, interpretable,
+deployable model that many production link systems still run — and it
+is the natural "shallow baseline" row for any deep table. Note also the
+setting where the whole family goes structurally blind: bipartite
+graphs. A user and an item can never share a neighbor (neighbors of
+users are items and vice versa), so CN ≡ 0 across the prediction
+boundary and the two-hop lens must widen to paths of length three —
+which is precisely the door recommenders (Week 14) walk through.
+
+<details>
+<summary>Where this problem came from — one drawer of history</summary>
+Link prediction predates deep learning by a comfortable margin.
+Liben-Nowell and Kleinberg's 2003 study formalized the task on
+co-authorship networks and benchmarked exactly the heuristics above —
+their paper's ranking (Adamic–Adar surprisingly strong, preferential
+attachment weak) still reproduces on our Cora split a generation of
+methods later, which should calibrate your priors about progress. The
+task then got an industry: friend suggestion at social networks
+(People You May Know popularized triangle-closing at planetary scale),
+and the Netflix Prize made "predict the missing user–item entry" the
+decade's most famous ML problem — matrix factorization's finest hour,
+and secretly bipartite link prediction with ratings. The GNN era
+arrived in two steps you now recognize: GAE/VGAE (2016) put a learned
+encoder under the dot product, and SEAL (2018) noticed that the *pair's
+neighborhood* was the real signal and changed the object being
+classified. The through-line of twenty years: better models moved the
+number less than better evaluations moved the truth — the splits and
+negatives of this lecture are where the field actually grew up.
+</details>
+
+## VGAE: the encoder meets a probabilistic decoder
+
+The natural learned model reuses everything this course owns: encode
+nodes with a GCN over the *message graph*, score a pair by the inner
+product, $\hat p_{ab} = \sigma(z_a^\top z_b)$ — Week 3's decoder with
+Week 6's encoder. The **graph auto-encoder** (GAE) is exactly that,
+trained with binary cross-entropy on supervision positives against
+sampled negatives, and it is worth pausing on what changed relative to
+Week 3's pipeline, because the change is the whole point. DeepWalk's
+embeddings were free parameters shaped by walk co-occurrence — the
+graph entered only through which pairs the walks manufactured. Here the
+embedding *is a function of features and neighborhood*, so two papers
+with similar text and similar citers get similar embeddings even if no
+walk ever connected them; the encoder generalizes across the graph
+instead of memorizing per node — which is also, per the inductive
+paragraph above, what lets it score pairs involving nodes born
+tomorrow.
+
+The **variational** upgrade treats each embedding as a distribution:
+the encoder outputs $\mu_v$ and $\log \sigma_v^2$, a sample $z_v =
+\mu_v + \sigma_v \odot \epsilon$ flows to the decoder, and the
+objective is the ELBO — reconstruction plus a KL term
+$-\mathrm{KL}(q(Z \mid X, A) \,\Vert\, \mathcal{N}(0, I))$ leashing the
+latent space toward a standard Gaussian. What the leash buys:
+regularization (embeddings cannot sprawl), calibrated uncertainty (a
+node with contradictory neighborhoods gets honest variance rather than
+a confident average), and a *generative* reading — sample $Z$ from the
+prior, decode, and you have drawn a graph: the first hint of this
+lecture's second half. Honesty compels the practical footnote the
+original paper itself prints: on pure link prediction benchmarks GAE
+and VGAE score within noise of each other — the variational machinery
+earns its complexity when you *use* the distributionality (uncertainty,
+generation, downstream Bayesian plumbing), not on AUC alone. Knowing
+which upgrades are load-bearing for which purposes is, by Week 12,
+simply how you read methods.
+
+Walk the objective's two halves with formulas in hand, because Lab 12
+makes you implement both. The reconstruction term treats every scored
+pair as a Bernoulli: $\log p(A \mid Z) = \sum_{(a,b)} A_{ab} \log
+\hat p_{ab} + (1 - A_{ab}) \log(1 - \hat p_{ab})$ — in practice the sum
+runs over supervision positives and sampled negatives rather than all
+$n^2$ pairs, the same sampled-softmax economics as Week 3, for the same
+$O(n^2)$ reason. The KL term has a closed form for diagonal Gaussians —
+$-\tfrac12 \sum_j (1 + \log\sigma_j^2 - \mu_j^2 - \sigma_j^2)$ per node
+— so no sampling is needed on that side; it is an analytic penalty
+pulling every $\mu$ toward 0 and every $\sigma$ toward 1, and you can
+read its gradient as "don't claim more certainty or more eccentricity
+than the edges justify." The reparameterization $z = \mu + \sigma \odot
+\epsilon$, $\epsilon \sim \mathcal{N}(0, I)$, is the one non-obvious
+move: it rewrites the stochastic node as a deterministic function of
+parameters plus external noise, which is what lets backprop assign
+credit through a sample. Three ingredients, all reusable far beyond
+graphs — this is the standard VAE toolkit, and meeting it here means
+you have now met it.
+
+Measured, 200 epochs, 8 seconds: **AUC 0.903**, eighteen points over
+the floor. Why does so simple a decoder do so well? Because Cora is
+homophilous and the encoder is a GCN: two propagation layers pull
+linked nodes' embeddings together *by construction*, so "high inner
+product" and "nearby in the graph" become the same fact — the decoder
+harvests what the encoder's inductive bias sowed. That reading also
+predicts where the pipeline stalls: heterophilous links, structural
+(rather than proximity) link rules, and anything where Week 9's
+pair-blindness bites — the cue for SEAL. And here is the trained
+object itself, decoded live — the actual 2-D latent of a VGAE we
+trained on the karate club:
+
+{{< include ../assets/d3/w12-vgae.html >}}
+
+Carry over Week 4's discipline before admiring it: the inner-product
+decoder is *symmetric* — $z_a^\top z_b = z_b^\top z_a$ — so VGAE cannot
+express "a follows b but not conversely"; directed link prediction
+needs the asymmetric decoders you already own (DistMult with source/
+target roles, ComplEx, translation scores). The decoder zoo of Week 4
+was never KG-specific; it was the menu of *pair-scoring functions*,
+and this week finally says so out loud. One more menu item earns a
+mention because production uses it constantly: the **MLP decoder** —
+concatenate $[z_a \Vert z_b]$ (or hand it $[z_a \Vert z_b \Vert z_a
+\odot z_b \Vert |z_a - z_b|]$) and let a small network score the pair.
+More expressive than any fixed form, trivially made asymmetric or
+symmetric by construction, and the default head in most applied link
+systems; its cost is that the beautiful geometric readings of Week 4
+(translation, rotation) dissolve into weights.
+
+## SEAL: when the pair's *structure* is the signal
+
+Something is conceptually wrong with every dot-product method, and Week
+9 taught you the vocabulary to say it precisely. Node embeddings are
+computed *per node*; the pair's score is assembled afterwards. Now take
+two candidate pairs $(a, b)$ and $(a, c)$ where $b$ and $c$ are
+structurally interchangeable — automorphic twins, Week 9's
+indistinguishable nodes. Any encoder that respects the graph's symmetry
+assigns $z_b = z_c$, hence identical scores — even if $b$ shares three
+common neighbors with $a$ and $c$ shares none, because *which* neighbors
+are shared is a property of the pair, not of either endpoint.
+
+This is not a contrived worry, and you can verify it on the course's
+oldest friend. The karate club contains genuine twins: nodes **14, 15,
+18, 20, and 22** all have exactly the neighborhood $\{32, 33\}$ — five
+structurally identical wallflowers — and nodes **17 and 21** share
+$\{0, 1\}$. Every symmetric featureless encoder in this course
+(uniform-feature GCN, walk embeddings in expectation) gives all five
+wallflowers one embedding, so for *any* anchor $a$, the five candidate
+pairs $(a, 14), (a, 15), \dots$ receive one score — even though $a=33$
+is already linked to all five while a rival anchor might share both,
+one, or neither of their neighbors. Whatever the truth is, a per-node
+embedding cannot spell it: pair prediction from unconditioned node
+embeddings is structurally lossy. The labeling-trick paper (optional
+reading) turned this observation into theorems — and into a family of
+fixes (identity-aware and labeling GNNs) of which SEAL is the founding
+member.
+
+SEAL's repair is to change the object being classified — and the shape
+of the move deserves a beat of recognition before the mechanics,
+because you have seen it twice. Week 9's route past the WL ceiling was
+"give the nodes structural features the message passing can't compute";
+Week 10's HAN gave each metapath its own view; SEAL gives each *pair*
+its own view — the same maneuver, one level up: when the architecture
+cannot condition on the thing that matters, move the thing that matters
+into the input. The labeling-trick literature calls the general pattern
+*structural conditioning*, and once you can name it you will spot it in
+subgraph GNNs, in identity-aware architectures, and in every "add a
+marker token" trick the transformer world uses for the same reason:
+
+{{< include ../assets/figures/fig-w12-seal.html >}}
+
+For each candidate pair, *extract* the enclosing subgraph (everything
+within $k$ hops of either endpoint), *remove the candidate edge
+everywhere* — subgraph and labels both; our 0.363 was earned by
+forgetting the second half — *label* every node by its distances to the
+two endpoints (the common neighbor wears $(1,1)$; the endpoint-only
+neighbors wear $(1,2)$ and $(2,1)$), and *classify* the labeled little
+graph with an ordinary GNN.
+
+The anatomy of our 0.363, step by step, because the mechanism
+generalizes to every leak you will ever hunt. With the target edge
+still inside the adjacency sets, node $a$'s label in a *training*
+positive's subgraph came out $(0, 1)$ — "I am endpoint one, and I am
+adjacent to endpoint two" — while in every *negative*'s subgraph it
+came out $(0, 2)$. A perfectly separating feature, visible to a GIN in
+one epoch; training accuracy sailed to 100%. But *test* positives had
+their edges properly excluded from the message graph, so their
+endpoints also read $(0, 2)$ — the same signature as negatives — and
+the model, having staked everything on the leaked bit, confidently
+scored test positives *as negatives*: AUC 0.363, which is 0.637 with
+the sign flipped. Every symptom was textbook: implausibly fast training
+convergence, a train–test gap wider than the model's capacity explains,
+and sub-coin test performance — three tripwires you can now name, and
+the last one is the gift, because a merely-useless model scores 0.5;
+only a *leak-trained* model scores meaningfully below it.
+
+SEAL's success also needs its honest footnote. Our SEAL-lite — 1-hop
+subgraphs, distances capped at 2, eight epochs — ties VGAE (0.897 vs
+0.903) rather than beating it, because on homophilous Cora the encoder
+already captures most of the proximity signal, and our truncated labels
+capture little more than common-neighbor counts. The full SEAL recipe —
+2-hop extraction, exact double-radius labels, deeper nets, and
+crucially the harder benchmarks where proximity is *not* the story —
+is where its advantage over dot products becomes decisive and where it
+still anchors leaderboards. As always: the architecture's edge is
+task-shaped, and the measured tie is itself information about Cora. The labels break the symmetry **relative to
+the pair**: the same node $c$ gets different labels in different
+candidates' subgraphs, which is exactly the pair-conditioning that
+per-node embeddings lack. And every heuristic becomes learnable: counting
+$(1,1)$ nodes is common neighbors; weighting them by degree is
+Adamic–Adar; the GNN can learn those and whatever else the subgraph
+holds. Measured, leak-free: **0.897** — our deliberately budget SEAL-lite
+(1-hop, coarse labels, eight epochs) ties VGAE, and the full machinery
+(2-hop, exact double-radius labels, deeper nets) leads link prediction
+benchmarks to this day. The ladder, in one figure — including the row
+this lecture opened with:
+
+{{< include ../assets/figures/fig-w12-ladder.html >}}
+
+## Negatives are a design surface, not a formality
+
+Between the models and the metrics sits a decision this lecture has so
+far waved through: *which non-edges do you score against?* It deserves
+its own section because it silently controls every number on every
+table, in evaluation and in training separately.
+
+**Evaluation negatives** set the exam's difficulty. Uniform non-edges —
+our protocol, and the literature's default — are mostly trivial: two
+random Cora papers share nothing, and outscoring them is cheap, which
+is partly why every method looks strong on AUC. Harder, honester
+choices: *degree-matched* negatives (sample non-edges whose endpoint
+degrees mirror the positives', so the model cannot win on "these nodes
+are active" alone) and *retrieval negatives* (score against the
+candidates an actual retrieval system would surface — the near-misses).
+Expect absolute numbers to drop sharply under harder negatives; expect
+*rankings between methods* to sometimes flip, because heuristics and
+dot products lean on degree signals precisely the hard negatives
+neutralize. A result that survives negative-hardening is a result.
+
+**Training negatives** shape what the model learns, and the trade is
+the one Week 4 taught with self-adversarial sampling: uniform negatives
+give unbiased but lazy gradients (most are too easy to teach anything
+after epoch one); hard negatives teach fast but risk teaching wrong
+(a "hard negative" adjacent to being true may *be* true — the
+accidentally-true problem, sharpened). Production recommenders resolve
+this with in-batch negatives (other users' positives double as your
+negatives — cheap, moderately hard, slightly biased) plus a sprinkle of
+mined hard negatives, and Week 14 will show this machinery deployed.
+For the lab and this lecture, uniform-with-exclusions is the correct
+*starting* protocol — simple, reproducible, comparable — with
+negative-hardening as the stress test you run before believing
+yourself.
+
+## Graphs from nothing
+
+Prediction fills holes in a given graph; **generation** asks for new
+graphs outright. The applications are not exotic, and each imposes its
+own definition of success. Molecular design is the flagship: generate
+candidate molecules whose graphs satisfy chemistry (valence rules —
+*validity*), that aren't copies of the training set (*novelty*) or of
+each other (*uniqueness*), and whose property distributions —
+synthesizability, solubility, drug-likeness — sit where the designer
+aims; every serious molecular generator reports that metric quartet,
+and DiGress's headline results are exactly there. Synthetic data is
+the second industry: share a realistic-but-fake network when the real
+one is private — with the honesty footnote that generation is not
+automatically anonymization: a generator that memorizes can leak real
+edges into its samples, and membership-style audits (is this training
+edge suspiciously frequent in samples?) belong in any privacy claim.
+Then stress testing (feed your pipeline graphs whose properties you
+control), augmentation, and simulation. The technical obstacle
+underneath all of them is one you have met twice: a graph has no
+canonical order (Week 6's permutation lesson), yet sequence models
+need one, and the output space is $O(n^2)$ discrete decisions that
+must *cohere* — triangles, valences, communities are properties of
+decision *sets*, not single entries.
+
+**GraphRNN** answers with autoregression under a chosen order:
+
+{{< include ../assets/figures/fig-w12-generate.html >}}
+
+Fix a BFS ordering of the training graph's nodes (BFS is the masterstroke:
+it guarantees each new node's edges reach only a bounded recent window of
+predecessors, collapsing the $O(n^2)$ decisions to $O(nM)$), then
+generate node by node: a graph-level RNN carries the history; per node, a
+row of edge decisions to the recent window is emitted (the full model
+uses a second, edge-level RNN so the decisions within a row condition on
+each other; our budget GraphRNN-S emits them independently — a
+simplification that costs correlation *within* a row and buys a model
+you can read in twenty lines — and which still, as the measurements
+below show, learns the community signature that the independence-only
+ER baseline cannot fake, which is itself a small lesson in how much of
+a distribution the *history conditioning alone* carries).
+
+Training is teacher forcing, exactly as in language modeling: feed the
+*true* row $S_{i-1}$ as input, ask the RNN to emit row $S_i$, penalize
+with per-entry binary cross-entropy — the model never sees its own
+mistakes during training, which keeps optimization stable and imports
+the same exposure-bias caveat language models carry. The mechanics on
+our data: two hundred graphs of 12–20 nodes, BFS window $M{=}12$,
+hidden state 64, sixty epochs in **23 seconds**, final per-entry loss
+0.102 — small enough numbers that Lab 12 has you retrain it from
+scratch and beat the baseline yourself. Generation then runs the loop
+open: start from a start-of-sequence row, sample each row from the
+emitted Bernoullis, feed the *sample* back, stop at the target size —
+autoregression's standard trick pair (teach on truth, generate on
+self), and the moment where the ordering choice silently matters again:
+the model generates in BFS-like orders because those are the only
+orders it ever saw.
+
+**Diffusion** (DiGress, optional reading) answers orderlessly: corrupt
+training graphs step by step toward noise, train a network to reverse
+one corruption step, then generate by denoising pure noise — all edges
+decided *jointly and iteratively* rather than sequentially, no ordering
+ever chosen, permutation equivariance holding by construction. The
+adjective *discrete* is DiGress's actual contribution and worth one
+careful sentence: naive graph diffusion adds Gaussian noise to the
+adjacency matrix, wandering through meaningless fractional "edges,"
+while DiGress corrupts *categorically* — each edge slot hops between
+{no-edge, single, double, aromatic…} under a transition matrix, each
+node between atom types — so every intermediate step is a legal
+discrete graph and the denoiser (a graph transformer, next week's
+protagonist making an early entrance) always works on well-typed
+objects. It leads molecule generation benchmarks; its price is
+hundreds of denoising passes per sample and a heavier model — the
+classic diffusion trade, unchanged from images.
+
+Which paradigm when? Autoregression samples fast (one pass), streams
+naturally, and inherits ordering artifacts; diffusion samples slowly,
+scales awkwardly past hundreds of nodes, and owns the quality crown on
+small structured graphs like molecules. And both share a ceiling this
+course can name: the *evaluator* — next paragraph — is weaker than
+either generator, which is an uncomfortable place for a field to
+stand.
+
+And how do you *grade* a generator? You cannot ask "is this sample
+correct" — novelty is the point. The field's answer: compare
+*distributions of statistics* between generated and held-out graphs.
+The GraphRNN paper's protocol, still standard: collect each graph's
+degree distribution, clustering-coefficient distribution, and
+four-node *orbit* counts (how often each node sits in each position of
+each 4-node motif — graphlets from Week 2, promoted to evaluator), then
+measure distance between the generated set's statistics and the test
+set's with maximum mean discrepancy — a kernel two-sample distance
+whose one-line intuition is "embed both empirical distributions and
+measure the gap." Our lab keeps the protocol and swaps MMD for the
+friendlier total-variation distance on histograms — same
+question, simpler estimator, and the *comparative* conclusions (model
+vs baseline) come out the same, which for a course beats a formula
+you'd treat as a black box. Measured: our GraphRNN's samples sit at TV 0.111 (degree)
+and 0.154 (clustering) from held-out community graphs, while
+density-matched ER baselines sit at 0.152 and **0.596** — the ER graphs
+have the right amount of edges and no idea that triangles live inside
+communities. Judge for yourself, on the real samples:
+
+{{< include ../assets/d3/w12-generate.html >}}
+
+Close the loop with Week 9 before moving on, because the evaluation has
+a principled blind spot: two very different graphs can share degree and
+clustering histograms — statistics-matching is *necessary, not
+sufficient*, the WL lesson wearing an evaluator's badge. Serious
+molecule work therefore adds validity/uniqueness/novelty checks and
+task-specific property distributions; and every generation paper's
+metrics section deserves the same skepticism you now apply to
+leaderboards.
+
+Where did this line of work go after 2018? Into chemistry's toolchain,
+mostly. The GraphRNN idea grew constraint-aware descendants that
+generate molecules atom-by-atom under valence rules; a reinforcement
+learning layer was bolted on top to steer samples toward desired
+properties (generate, score with a property predictor, reward the
+generator — with the amusing failure mode that the generator learns to
+fool the *predictor* rather than the chemistry, adversarial examples in
+reverse); scaffold-constrained variants grow decorations around a fixed
+core the medicinal chemists refuse to negotiate. Diffusion currently
+owns the unconditional-quality crown; autoregression still owns speed
+and streaming. The professional summary you should retain: in
+generation, the generator is rarely the bottleneck anymore — the
+*property predictor* and the *evaluation protocol* are, which is why a
+course that overtrained you on evaluation discipline has been secretly
+preparing you for this field too.
+
+## The method: a link prediction experiment that survives review
+
+The week's checklist, in the order that catches bugs cheapest:
+
+**Build the split first, audit it second.** Four buckets, one job per
+edge; assert programmatically that test ∩ message = ∅ and that negatives
+avoid all positives (Lab 12's validator is twelve lines and has already
+caught one real leak this week — ours). Write the auditor before the
+model, the way you write a test before a bug exists: split code is
+written once and trusted for months, which is exactly the profile of
+code that deserves its asserts up front.
+
+**Run the heuristic ladder.** CN and AA on the message graph. Their
+scores calibrate everything above them; if AA hits 0.95, question the
+task before celebrating any model.
+
+**Match the metric to the product.** Ranking product → Hits@K/MRR with
+realistic candidate sets; scientific comparison → AUC as well. Report
+both; distrust papers that report only the friendlier one.
+
+**Then model, cheapest first.** GAE/VGAE (an afternoon), SEAL where pair
+structure plausibly matters, and the decoder chosen for the relation's
+symmetry (Week 4's menu). Every step compared against the floor, with
+the same negatives.
+
+**Interrogate suspicious success.** Any jump that looks too good gets
+the leak audit: recompute labels/features with the target edge removed
+*everywhere*; rerun with temporal splits if time exists; check the
+negatives for accidental positives. Our 0.363 was caught precisely
+because a "too clean" training curve met an inverted test score — treat
+disagreement between train and test as a *tripwire*, not noise.
+
+Watch the checklist run once on a fresh brief: *a university wants
+collaborator suggestions from its co-authorship graph.* Split: temporal
+— train on collaborations before 2024, test on 2024–25 pairs; the
+product forecasts, so the eval must. Audit: assert no post-2023 edge in
+the message graph, and note the subtlety temporal data adds — features
+like "number of shared coauthors" must be computed *as of the cutoff*.
+Floor: AA on the pre-2024 graph (expect strong — co-authorship closes
+triangles ferociously; if AA alone hits 0.9, a heuristic-plus-features
+logistic model may be the deliverable). Metric: the UI shows five
+suggestions — Hits@5 against retrieval-realistic negatives, with AUC
+in the appendix. Models: VGAE-style encoder for the many new-faculty
+(inductive) cases; SEAL where the floor left headroom. Leak
+interrogation: any AUC above ~0.95 on co-authorship should trigger the
+audit reflex, because that number usually means a feature saw the
+future. Total design time: one page — and every choice traceable to a
+sentence in this lecture, which is what "method" means here.
+
+One synthesis before the pitfalls, because this week quietly completed
+a unification the course began in September. Week 3 scored node pairs
+with a dot product and called it link prediction. Week 4 replaced the
+dot product with a *menu* of pair-scorers — translations, bilinear
+forms, rotations — chosen by the relation's algebra. Week 10 put a
+learned encoder under that menu and measured when it paid. This week
+added the last two entries: the *variational* scorer (VGAE — a
+distribution over embeddings under the same inner product) and the
+*pair-conditioned* scorer (SEAL — where the "embedding" is computed
+fresh for each candidate, with the pair baked into the features). One
+task, five decoder generations, and a single organizing question you
+can now ask of any link system in one breath: *what function scores a
+pair, what can that function not express, and was anything it reads
+computed in a world where the answer was already written down?* The
+first two clauses are Weeks 3–12 of representation theory; the third is
+Weeks 1–12 of evaluation discipline; and the exam will ask all three.
+
+## Common pitfalls
+
+**Evaluating on edges the model propagated over.** The classic. If test
+edges live in the message graph, walks and messages deliver the answers
+— +17 AUC of fiction, measured in Week 3, re-measured every year by
+somebody's retracted table. The subtle variant: an *encoder trained
+long ago* on the full graph, reused for "a quick link experiment" —
+pretrained embeddings carry their training graph's edges inside them
+forever, and provenance amnesia is how careful people leak.
+
+**Removing the target edge from the graph but not the features.** Our
+0.363. Distance labels, common-neighbor counts, any feature computed
+from adjacency must be computed *as if the candidate edge does not
+exist* — for negatives too (they never had it; positives must match).
+
+**Negatives that are secretly positives.** Sampling "random pairs" that
+include validation/test edges teaches the model that true edges are
+false and grades it against poisoned keys. Exclude *all* positive sets
+— and in temporal settings, remember that a pair negative today may be
+positive next month, which is not a bug but a property of the task:
+"negative" in link prediction always means "not yet observed," Week 4's
+open-world assumption in one more costume.
+
+**AUC-only reporting on ranking products.** AUC 0.90 can coexist with
+Hits@10 that embarrasses a heuristic — the metric averages over vast
+irrelevant score space, and our toy model-A/model-B example earlier in
+the lecture is not hypothetical: it is the shape of several real
+recommender post-mortems. If the product shows ten slots, measure ten
+slots.
+
+**Trusting sample-vs-sample eyeballing for generators.** Individual
+samples always look plausible; distributions expose the fraud. And
+matched statistics still aren't identity — keep Week 9 in the room.
+
+**Computing "as-of" features with today's graph.** In temporal setups,
+every feature — shared neighbors, degrees, PageRank — must be computed
+from the graph *as of the training cutoff*. Recomputing on the current
+graph quietly imports the future; it is the single most common leak in
+industrial link systems because the feature store updates nightly and
+nobody told the offline evaluation.
+
+## In this week's lab
+
+[Lab 12](../labs/lab12.qmd) is this lecture with your hands on every
+number: you build the four-bucket split and the twelve-line auditor
+that certifies it (the same auditor that would have caught our 0.363
+pre-GPU); reproduce the heuristic floor exactly — your CN and AA must
+match 0.724 and 0.725 on the shared seeds, because determinism is a
+feature of honest protocols; implement VGAE's reparameterization and
+ELBO from the formulas above and clear AUC 0.88; implement SEAL's
+labeling function under the strictest assert in this course — your
+leak-free version must clear 0.85 *and* the deliberately leaky variant
+you also run must score below 0.5, so that this week's cautionary tale
+becomes a test you personally pass; and train GraphRNN-S on community
+graphs, grading the samples with your own TV metric against the ER
+baseline (your clustering-TV margin should reproduce ours,
+0.154-vs-0.596-shaped).
+
+**HW3 is released alongside** ([homeworks/hw3](../homeworks/hw3.qmd)),
+due Thursday, November 26: it spans Weeks 9–12 — the ceiling, typed
+message passing, the scaling audit, and this week's splits — with the
+same derivation/deterministic-autograder/investigation architecture as
+HW1 and HW2. Its Part B leans hard on this lecture: you will ship a
+split validator and a metrics module and be graded on catching planted
+leaks.
+
+## Required reading
+
+- **Kipf & Welling — Variational Graph Auto-Encoders** (NeurIPS BDL
+  2016). Two pages that launched a subfield — a useful genre lesson in
+  itself: a workshop note with one clean idea, cited tens of thousands
+  of times. Derive the ELBO alongside §2, note what the inner-product
+  decoder can't say, and notice the paper's own GAE-vs-VGAE table
+  showing the honesty this lecture repeated.
+- **Zhang & Chen — Link Prediction Based on GNNs** (NeurIPS 2018).
+  SEAL. Read §3 for extraction and the double-radius labeling function
+  (our lab's labels are its min(·,2) truncation), and the γ-decaying
+  theorem connecting enclosing subgraphs to the whole high-order
+  heuristic family — the result that says "the subgraph contains every
+  formula from this lecture's floor."
+- **You et al. — GraphRNN** (ICML 2018). The BFS insight (§2.3) is the
+  paper; the two-level RNN and the MMD evaluation protocol complete
+  it. Their appendix's baseline zoo (ER, BA, Kronecker) is a model of
+  how to position a generator against classical random-graph theory.
+
+Optional: the labeling-trick paper (NeurIPS 2021) for the theory of
+multi-node representations — the formal version of this lecture's
+karate-twins argument, and worth reading just for how a folk
+observation becomes a theorem; DiGress (ICLR 2023) for discrete
+diffusion done properly, including the marginal-preserving noise
+schedule that makes the intermediate graphs realistic; the TKDE survey
+(2024) for the diffusion family map when you need to place a new
+generation paper in thirty seconds.
+
+## Check your understanding
+
+**Q1.** Your pipeline computes each node's PageRank on the full graph as
+a feature, then predicts test edges. Name the leak, its Week-2
+mechanism, and the fix.
+
+<details><summary>Answer</summary>
+PageRank flows along *all* edges — including test edges, whose presence
+perturbs scores of their endpoints; the feature smuggles test adjacency
+into training. Fix: compute every structural feature on the message
+graph only (and for candidate-conditioned features, with the candidate
+removed). Same family as our 0.363: features must live in the world where
+the answer is unknown.
+</details>
+
+**Q2.** Derive why GAE's inner-product decoder cannot beat 50% AUC on
+the task "predict the direction of an edge known to exist."
+
+<details><summary>Answer</summary>
+Direction prediction scores $(a, b)$ against $(b, a)$; the decoder
+gives $\sigma(z_a^\top z_b) = \sigma(z_b^\top z_a)$ — identical scores
+for every pair by symmetry of the inner product, so every comparison is
+a tie and AUC is exactly 0.5. The fix is Week 4's menu: any asymmetric
+pair-scorer (source/target embeddings, DistMult-with-roles, ComplEx,
+translations).
+</details>
+
+**Q3.** In SEAL's subgraph for candidate $(a,b)$, what labels do: a
+common neighbor; a neighbor of $a$ only; the node $a$ itself? And why
+must the same physical node relabel across different candidates?
+
+<details><summary>Answer</summary>
+Common neighbor $(1,1)$; $a$-only neighbor $(1,2)$; $a$ itself $(0,1)$
+— with the candidate edge deleted before computing the second
+coordinate (else $a$ reads $(0,1)$ only for training positives: the
+leak). Relabeling across candidates is the entire point: labels encode
+position *relative to the pair*, giving the GNN pair-conditioned inputs
+that unconditioned node embeddings provably cannot supply (automorphic
+twins get equal embeddings but different labels).
+</details>
+
+**Q4.** Why does GraphRNN use a BFS ordering rather than a random
+permutation, quantitatively?
+
+<details><summary>Answer</summary>
+Under BFS, a new node's neighbors all lie within a bounded recent
+window of the ordering (a BFS frontier is contiguous), so each row of
+edge decisions has width $M \ll n$: sequence length drops from
+$O(n^2)$ to $O(nM)$, training sees vastly fewer orderings (BFS orders
+are a tiny subset of all $n!$), and the RNN's memory burden shrinks
+accordingly. Random orderings scatter a node's edges across the whole
+history — the model must remember everything forever, and mostly
+fails to.
+</details>
+
+**Q5.** Our GraphRNN beat ER by 0.04 TV on degree but by 0.44 on
+clustering. Explain the asymmetry and what it says about ER as a
+baseline.
+
+<details><summary>Answer</summary>
+ER with matched density gets the *mean* degree right for free — degree
+histograms of sparse ER are Poisson-ish and roughly landable — but ER
+edges are independent, so triangles occur at chance rates: community
+graphs' high within-block clustering is exactly what independence
+cannot fake. Degree statistics are a weak discriminator (most
+generators pass); higher-order structure is where generative quality
+actually shows — choose evaluation statistics that your naive baseline
+fails, or the comparison certifies nothing.
+</details>
+
+**Q6.** A paper reports link prediction AUC 0.96 with negatives sampled
+uniformly from non-edges. The product retrieves 10 candidates per user
+from millions. Name two reasons the number may not survive contact.
+
+<details><summary>Answer</summary>
+Uniform negatives are mostly absurdly easy (random pairs share
+nothing); ranking a true edge above them is cheap, and AUC averages
+over exactly those easy comparisons. Deployment ranks against *hard*
+negatives — plausible near-misses surfaced by retrieval — and shows
+only 10 slots, so Hits@10 against hard negatives is the honest number
+and typically far lower. (Degree-matched or in-batch negatives are the
+standard patch; Week 14 does this properly for recommenders.)
+</details>
+
+**Q7.** Sketch the VGAE loss and say precisely what breaks if you (a)
+drop the KL term, (b) drop the reparameterization and sample directly.
+
+<details><summary>Answer</summary>
+$\mathcal{L} = \mathbb{E}_q[\log p(A \mid Z)] - \mathrm{KL}(q(Z \mid
+X, A) \Vert \mathcal{N}(0, I))$. (a) Without KL it is a plain GAE with
+noise: variances inflate or collapse unregularized, the latent space
+loses its prior geometry, and sampling-from-prior generation stops
+being meaningful. (b) Sampling $z \sim \mathcal{N}(\mu, \sigma^2)$
+directly is non-differentiable w.r.t. $(\mu, \sigma)$ — gradients
+cannot flow into the encoder; reparameterization moves the randomness
+into $\epsilon$ so the sample is a deterministic, differentiable
+function of the parameters.
+</details>
+
+**Q8.** Design the three-line audit that would have caught our 0.363
+before any training run.
+
+<details><summary>Answer</summary>
+For a handful of *training positives*, compute the pair's features/
+labels twice — once normally, once with the pair's edge force-removed
+from every adjacency structure — and assert they are identical; repeat
+for test positives and assert the same distributions. Our bug fails
+the first assert instantly (training positives' endpoint labels change
+when the edge is removed; test positives' don't), no GPU required.
+Generalization: any feature of a supervised pair must be invariant to
+that pair's own label.
+</details>
+
+## Where this leaves us
+
+The task flipped and the discipline held: four buckets with one job per
+edge, a heuristic floor before any learning (0.724), an encoder-decoder
+that reused six weeks of parts (0.903), a labeling trick that
+conditions on the pair (0.897) — and a one-line leak that turned the
+same model into an anti-predictor (0.363), caught by the audit this
+course has been drilling since Week 1. Then graphs from nothing:
+autoregression with a clever ordering, diffusion without one, and
+generators graded by the statistics of their offspring — with the
+karate club's five wallflower twins as the standing reminder of what
+per-node embeddings can never say about a pair, and the ER baseline's
+0.596 clustering miss as the standing reminder that a generator is
+judged against a null model, never against applause.
+
+Bank the transferables, because they outlast every model named today:
+the four-bucket reflex; the heuristic-floor-first habit; the
+"features must live in the world where the answer is unknown"
+invariant, which generalizes far beyond graphs; the metric-matches-
+the-product rule; and the null-model instinct for anything generative.
+Every one of them will appear on the final in some costume.
+
+Close the loop — one minute, no notes, per this course's custom, and
+this week's reconstruction has four stations: the four buckets and
+which rule our 0.363 broke; the karate twins and why dot products
+cannot tell their pairs apart; the ELBO's two terms and what each one
+disciplines; and the BFS window that makes GraphRNN's sequence length
+linear. Whichever resists reconstruction is tonight's reread — and the
+0.363 story specifically is one to rehearse until you can tell it at a
+whiteboard in ninety seconds, because you will spend some part of your
+career telling exactly that story to a team that doesn't yet believe
+its beautiful number is a leak.
+
+And carry one thread forward. SEAL won by *reading structure around a
+pair* — but its GNN is still message passing, still Week 9's prisoner:
+local, oversquashed at range, blind above 1-WL. Next week the
+architecture itself mutinies: attention over *all* node pairs at once,
+no edges required — the transformer, arriving on graphs with positional
+encodings you already hold (Week 9's RW returns, Week 6's
+eigenvectors) doing the work adjacency used to do. The recipe that
+finally beat message passing on molecules is one part attention, one
+part MPNN, and two parts the structural and positional features this
+course has been quietly stockpiling all semester — which is to say,
+next week you arrive already owning most of the ingredients.
+
+:::
+
+::: {.content-visible when-format="html"}
+{{< include ../assets/d3/w12-scripts.html >}}
+:::

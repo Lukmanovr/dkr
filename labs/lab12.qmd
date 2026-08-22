@@ -1,0 +1,36 @@
+---
+title: "Lab 12 · Leak-proof links & graphs from nothing"
+subtitle: "Week 12 · the split auditor, the exact floor, VGAE's core, the leak you cause on purpose, and a graded generator"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab12_linkgen.ipynb){target="_blank"}
+
+**≈ 8 minutes of compute · CPU-friendly throughout**
+
+The [Week 12 lecture](../lectures/12-link-generation.qmd), executed with your
+own hands on the shared seeds:
+
+1. **The split and the auditor** (exercise 1): four buckets, one job per
+   edge, and the twelve assert lines that certify it — sized exactly to the
+   lecture's 4,488 / 263 / 527.
+2. **The heuristic floor** (exercise 2): your CN and AA must land on 0.724
+   and 0.725 — not near them, *on* them; determinism is part of the
+   protocol.
+3. **VGAE's variational core** (exercise 3): you write `reparameterize` and
+   the closed-form KL, with unit asserts before the training run clears
+   AUC 0.88.
+4. **The leak, caused on purpose** (exercise 4): your labeling function has
+   a `leak` switch; the harness trains both variants and the asserts demand
+   leak-free > 0.85 **and leaky < 0.5** — the lecture's 0.363 becomes a
+   test you pass by understanding it.
+5. **GraphRNN-S, judged** (exercise 5): you implement the BFS sequencing
+   and the TV metric; your trained generator must beat the ER baseline on
+   clustering TV by a clear margin (lecture: 0.154 vs 0.596).
+
+Stretch: Hits@50 re-ranking, degree-matched negatives, the MLP decoder,
+orbit statistics. **[HW3](../homeworks/hw3.qmd) is released this week** (due
+Nov 26), covering Weeks 9–12.
+
+**Submitting.** One executed notebook on Moodle, run **full**: five checks ✓,
+claims, reflections. *Restart and run all* first. Grading: assertions 60% ·
+claims 15% · reflections 25%. AI use with disclosure per the honor code.

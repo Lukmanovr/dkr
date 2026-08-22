@@ -53,6 +53,8 @@ website:
             text: "10 · Heterogeneous Graphs & R-GCN"
           - href: lectures/11-scaling.qmd
             text: "11 · Scaling GNNs"
+          - href: lectures/12-link-generation.qmd
+            text: "12 · Link Prediction & Generation"
       - section: Labs
         contents:
           - href: labs/lab01.qmd
@@ -77,6 +79,8 @@ website:
             text: "Lab 10 · Typed message passing"
           - href: labs/lab11.qmd
             text: "Lab 11 · Scaling, by hand"
+          - href: labs/lab12.qmd
+            text: "Lab 12 · Leak-proof links & generation"
       - section: Assessments
         contents:
           - href: homeworks/hw1.qmd
@@ -87,6 +91,8 @@ website:
             text: "Midterm · sample exam + solutions"
           - href: homeworks/hw2.qmd
             text: "HW2 · Deep models (due Oct 29)"
+          - href: homeworks/hw3.qmd
+            text: "HW3 · Frontiers (due Nov 26)"
       - section: Project
         contents:
           - href: project/index.qmd
