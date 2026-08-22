@@ -1,0 +1,37 @@
+---
+title: "Lab 11 · Scaling, by hand"
+subtitle: "Week 11 · count the explosion, build the sampler, race SGC, assemble the table"
+---
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab11_scaling.ipynb){target="_blank"}
+
+**≈ 10 minutes of compute · GPU helps; the SGC path is deliberately CPU-friendly**
+
+The [Week 11 lecture](../lectures/11-scaling.qmd), rebuilt with your own hands
+on ogbn-arxiv:
+
+1. **The explosion, counted** (exercise 1): your BFS over the CSR arrays
+   reproduces the lecture's 18 / 4,577 / 22,663 on the identical seeds — and
+   verifies the heavy tail (mean degree 3.5× the median) that makes the naive
+   estimate 9× too small.
+2. **One block of fanout sampling** (exercise 2): the bounded, deduplicated,
+   deterministic sampler every production system reimplements — asserted for
+   the remap contract, the fanout bound, and seed-determinism, then stacked
+   into a two-layer sampled SAGE you train (and feel the pipeline cost of).
+3. **SGC, derived and raced** (exercise 3): the sparse precompute in eight
+   lines, then a logistic regression whose epochs are measured in
+   *milliseconds* — asserted to be ≥5× cheaper per epoch than the full-batch
+   GCN you time alongside it.
+4. **The table** (exercise 4): your rows joined with the lecture's, closed by
+   a claims paragraph that must cite its cells — including one claim about
+   what the table does *not* establish.
+
+Stretch (ungraded): the fanout dial, SIGN-lite with two operators, the
+poor-man's Cluster-GCN with the 1/k edge-retention formula, and the
+friendship paradox measured directly.
+
+**Submitting.** One executed notebook on Moodle, run **full** (not SMOKE):
+four checks ✓, claims, three reflections (the products extrapolation is R1 —
+arithmetic shown). *Restart and run all* first. Grading: assertions 60% ·
+claims 15% · reflections 25%. AI-assistant use allowed with disclosure, per
+the honor code.

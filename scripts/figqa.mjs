@@ -63,7 +63,8 @@ const JS_WIDGETS = ["w2-centrality", "w2-pagerank", "w2-wl", "w2-louvain",
                     "w5-query", "w5-boxes", "w5-rag", "w5-extract",
                     "w7-agg", "w7-sage", "w7-gat", "w7-ablation",
                     "w9-wl", "w9-trees", "w9-power", "w9-squash",
-                    "w10-typed", "w10-params", "w10-metapath", "w10-showdown"];
+                    "w10-typed", "w10-params", "w10-metapath", "w10-showdown",
+                    "w11-explosion", "w11-sampler", "w11-sgc", "w11-table"];
 
 export function listFigures() {
   return readdirSync(FIGDIR).filter((f) => f.endsWith(".html")).map((f) => f.replace(/\.html$/, ""))

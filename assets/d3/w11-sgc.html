@@ -1,0 +1,26 @@
+```{=html}
+<div class="interactive-container" id="w11-sg2-widget">
+  <div class="fig-label">Interactive · SGC — propagation as preprocessing</div>
+  <div class="widget-controls">
+    <span style="font-size:0.85rem">K:</span>
+    <button class="pill-btn" data-k="0" type="button">0</button>
+    <button class="pill-btn" data-k="1" type="button">1</button>
+    <button class="pill-btn active" data-k="2" type="button">2</button>
+    <button class="pill-btn" data-k="4" type="button">4</button>
+    <button class="pill-btn" data-k="8" type="button">8</button>
+  </div>
+  <div id="w11-sg2-svg" role="img" aria-label="The karate club colored by the K-times-propagated faction signal with three planted label errors: at K around two the errors are repaired by neighborhood averaging, and at large K everything washes toward one dominant direction"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the methods figure above describes the precompute-then-MLP pipeline.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 3.</strong> The entire SGC idea in one dial:
+  Â<sup>K</sup>x is computed once, offline, and the "GNN" that trains afterward is a
+  logistic regression reading this table. <strong>Try this:</strong> at K = 0 find
+  the three planted wrong-faction nodes; at K = 2 watch neighborhood averaging fix
+  two of the three — the third lives so deep in the other faction that averaging
+  votes against the truth, a useful honesty about what propagation is and isn't;
+  at K = 8, Week 9's oversmoothing arrives exactly on schedule. Depth is a dial with
+  a sweet spot, and now you can precompute the dial.</p>
+</div>
+```

@@ -51,6 +51,8 @@ website:
             text: "9 · GNN Theory: The Ceiling"
           - href: lectures/10-hetero-rgcn.qmd
             text: "10 · Heterogeneous Graphs & R-GCN"
+          - href: lectures/11-scaling.qmd
+            text: "11 · Scaling GNNs"
       - section: Labs
         contents:
           - href: labs/lab01.qmd
@@ -73,6 +75,8 @@ website:
             text: "Lab 9 · The ceiling, verified"
           - href: labs/lab10.qmd
             text: "Lab 10 · Typed message passing"
+          - href: labs/lab11.qmd
+            text: "Lab 11 · Scaling, by hand"
       - section: Assessments
         contents:
           - href: homeworks/hw1.qmd

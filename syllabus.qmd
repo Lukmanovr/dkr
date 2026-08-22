@@ -19,7 +19,7 @@ weeks will follow.
 | 8 | **Oct 15** | [**Midterm exam**](exams/midterm.qmd) (written, full session, Wks 1–7 · [sample](exams/midterm-sample.qmd)) | [Midterm debrief + project kickoff](labs/lab08.qmd) | [HW2 out](homeworks/hw2.qmd) |
 | 9 | Oct 22 | [GNN theory: the 1-WL ceiling, oversquashing](lectures/09-expressiveness.qmd) | [WL from scratch; the ceiling verified](labs/lab09.qmd) | [Project proposal due](project/index.qmd) |
 | 10 | Oct 29 | [Heterogeneous & relational GNNs: R-GCN, HAN/HGT](lectures/10-hetero-rgcn.qmd) | [Typed classification + the encoder showdown](labs/lab10.qmd) | [HW2 due](homeworks/hw2.qmd) |
-| 11 | Nov 5 | Scaling GNNs: sampling, Cluster-GCN, GraphSAINT, SGC | ogbn-arxiv at scale; profiling | |
+| 11 | Nov 5 | [Scaling GNNs: sampling, clustering, SGC](lectures/11-scaling.qmd) | [The explosion, the sampler, the table](labs/lab11.qmd) | |
 | 12 | Nov 12 | Link prediction & graph generation: VGAE, SEAL, GraphRNN, diffusion | VGAE + SEAL; a small generative model | HW3 out |
 | 13 | Nov 19 | Beyond message passing: positional encodings, graph transformers | GPS-style model on ZINC molecules | Project midway |
 | 14 | Nov 26 | Graphs in production: temporal, recommenders, relational DL, GraphRAG | LightGCN on MovieLens | HW3 due |

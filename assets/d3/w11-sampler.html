@@ -1,0 +1,23 @@
+```{=html}
+<div class="interactive-container" id="w11-sm-widget">
+  <div class="fig-label">Interactive · What one gradient step loads</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-mode="full" type="button">full-batch</button>
+    <button class="pill-btn" data-mode="sample" type="button">neighbor sample (f=3)</button>
+    <button class="pill-btn" data-mode="cluster" type="button">one cluster</button>
+    <button class="pill-btn" id="w11-sm-reseed" type="button">reseed</button>
+  </div>
+  <div id="w11-sm-svg" role="img" aria-label="The karate club with one mini-batch of four target nodes highlighted, showing exactly which nodes and edges each training strategy loads: all of them for full-batch, a bounded sampled subset for neighbor sampling, or a single random cluster for partition training"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the three-methods figure above summarizes what each strategy loads.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 2.</strong> Same batch of four gold targets,
+  three philosophies about what to load for it. <strong>Try this:</strong> switch to
+  neighbor sampling and reseed a few times — different neighbors every draw; that
+  jitter is the variance you accepted in Week 7's SAGE widget, now wearing its
+  systems costume. Then switch to one cluster and find the batch's targets that
+  simply vanished — along with every between-cluster edge: Cluster-GCN's bias,
+  visible to the naked eye.</p>
+</div>
+```

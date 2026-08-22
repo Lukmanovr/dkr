@@ -1,0 +1,23 @@
+```{=html}
+<div class="interactive-container" id="w11-tb-widget">
+  <div class="fig-label">Interactive · The trade-off table, stress-tested</div>
+  <div class="widget-controls">
+    <span style="font-size:0.85rem">sort by:</span>
+    <button class="pill-btn active" data-sort="acc" type="button">accuracy</button>
+    <button class="pill-btn" data-sort="time" type="button">epoch time</button>
+    <button class="pill-btn" data-sort="mem" type="button">memory</button>
+    <button class="pill-btn" id="w11-tb-products" type="button">products stress test (×14.5)</button>
+  </div>
+  <div id="w11-tb-svg" role="img" aria-label="The measured ogbn-arxiv scaling table, sortable by accuracy, epoch time, or training memory, with a stress-test toggle that scales each method's memory to ogbn-products size and marks which methods still fit an eight-gigabyte GPU"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the measured table figure above shows all numbers at arxiv scale.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 4.</strong> Our measured table with the one
+  button that matters in production. <strong>Try this:</strong> sort three ways and
+  notice a different row wins each sort — then press the stress test. At products
+  scale (2.4M nodes) the full-batch row turns red at ~40 GB while the batch-bounded
+  rows stay green: the whole lecture, decided by whether your memory column scales
+  with the <em>graph</em> or with the <em>batch</em>.</p>
+</div>
+```

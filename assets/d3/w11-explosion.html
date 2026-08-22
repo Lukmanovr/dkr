@@ -1,0 +1,31 @@
+```{=html}
+<div class="interactive-container" id="w11-ex-widget">
+  <div class="fig-label">Interactive · The receptive-field bill</div>
+  <div class="widget-controls">
+    <span style="font-size:0.85rem">L:</span>
+    <button class="pill-btn" data-l="1" type="button">1</button>
+    <button class="pill-btn" data-l="2" type="button">2</button>
+    <button class="pill-btn active" data-l="3" type="button">3</button>
+    <button class="pill-btn" data-l="4" type="button">4</button>
+    <span style="font-size:0.85rem">branching:</span>
+    <button class="pill-btn" data-b="5" type="button">5</button>
+    <button class="pill-btn active" data-b="14" type="button">14 (arxiv)</button>
+    <button class="pill-btn" data-b="50" type="button">50</button>
+    <span style="font-size:0.85rem">fanout:</span>
+    <button class="pill-btn" data-f="5" type="button">5</button>
+    <button class="pill-btn" data-f="10" type="button">10</button>
+    <button class="pill-btn active" data-f="inf" type="button">no cap</button>
+  </div>
+  <div id="w11-ex-svg" role="img" aria-label="Live computation of how many nodes one update touches: per-hop bars of branching to the k-th power, their total, and the measured ogbn-arxiv values overlaid when the settings match the real graph"></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
+    view: the explosion figure above carries the measured arxiv numbers.</p>
+  </noscript>
+  <p class="fig-caption"><strong>Figure 1.</strong> The bill for one node's update,
+  itemized per hop. <strong>Try this:</strong> at arxiv's branching with no cap,
+  step L from 1 to 3 and watch the measured overlay hit 13% of the whole graph —
+  then set fanout 10 and read the moral of the entire week: the cap makes cost a
+  function of <em>your budget</em> instead of <em>the graph's whims</em>. Then try
+  branching 50 with and without the cap and imagine a social network's hubs.</p>
+</div>
+```
