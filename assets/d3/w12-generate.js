@@ -120,10 +120,10 @@
       .attr("font-size", 13).attr("font-weight", 600).attr("fill", P.accentDark).text(verdict);
   }
 
-  document.querySelectorAll("#w12-ge-widget [data-src]").forEach((b) =>
+  document.querySelectorAll("#w12-ge-widget [data-set]").forEach((b) =>
     b.addEventListener("click", () => {
-      src = b.getAttribute("data-src");
-      document.querySelectorAll("#w12-ge-widget [data-src]").forEach((x) => x.classList.toggle("active", x === b));
+      src = b.getAttribute("data-set");
+      document.querySelectorAll("#w12-ge-widget [data-set]").forEach((x) => x.classList.toggle("active", x === b));
       render();
     }));
 
