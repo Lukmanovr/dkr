@@ -1,5 +1,5 @@
 /* Widget 13.4 — The ZINC ladder, measured, with the budget lens.
- * Numbers from scratchpad/w13_experiment.py (ZINC-subset, 100 epochs,
+ * Numbers from scripts/experiments/w13_experiment.py (ZINC-subset, 100 epochs,
  * cosine LR, seed 0, course GPU, 2026-08-22). Toggle the reference to see
  * what ~10x tuned schedules report — budget moves everything.
  */

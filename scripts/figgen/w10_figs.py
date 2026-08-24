@@ -7,7 +7,7 @@ computation plus every parameter count the lecture states:
                    (computed curves, FB15k-237 marked at 237)
   fig-w10-encdec — lookup vs R-GCN encoder into the SAME DistMult decoder,
                    with our measured MRRs baked in
-Measured numbers: scratchpad w10_experiment3.py (the consistent ±0.06-init
+Measured numbers: scripts/experiments/w10_experiment3.py (the consistent ±0.06-init
 series), FB15k-237, Lab-4 protocol (margin loss, 2,000 test facts, both
 directions, filtered), 2026-08-22:
   TransE 5ep/7s MRR 0.178 H@10 0.301 · DistMult 5ep/7s 0.179/0.311

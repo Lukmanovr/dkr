@@ -1,7 +1,7 @@
 /* Widget 14.3 — Three protocols, one truth.
  * One user's 12 interactions on a timeline; each protocol paints them
  * train/val/test. The measured LightGCN K=3 Recall@20 for each protocol
- * (scratchpad/w14_experiment.py + _2.py, ML-100k, seed 0, 2026-08-22):
+ * (scripts/experiments/w14_experiment.py + _2.py, ML-100k, seed 0, 2026-08-22):
  * random 0.3462 · leave-last-out 0.2096 · global temporal 0.1953.
  */
 (function () {

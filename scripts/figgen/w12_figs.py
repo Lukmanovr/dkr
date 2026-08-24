@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Generate the four Week 12 figures + bake the karate VGAE latent for the
-w12-vgae widget. Measured numbers (scratchpad/w12_experiment.py, Cora, one
+w12-vgae widget. Measured numbers (scripts/experiments/w12_experiment.py, Cora, one
 proper split, 2026-08-22): CN 0.724 · AA 0.725 · VGAE 0.903 · SEAL-lite
 0.897 — and the LEAKY-label SEAL scored 0.363 (worse than random: the model
 learned the leak and it anti-generalizes). Generation (GraphRNN-S on

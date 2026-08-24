@@ -1,0 +1,32 @@
+{
+ "explosion": {
+  "avg_deg": 13.8,
+  "hops": [
+   18,
+   4577,
+   22663
+  ]
+ },
+ "fullbatch_gcn": {
+  "test": 0.665,
+  "s_per_epoch": 0.1,
+  "peak_mb": 2821
+ },
+ "sampled_sage": {
+  "test": 0.605,
+  "s_per_epoch": 12.2,
+  "peak_mb": 64
+ },
+ "cluster_gcn": {
+  "test": 0.628,
+  "s_per_epoch": 0.51,
+  "peak_mb": 31,
+  "edges_kept": 0.025
+ },
+ "sgc": {
+  "test": 0.638,
+  "precompute_s": 3.9,
+  "s_per_epoch": 0.0015,
+  "peak_mb": 171
+ }
+}

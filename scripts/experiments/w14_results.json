@@ -1,0 +1,43 @@
+{
+ "pop_temporal": {
+  "recall20": 0.1655,
+  "ndcg20": 0.1256,
+  "users": 66
+ },
+ "lgcn0_temporal": {
+  "recall20": 0.1562,
+  "ndcg20": 0.1157,
+  "secs": 4
+ },
+ "lgcn1_temporal": {
+  "recall20": 0.1749,
+  "ndcg20": 0.1675,
+  "secs": 5
+ },
+ "lgcn2_temporal": {
+  "recall20": 0.1851,
+  "ndcg20": 0.1621,
+  "secs": 9
+ },
+ "lgcn3_temporal": {
+  "recall20": 0.1953,
+  "ndcg20": 0.1662,
+  "secs": 10
+ },
+ "lgcn3_random": {
+  "recall20": 0.3462,
+  "ndcg20": 0.2597,
+  "secs": 12
+ },
+ "pop_llo": {
+  "recall20": 0.1266,
+  "ndcg20": 0.0541,
+  "users": 940
+ },
+ "lgcn3_llo": {
+  "recall20": 0.2096,
+  "ndcg20": 0.0863,
+  "secs": 28,
+  "users": 940
+ }
+}

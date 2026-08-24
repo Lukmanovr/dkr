@@ -1,0 +1,66 @@
+{
+ "GCN|2|plain": {
+  "mean": 81.0,
+  "std": 0.6
+ },
+ "GCN|2|res": {
+  "mean": 80.3,
+  "std": 0.9
+ },
+ "GCN|4|plain": {
+  "mean": 76.9,
+  "std": 2.4
+ },
+ "GCN|4|res": {
+  "mean": 80.0,
+  "std": 1.1
+ },
+ "SAGE|2|plain": {
+  "mean": 79.8,
+  "std": 1.1
+ },
+ "SAGE|2|res": {
+  "mean": 79.9,
+  "std": 0.1
+ },
+ "SAGE|4|plain": {
+  "mean": 77.8,
+  "std": 1.1
+ },
+ "SAGE|4|res": {
+  "mean": 79.5,
+  "std": 0.9
+ },
+ "GAT|2|plain": {
+  "mean": 75.8,
+  "std": 1.2
+ },
+ "GAT|2|res": {
+  "mean": 77.1,
+  "std": 2.2
+ },
+ "GAT|4|plain": {
+  "mean": 26.2,
+  "std": 9.8
+ },
+ "GAT|4|res": {
+  "mean": 80.5,
+  "std": 1.0
+ },
+ "GIN|2|plain": {
+  "mean": 77.3,
+  "std": 1.2
+ },
+ "GIN|2|res": {
+  "mean": 75.9,
+  "std": 0.8
+ },
+ "GIN|4|plain": {
+  "mean": 44.2,
+  "std": 19.5
+ },
+ "GIN|4|res": {
+  "mean": 75.2,
+  "std": 1.3
+ }
+}

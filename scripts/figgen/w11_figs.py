@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Generate the four Week 11 figures. Measured numbers from scratchpad
+"""Generate the four Week 11 figures. Measured numbers from scripts/experiments
 w11_experiment.py (ogbn-arxiv, 2026-08-22, this course's GPU):
   explosion: avg degree 13.8; avg L-hop unique nodes 18 / 4,577 / 22,663
   full-batch GCN 100ep: test .665 · 0.10 s/ep · 2,821 MB training peak

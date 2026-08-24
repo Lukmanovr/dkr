@@ -1,5 +1,5 @@
 /* Widget 11.4 — The scaling table, sortable, with the products stress test.
- * Measured on ogbn-arxiv (scratchpad/w11_experiment.py, 2026-08-22, course
+ * Measured on ogbn-arxiv (scripts/experiments/w11_experiment.py, 2026-08-22, course
  * GPU): accuracy / s-per-epoch / TRAINING-peak MB. The "products" toggle
  * scales memory by the node ratio (2.4M / 169k ≈ 14.5×) — SGC's feature
  * table scales too, but its GPU-resident training slice does not.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Generate the four Week 14 figures. Measured (scratchpad/w14_experiment.py
+"""Generate the four Week 14 figures. Measured (scripts/experiments/w14_experiment.py
 + w14_experiment2.py, MovieLens-100k, LightGCN d=64 BPR, seed 0, course GPU,
 2026-08-22):
   global-temporal split (66 test users):

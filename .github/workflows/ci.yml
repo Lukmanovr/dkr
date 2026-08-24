@@ -40,6 +40,9 @@ jobs:
       - name: Figure geometry lint (Protocol F3)
         run: node scripts/figlint.mjs
 
+      - name: Widget smoke + correctness probes
+        run: node scripts/widget_smoke.mjs
+
   notebooks:
     runs-on: ubuntu-latest
     timeout-minutes: 90

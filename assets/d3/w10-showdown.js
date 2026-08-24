@@ -1,7 +1,7 @@
 /* Widget 10.4 — The encoder showdown, measured.
  * Numbers are real: FB15k-237, Lab-4 protocol (margin loss, 2,000 test facts,
  * both directions, filtered), the consistent ±0.06-init series, run
- * 2026-08-22 on this course's hardware (scratchpad/w10_experiment3.py).
+ * 2026-08-22 on this course's hardware (scripts/experiments/w10_experiment3.py).
  * Two lenses: the budget table, and TransE's per-category MRR.
  */
 (function () {

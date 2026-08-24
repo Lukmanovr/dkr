@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Generate the four Week 13 figures. Measured (scratchpad/w13_experiment.py,
+"""Generate the four Week 13 figures. Measured (scripts/experiments/w13_experiment.py,
 ZINC-subset, 100 epochs, cosine LR, seed 0, course GPU, 2026-08-22):
   MPNN-only        test MAE 0.349  (188 s)
   MPNN + RWSE      test MAE 0.296  (194 s)   <- the encoding pays, ~free

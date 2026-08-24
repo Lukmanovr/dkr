@@ -1,0 +1,12 @@
+{
+ "CN": 0.724,
+ "AA": 0.725,
+ "VGAE": 0.903,
+ "SEAL": 0.897,
+ "generation": {
+  "deg_TV_model": 0.111,
+  "deg_TV_ER": 0.152,
+  "clu_TV_model": 0.154,
+  "clu_TV_ER": 0.596
+ }
+}
