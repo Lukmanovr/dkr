@@ -3,7 +3,7 @@
 
 PY ?= python
 
-.PHONY: site preview test linkcheck clean
+.PHONY: site preview test linkcheck qa clean
 
 site:
 	quarto render
@@ -18,6 +18,14 @@ test:
 
 linkcheck:
 	$(PY) scripts/check_links.py _site
+
+# The full pre-commit battery (everything CI runs except the notebooks).
+# Run `make site` first — the link check reads _site/.
+qa:
+	$(PY) scripts/check_no_solutions.py
+	$(PY) scripts/check_links.py _site --skip-external
+	node scripts/figlint.mjs
+	node scripts/widget_smoke.mjs
 
 clean:
 	rm -rf _site .quarto
