@@ -9,8 +9,10 @@
 (function () {
   "use strict";
   const U = window.DKR;
+  // last entry is blue, NOT gray — node 9's singleton community must not share
+  // the neutral gray used for inter-community edges
   const PAL = ["#d9603b", "#0f8377", "#7c5cd6", "#d9a62e", "#d1567e",
-               "#199473", "#8a5a33", "#cf4a30", "#5f7a1e", "#8e8e9a"];
+               "#199473", "#8a5a33", "#cf4a30", "#5f7a1e", "#3f7fc4"];
   const N = 10;
   const EDGES = [[0, 1], [0, 2], [1, 2], [1, 3], [2, 3], [3, 4], [2, 4], [0, 3],
                  [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [8, 9], [7, 9], [5, 8],
@@ -78,8 +80,8 @@
       .attr("x1", (e) => POS[e[0]][0]).attr("y1", (e) => POS[e[0]][1])
       .attr("x2", (e) => POS[e[1]][0]).attr("y2", (e) => POS[e[1]][1])
       .attr("stroke", (e) => (comm[e[0]] === comm[e[1]] ? PAL[comm[e[0]] % 10] : P.muted))
-      .attr("stroke-width", (e) => (comm[e[0]] === comm[e[1]] ? 3 : 1.5))
-      .attr("opacity", (e) => (comm[e[0]] === comm[e[1]] ? 0.8 : 0.5))
+      .attr("stroke-width", (e) => (comm[e[0]] === comm[e[1]] ? 3 : 1.8))
+      .attr("opacity", (e) => (comm[e[0]] === comm[e[1]] ? 0.8 : 0.65))
       .attr("stroke-dasharray", (e) => (comm[e[0]] === comm[e[1]] ? null : "4,4"));
 
     const upNext = converged ? -1 : ptr % N;
@@ -94,17 +96,30 @@
       .attr("font-size", 13).attr("font-weight", 700).attr("fill", "#fff")
       .text((i) => i);
 
-    // Q meter
+    // Q meter — scaled: zero tick, end labels, and the planted-split target, so
+    // the track reads as an axis rather than a broken slider
     const q = modularity(comm);
-    const meter = g.append("g").attr("transform", "translate(90,258)");
+    const meter = g.append("g").attr("transform", "translate(90,258)")
+      .attr("font-family", "'Source Sans 3', sans-serif");
+    const QLO = -0.12, QHI = 0.5;                                // display range
+    const qx = (v) => 560 * (v - QLO) / (QHI - QLO);
     meter.append("rect").attr("x", 0).attr("y", 0).attr("width", 560).attr("height", 12)
       .attr("rx", 6).attr("fill", P.border);
-    const frac = Math.max(0, Math.min(1, (q + 0.12) / 0.62));   // display range −0.12 … 0.5
+    const frac = Math.max(0, Math.min(1, (q - QLO) / (QHI - QLO)));
     meter.append("rect").attr("x", 0).attr("y", 0).attr("width", 560 * frac).attr("height", 12)
       .attr("rx", 6).attr("fill", q > 0.3 ? P.green : P.accent);
+    meter.append("line").attr("x1", qx(0)).attr("x2", qx(0)).attr("y1", -4).attr("y2", 16)
+      .attr("stroke", P.text).attr("stroke-width", 1.2);
+    meter.append("text").attr("x", qx(0)).attr("y", -8).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted).text("Q = 0");
+    const qStar = 0.389;                                         // the planted 2-community split
+    meter.append("line").attr("x1", qx(qStar)).attr("x2", qx(qStar)).attr("y1", -4).attr("y2", 16)
+      .attr("stroke", P.green).attr("stroke-width", 1.4).attr("stroke-dasharray", "3,2");
+    meter.append("text").attr("x", qx(qStar)).attr("y", -8).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.green).text("planted split");
     meter.append("text").attr("x", 578).attr("y", 11).attr("font-size", 13.5)
       .attr("font-weight", 700).attr("fill", P.text).text(`Q = ${q.toFixed(3)}`);
-    meter.append("text").attr("x", 0).attr("y", 30).attr("font-size", 12).attr("fill", P.muted)
+    meter.append("text").attr("x", 0).attr("y", 30).attr("font-size", 12.5).attr("fill", P.muted)
       .text(`${new Set(comm).size} communities · dashed ring = considered next · solid colored edges are inside a community`);
 
     g.append("text").attr("x", 365).attr("y", 315).attr("text-anchor", "middle")

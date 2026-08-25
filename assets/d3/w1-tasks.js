@@ -59,8 +59,8 @@
         text: (i) => (known[i] ? NAMES[i] : "?"),
         textFill: (i) => (known[i] ? "#fff" : P.text),
       });
-      g.append("text").attr("x", 140).attr("y", 168).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("font-weight", 700).attr("fill", P.accentDark)
+      g.append("text").attr("x", 140).attr("y", 243).attr("text-anchor", "middle")
+        .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.accentDark)
         .text("classify D");
     } else if (mode === "edge") {
       baseGraph(g, P, {});

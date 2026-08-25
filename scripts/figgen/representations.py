@@ -64,6 +64,7 @@ svg = f"""```{{=html}}
     </g>
   </g>
   <text x="130" y="26" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="13.5" font-weight="700" fill="var(--dkr-text, #1c1c21)">one graph…</text>
+  <text x="130" y="216" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12.5" fill="var(--dkr-muted, #6e6e7a)">n = 6 nodes, m = 7 edges</text>
 
   <g font-family="'Source Sans 3', sans-serif">
     <text x="470" y="26" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--dkr-text, #1c1c21)">…three ways to store it</text>
@@ -77,7 +78,7 @@ svg = f"""```{{=html}}
       <g stroke="var(--dkr-border, #d5d4cf)" stroke-width="1" fill="none">
         {grid}
       </g>
-      <g font-size="12.5" fill="var(--dkr-muted, #6e6e7a)">
+      <g font-size="13" fill="var(--dkr-muted, #6e6e7a)">
         {mlabels}
       </g>
       <text x="60" y="146" text-anchor="middle" font-size="12.5" fill="var(--dkr-muted, #6e6e7a)">n² = 36 slots</text>
@@ -95,7 +96,7 @@ svg = f"""```{{=html}}
       <text x="64" y="-42" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12.5" font-weight="700" fill="var(--dkr-blue-dark, #0a5f56)">edge list (COO)</text>
       <text x="0" y="0"  fill="var(--dkr-muted, #6e6e7a)">src</text><text x="34" y="0"  fill="var(--dkr-text, #1c1c21)">{src}</text>
       <text x="0" y="22" fill="var(--dkr-muted, #6e6e7a)">dst</text><text x="34" y="22" fill="var(--dkr-text, #1c1c21)">{dst}</text>
-      <text x="64" y="52" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12.5" fill="var(--dkr-accent, #b84a2b)" font-weight="600">= PyG's edge_index</text>
+      <text x="64" y="52" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12.5" fill="var(--dkr-text, #1c1c21)" font-weight="700">= PyG's edge_index</text>
       <text x="64" y="130" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12.5" fill="var(--dkr-muted, #6e6e7a)">2m = 14 entries</text>
     </g>
   </g>

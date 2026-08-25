@@ -7,8 +7,10 @@
 (function () {
   "use strict";
   const U = window.DKR;
+  // KEEP IN SYNC with WLPAL in scripts/figgen/w2_figs.py (the lecture's WL figure
+  // uses the same refinement ids; ids 5-9 are hue-separated for the stable state)
   const WLPAL = ["#8e8e9a", "#d9603b", "#0f8377", "#7c5cd6", "#d9a62e",
-                 "#d1567e", "#199473", "#8a5a33", "#cf4a30", "#5f7a1e"];
+                 "#d1567e", "#2e7dd1", "#8a5a33", "#cf4a30", "#199473"];
 
   const SCENES = {
     cast: {
@@ -76,13 +78,15 @@
       .attr("transform", (i) => `translate(${S.pos[i][0]},${S.pos[i][1]})`);
     nd.append("circle").attr("r", 15).attr("fill", (i) => WLPAL[colors[i] % 10]);
     if (S.names) {
+      // dark letters on the shared gray (round-0) color — white fails contrast there
       nd.append("text").attr("text-anchor", "middle").attr("dy", 4.5)
-        .attr("font-size", 13).attr("font-weight", 700).attr("fill", "#fff")
+        .attr("font-size", 13).attr("font-weight", 700)
+        .attr("fill", (i) => (colors[i] === 0 ? "#1c1c21" : "#fff"))
         .text((i) => S.names[i]);
     }
   }
 
-  function drawHist(g, entries, P, title) {
+  function drawHist(g, entries, P, title, axisNote) {
     g.append("text").attr("y", -10).attr("font-size", 12.5).attr("font-weight", 700)
       .attr("fill", P.text).text(title);
     entries.forEach(([c, count], k) => {
@@ -90,8 +94,15 @@
       g.append("rect").attr("x", k * 32).attr("y", 100 - h).attr("width", 22).attr("height", h)
         .attr("rx", 4).attr("fill", WLPAL[c % 10]);
       g.append("text").attr("x", k * 32 + 11).attr("y", 94 - h).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("fill", P.muted).text(count);
+        .attr("font-size", 12.5).attr("fill", P.muted).text(count);
     });
+    const w = Math.max(entries.length * 32 - 10, 22);
+    g.append("line").attr("x1", -4).attr("x2", w + 4).attr("y1", 101).attr("y2", 101)
+      .attr("stroke", P.muted).attr("stroke-width", 1);
+    if (axisNote) {
+      g.append("text").attr("x", -4).attr("y", 116).attr("font-size", 12.5)
+        .attr("fill", P.muted).text(axisNote);
+    }
   }
 
   function render() {
@@ -101,8 +112,8 @@
     svg.attr("font-family", "'Source Sans 3', sans-serif");
 
     if (scene === "cast") {
-      drawGraph(svg.append("g").attr("transform", "translate(40,30)"), S, d3.range(6), P);
-      drawHist(svg.append("g").attr("transform", "translate(520,80)"), histo(), P, "color histogram");
+      drawGraph(svg.append("g").attr("transform", "translate(110,30)"), S, d3.range(6), P);
+      drawHist(svg.append("g").attr("transform", "translate(580,80)"), histo(), P, "color histogram", "nodes per color");
     } else {
       const g = svg.append("g").attr("transform", "translate(20,40)");
       drawGraph(g, S, d3.range(12), P);

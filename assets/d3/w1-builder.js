@@ -57,10 +57,10 @@
       .attr("font-size", 14).attr("font-weight", 700).attr("fill", "#fff")
       .text((i) => NAMES[i]);
     nd.append("text").attr("x", 0).attr("y", -24).attr("text-anchor", "middle")
-      .attr("font-size", 11).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text((i) => `d=${deg[i]}`);
     gp.append("text").attr("x", 235).attr("y", 262).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", pending === null ? P.muted : P.accentDark)
+      .attr("font-size", 12.5).attr("fill", pending === null ? P.muted : P.accentDark)
       .text(pending === null
         ? "click two nodes to toggle the edge between them"
         : `now click a second node to connect/disconnect ${NAMES[pending]} …`);
@@ -88,15 +88,15 @@
       U.drawMatrix(rp, M, { cell: 30, color, fmt, textColor: P.text, borderColor: P.border, fontSize: 12.5 });
       d3.range(n).forEach((i) => {
         rp.append("text").attr("x", -9).attr("y", i * 30 + 20).attr("text-anchor", "end")
-          .attr("font-size", 12).attr("fill", COLORS[i]).attr("font-weight", 700).text(NAMES[i]);
+          .attr("font-size", 12.5).attr("fill", COLORS[i]).attr("font-weight", 700).text(NAMES[i]);
         rp.append("text").attr("x", i * 30 + 15).attr("y", -8).attr("text-anchor", "middle")
-          .attr("font-size", 12).attr("fill", COLORS[i]).attr("font-weight", 700).text(NAMES[i]);
+          .attr("font-size", 12.5).attr("fill", COLORS[i]).attr("font-weight", 700).text(NAMES[i]);
       });
       rp.append("text").attr("x", 90).attr("y", 212).attr("text-anchor", "middle")
         .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.text).text(title);
       if (tab === "L") {
         rp.append("text").attr("x", 90).attr("y", 232).attr("text-anchor", "middle")
-          .attr("font-size", 11.5).attr("fill", P.muted).text("row sums = 0 — check it!");
+          .attr("font-size", 12.5).attr("fill", P.muted).text("row sums = 0 — check it!");
       }
     } else {
       // lists
@@ -111,16 +111,16 @@
           });
       });
       const E2 = [...edges].map((k) => k.split("-").map(Number)).sort((x, y) => x[0] - y[0] || x[1] - y[1]);
-      rp.append("text").attr("x", 0).attr("y", 158).attr("font-size", 12).attr("fill", P.muted).text("edge_index (COO):");
-      rp.append("text").attr("x", 0).attr("y", 178).attr("font-size", 12)
+      rp.append("text").attr("x", 0).attr("y", 158).attr("font-size", 12.5).attr("fill", P.muted).text("edge_index (COO):");
+      rp.append("text").attr("x", 0).attr("y", 178).attr("font-size", 12.5)
         .attr("font-family", "'JetBrains Mono', monospace").attr("fill", P.text)
         .text("src " + E2.map((e) => e[0]).join(" "));
-      rp.append("text").attr("x", 0).attr("y", 196).attr("font-size", 12)
+      rp.append("text").attr("x", 0).attr("y", 196).attr("font-size", 12.5)
         .attr("font-family", "'JetBrains Mono', monospace").attr("fill", P.text)
         .text("dst " + E2.map((e) => e[1]).join(" "));
     }
     rp.append("text").attr("x", 90).attr("y", 258).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text(`n = ${n} · m = ${m} edges`);
   }
 

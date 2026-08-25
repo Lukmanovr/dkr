@@ -42,7 +42,7 @@
       <line x1="0" y1="0" x2="120" y2="0"/><line x1="0" y1="45" x2="120" y2="45"/><line x1="0" y1="90" x2="120" y2="90"/>
       <line x1="0" y1="0" x2="0" y2="90"/><line x1="60" y1="0" x2="60" y2="90"/><line x1="120" y1="0" x2="120" y2="90"/>
     </g>
-    <g stroke="var(--dkr-accent, #d9603b)" stroke-width="3.5" fill="none">
+    <g stroke="var(--dkr-blue, #0f8377)" stroke-width="3.5" fill="none">
       <path d="M0,90 L60,90 L60,45 L120,45 L120,0"/>
     </g>
     <g fill="var(--dkr-paper, #fff)" stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.4">
@@ -50,8 +50,9 @@
       <circle cx="0" cy="45" r="6"/><circle cx="60" cy="45" r="6"/><circle cx="120" cy="45" r="6"/>
       <circle cx="0" cy="90" r="6"/><circle cx="60" cy="90" r="6"/><circle cx="120" cy="90" r="6"/>
     </g>
-    <circle cx="0" cy="90" r="7" fill="var(--dkr-green, #199473)"/>
-    <circle cx="120" cy="0" r="7" fill="var(--dkr-accent, #d9603b)"/>
+    <circle cx="0" cy="90" r="7" fill="var(--dkr-blue, #0f8377)"/>
+    <circle cx="120" cy="0" r="7" fill="var(--dkr-blue, #0f8377)"/>
+    <text x="0" y="108" font-family="'Source Sans 3', sans-serif" font-size="12" font-weight="600" fill="var(--dkr-blue-dark, #0a5f56)">fastest route</text>
   </g>
   <g font-family="'Source Sans 3', sans-serif" font-size="12" text-anchor="middle">
     <rect x="586" y="76" width="146" height="24" rx="12" fill="var(--dkr-accent, #d9603b)"/>
@@ -85,26 +86,27 @@
   </g>
 
   <!-- knowledge graph: typed nodes, labeled edges, one dashed missing edge -->
-  <g transform="translate(414,224)" font-family="'Source Sans 3', sans-serif">
+  <g font-family="'Source Sans 3', sans-serif">
     <g stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.8">
-      <line x1="30" y1="24" x2="118" y2="24"/>
-      <line x1="118" y1="24" x2="118" y2="84"/>
+      <line x1="447" y1="240" x2="548" y2="240"/>
+      <line x1="560" y1="252" x2="560" y2="288"/>
     </g>
-    <line x1="30" y1="24" x2="30" y2="84" stroke="var(--dkr-accent, #d9603b)" stroke-width="1.8" stroke-dasharray="5,4"/>
-    <circle cx="30" cy="24" r="11" fill="#d9a62e"/>
-    <rect x="106" y="12" width="24" height="24" rx="5" fill="#7c5cd6"/>
-    <rect x="18" y="72" width="24" height="24" rx="5" fill="#0f8377" transform="rotate(45 30 84)"/>
-    <rect x="106" y="72" width="24" height="24" rx="5" fill="#0f8377" transform="rotate(45 118 84)"/>
+    <line x1="436" y1="252" x2="436" y2="288" stroke="var(--dkr-accent, #d9603b)" stroke-width="1.8" stroke-dasharray="5,4"/>
+    <circle cx="436" cy="240" r="11" fill="#d9a62e"/>
+    <rect x="548" y="228" width="24" height="24" rx="5" fill="#7c5cd6"/>
+    <rect x="424" y="290" width="24" height="24" rx="5" fill="#0f8377" transform="rotate(45 436 302)"/>
+    <rect x="548" y="290" width="24" height="24" rx="5" fill="#0f8377" transform="rotate(45 560 302)"/>
+    <rect x="468" y="233" width="59" height="15" fill="var(--dkr-bg, #fff)"/>
     <g font-size="12" fill="var(--dkr-muted, #6e6e7a)">
-      <text x="74" y="16" text-anchor="middle">works_at</text>
-      <text x="126" y="56" text-anchor="start">located_in</text>
-      <text x="8" y="56" text-anchor="end" fill="var(--dkr-accent, #b84a2b)">lives_in?</text>
+      <text x="497" y="245" text-anchor="middle">works_at</text>
+      <text x="552" y="266" text-anchor="end">located_in</text>
+      <text x="444" y="284" text-anchor="start" fill="var(--dkr-accent, #b84a2b)">lives_in?</text>
     </g>
     <g font-size="12" fill="var(--dkr-text, #1c1c21)" text-anchor="middle">
-      <text x="30" y="47">person</text>
-      <text x="118" y="4">company</text>
-      <text x="30" y="112">city</text>
-      <text x="118" y="112">city</text>
+      <text x="436" y="222">person</text>
+      <text x="560" y="222">company</text>
+      <text x="436" y="332">city</text>
+      <text x="560" y="332">city</text>
     </g>
   </g>
   <g font-family="'Source Sans 3', sans-serif" font-size="12" text-anchor="middle">

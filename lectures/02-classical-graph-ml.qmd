@@ -26,7 +26,7 @@ After this lecture (and Lab 2) you can:
 
 In 1998, two Stanford graduate students looked at the web the way Zachary had looked at
 his karate club: as a graph whose *structure* knew something no individual page said out
-loud. Every hyperlink, they argued, is a tiny endorsement. But endorsements can't just be
+loud ([Brin & Page, 1998](https://doi.org/10.1016/S0169-7552(98)00110-X)). Every hyperlink, they argued, is a tiny endorsement. But endorsements can't just be
 counted — a link *from an important page* should count for more, which is circular:
 importance defined in terms of importance.
 
@@ -89,7 +89,10 @@ one step.
 **Closeness** — how near to everyone:
 $$
 c_{\text{clo}}(u) \;=\; \frac{n-1}{\sum_{v \neq u} d(u,v)},
-$$
+$$ {#eq-w02-closeness}
+where $n$ is the number of nodes and $d(u,v)$ is the shortest-path distance from $u$
+to $v$ — a different creature from the degree $d_u$, despite the shared letter: in
+this course $d(\cdot,\cdot)$ with two arguments always means distance. So closeness is
 the inverse of $u$'s average distance to the rest. On the cast graph, from $C$ the
 distances are $1,1,2,1,1$ (to $A,B,D,E,F$) — sum $6$, closeness $5/6 \approx 0.83$.
 From $D$: $1,2,2,3,3$ — sum $11$, closeness $5/11 \approx 0.45$. If you are placing a
@@ -98,8 +101,9 @@ warehouse, a fire station, or a broadcast source, this is your question.
 **Betweenness** — how often *on the way*:
 $$
 c_{\text{btw}}(v) \;=\; \sum_{\{s,t\},\, s \neq v \neq t} \frac{\sigma_{st}(v)}{\sigma_{st}},
-$$
-where $\sigma_{st}$ counts shortest $s$–$t$ paths and $\sigma_{st}(v)$ those passing
+$$ {#eq-w02-betweenness}
+where the sum runs over all unordered node pairs $\{s, t\}$ avoiding $v$,
+$\sigma_{st}$ counts shortest $s$–$t$ paths, and $\sigma_{st}(v)$ counts those passing
 through $v$. It measures brokerage: remove a high-betweenness node and traffic reroutes
 or dies. On the cast graph you can enumerate by hand: every shortest path between
 $\{A,B,D\}$-side and $\{E,F\}$-side threads through $C$ — six pairs, all with a unique
@@ -107,28 +111,43 @@ shortest path — so $c_{\text{btw}}(C) = 6$; the paths from $D$ to everything e
 thread through $A$, giving $c_{\text{btw}}(A) = 4$; everyone else scores $0$.
 
 **Eigenvector centrality** — important is who important people know. Score each node by
-the total score of its neighbors, $x_u \propto \sum_{v \in \mathcal{N}(u)} x_v$ — in
-matrix form $\mathbf{A}\mathbf{x} = \lambda\mathbf{x}$: the importance vector is the
-leading eigenvector of $\mathbf{A}$, computable by repeated multiplication (power
-iteration — sum your neighbors, normalize, repeat until it stops changing). This is the
-recursion from the hero figure, one teleport short of PageRank.
+the total score of its neighbors:
+$$
+x_u \;\propto\; \sum_{v \in \mathcal{N}(u)} x_v
+\qquad\Longleftrightarrow\qquad
+\mathbf{A}\mathbf{x} \;=\; \lambda\mathbf{x},
+$$ {#eq-w02-eigvec}
+where $x_u$ is node $u$'s score, $\mathcal{N}(u)$ denotes the set of $u$'s neighbors
+(notation you will see weekly from now on), $\mathbf{A}$ is the adjacency matrix, and
+$\lambda$ is the eigenvalue that turns the proportionality into an equality. The
+importance vector is the leading eigenvector of $\mathbf{A}$, computable by repeated
+multiplication (power iteration — sum your neighbors, normalize, repeat until it stops
+changing). This is the recursion from the hero figure, one teleport short of PageRank.
 
 Two footnotes on the computations, for the reader who wants the machinery rather than
 the library call. Betweenness looks like it needs all-pairs shortest paths, and
-naively it does; the algorithm everyone uses — **Brandes (2001)** — gets the same
+naively it does; the algorithm everyone uses —
+[Brandes, 2001](https://doi.org/10.1080/0022250X.2001.9990249) — gets the same
 numbers in $O(nm)$ by a two-pass trick per source: a BFS forward pass counts, for
 every node, *how many* shortest paths from the source reach it, and a reverse pass
 accumulates each node's share of the paths flowing through it (a "dependency" that
 telescopes down the BFS tree). One BFS-shaped computation per source instead of one
 per pair — it is the reason betweenness is computable at all on graphs of a few
 hundred thousand nodes, and the reason it still is *not* at web scale, where sampled
-approximations (run Brandes from a few hundred random sources) are standard. Second
-footnote: between plain degree and full eigenvector centrality sits **Katz
-centrality**, and Week 1's walk-counting proposition makes it transparent:
+approximations (run Brandes from a few hundred random sources) are standard.
+
+Second footnote: between plain degree and full eigenvector centrality sits **Katz
+centrality** ([Katz, 1953](https://doi.org/10.1007/BF02289026)), and Week 1's
+walk-counting proposition makes it transparent:
 $$
 \mathbf{x}_{\text{Katz}} \;=\; \sum_{k=1}^{\infty} \beta^k \mathbf{A}^k \mathbf{1}
 \;=\; \bigl((\mathbf{I} - \beta\mathbf{A})^{-1} - \mathbf{I}\bigr)\,\mathbf{1},
-$$
+$$ {#eq-w02-katz}
+where $\beta \in (0, 1/\lambda_{\max})$ is the walk discount, $\mathbf{A}^k$ counts
+length-$k$ walks, $\mathbf{1}$ is the all-ones vector, $\mathbf{I}$ the identity
+matrix, and $\lambda_{\max}$ is $\mathbf{A}$'s largest eigenvalue. (Fair warning:
+this $\beta$ is Katz's discount; the same letter returns below with a different job,
+as PageRank's damping — tradition, not identity.) In words:
 "count every walk that ends at me, discounting length-$k$ walks by $\beta^k$." Small
 $\beta$: degree, essentially. Large $\beta$ (approaching $1/\lambda_{\max}$, where the
 series stops converging): the leading eigenvector takes over. Katz matters to us for
@@ -190,9 +209,15 @@ the surfer spends at each page* in the long run — the
 of the walk. Collect the click probabilities into the **column-stochastic** matrix
 $$
 M_{vu} \;=\; \begin{cases} 1/d^{\text{out}}_u & \text{if } u \to v \\ 0 & \text{otherwise,}\end{cases}
+$$ {#eq-w02-M}
+where $d^{\text{out}}_u$ counts $u$'s outlinks and *column-stochastic* means each
+column sums to $1$ (column $u$ says where the mass at $u$ flows). Importance must
+satisfy a fixed point — what flows in equals what is there:
 $$
-(column $u$ says where mass at $u$ flows). Importance must satisfy
-$\mathbf{r} = M\mathbf{r}$ — a fixed point: what flows in equals what is there.
+\mathbf{r} \;=\; M\mathbf{r},
+$$ {#eq-w02-fixedpoint}
+where $\mathbf{r}$ is the importance vector, its entry $r_u$ the surfer's long-run
+visit rate at page $u$.
 
 Two web-shaped pathologies break the plain walk. A **dead end** (page with no outlinks)
 swallows mass — columns of zeros make $M$ sub-stochastic and $\mathbf{r} \to \mathbf{0}$.
@@ -201,17 +226,31 @@ never leaves, so the trap ends up with everything. The fix is almost comically d
 *get bored sometimes*. With probability $\beta$ follow a link; with probability
 $1-\beta$ jump to a uniformly random page:
 $$
-\mathbf{r} \;=\; \beta M \mathbf{r} \;+\; (1-\beta)\,\tfrac{1}{n}\mathbf{1}.
-$$
-The damping factor $\beta$ is traditionally $0.85$ — roughly, five or six clicks
+\mathbf{r} \;=\; \beta M \mathbf{r} \;+\; (1-\beta)\,\tfrac{1}{n}\mathbf{1},
+$$ {#eq-w02-pagerank}
+where $\beta \in (0,1)$ is the **damping factor**, $n$ the number of pages, and
+$\mathbf{1}$ the all-ones vector — so the second term spreads the teleported
+$(1-\beta)$ of mass evenly over all pages. The damping factor is traditionally
+$0.85$ — roughly, five or six clicks
 before boredom, a number chosen empirically in 1998 and never seriously dethroned. Teleporting rescues dead ends (mass reappears everywhere) and drains spider
 traps (the trap leaks $1-\beta$ of its mass per step).
 
+::: {#def-w02-pagerank .definition name="PageRank"}
+The **PageRank** of page $u$ is $r_u$, the $u$-th entry of the unique probability
+vector $\mathbf{r}$ solving @eq-w02-pagerank — the stationary distribution of the
+teleporting random walk. Reading guidance: it is the long-run fraction of time the
+bored surfer spends at $u$; that "unique" is doing real work is exactly what the next
+proposition establishes.
+:::
+
 ::: {#prp-pagerank .proposition name="PageRank exists, is unique, and power iteration finds it"}
-For any $0 < \beta < 1$ the equation above has exactly one solution with
-$\mathbf{r} \ge 0$, $\sum_u r_u = 1$, and iterating
-$\mathbf{r}^{(k+1)} = \beta M \mathbf{r}^{(k)} + (1-\beta)\frac{1}{n}\mathbf{1}$ from
-any starting distribution converges to it at rate $\beta^k$.
+For any $0 < \beta < 1$, @eq-w02-pagerank has exactly one solution with
+$\mathbf{r} \ge 0$, $\sum_u r_u = 1$, and the iteration
+$$
+\mathbf{r}^{(k+1)} \;=\; \beta M \mathbf{r}^{(k)} \;+\; (1-\beta)\,\tfrac{1}{n}\mathbf{1}
+$$ {#eq-w02-poweriter}
+converges to it from any starting distribution at rate $\beta^k$ (here
+$\mathbf{r}^{(k)}$ is the estimate after $k$ updates).
 :::
 
 <details><summary>Proof (a contraction on the simplex — no Perron–Frobenius needed)</summary>
@@ -220,13 +259,47 @@ $\mathbf{r}$ is a probability vector, so is $G(\mathbf{r})$: entries are nonnega
 and since $M$'s columns each sum to $1$, $\|M\mathbf{r}\|_1 = 1$, so
 $\|G(\mathbf{r})\|_1 = \beta + (1-\beta) = 1$. For two probability vectors
 $\mathbf{r}, \mathbf{s}$:
-$\|G(\mathbf{r}) - G(\mathbf{s})\|_1 = \beta\,\|M(\mathbf{r}-\mathbf{s})\|_1 \le \beta\,\|\mathbf{r}-\mathbf{s}\|_1$,
+$$
+\|G(\mathbf{r}) - G(\mathbf{s})\|_1 \;=\; \beta\,\|M(\mathbf{r}-\mathbf{s})\|_1 \;\le\; \beta\,\|\mathbf{r}-\mathbf{s}\|_1,
+$$
 because multiplying by a column-stochastic matrix cannot increase the $1$-norm (each
 column redistributes its entry's mass without creating any). So $G$ is a
-$\beta$-contraction on a complete space; by Banach's fixed-point theorem the solution
+$\beta$-contraction on a complete space; by Banach's fixed-point theorem (any
+contraction of a complete metric space has exactly one fixed point, and iterating
+from anywhere reaches it) the solution
 exists, is unique, and iteration converges geometrically at rate $\beta$. This is also
 why large $\beta$ means slow convergence — try it in Figure 2. $\square$
 </details>
+
+The proposition licenses an algorithm — the one
+[Brin & Page, 1998](https://doi.org/10.1016/S0169-7552(98)00110-X) shipped, and the
+one you will write in Lab 2's exercise 1: start uniform and apply @eq-w02-poweriter
+until nothing changes.
+
+::: {#alg-w02-pagerank .algorithm name="PageRank by Power Iteration"}
+Computes the PageRank vector of @eq-w02-pagerank by repeated damped updates.
+
+**Input:** out-neighbor lists $N_{\text{out}}(\cdot)$ (an undirected edge counts in
+both directions, so $|N_{\text{out}}(u)| = d_u$); damping $\beta$; iteration count $K$.
+**Output:** rank vector $\mathbf{r}$ with $\sum_u r_u = 1$.
+
+1. $n \leftarrow |\mathcal{V}|$;&nbsp; $r_u \leftarrow 1/n$ for every node $u$
+2. **for** $k = 1 \ldots K$ **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;$r'_v \leftarrow (1-\beta)/n$ for every node $v$
+4. &nbsp;&nbsp;&nbsp;&nbsp;**for** each node $u$ **do**
+5. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$s \leftarrow \beta \, r_u \,/\, |N_{\text{out}}(u)|$
+6. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**for** each $v \in N_{\text{out}}(u)$ **do** $r'_v \leftarrow r'_v + s$
+7. &nbsp;&nbsp;&nbsp;&nbsp;**end for**
+8. &nbsp;&nbsp;&nbsp;&nbsp;$\mathbf{r} \leftarrow \mathbf{r}'$
+9. **end for**
+10. **return** $\mathbf{r}$
+:::
+
+Line 3 lays down the teleport mass; lines 4–6 push each node's retained mass
+$\beta r_u$ down its outlinks in equal shares $s$. One pass of lines 3–8 is exactly
+one sparse matrix–vector product, $O(m)$, and by @prp-pagerank each pass shrinks the
+error by a factor $\beta$ — which is how $K$ gets chosen, as we quantify below. Lab
+2's exercise 1 is this listing verbatim, checked against `networkx` to six decimals.
 
 ::: {#exm-pr-hand .example name="Two power iterations, by hand"}
 A three-page web: $X$ links to $Y$ and $Z$; $Y$ links back to $X$; $Z$ links to $Y$.
@@ -253,7 +326,9 @@ you can detect with a single `sum()` assertion (Lab 2's does). **Stopping:** the
 contraction guarantees error shrinks by $\beta$ per step, so to reach tolerance
 $\varepsilon$ you need $\log \varepsilon / \log \beta$ iterations — about 90 for
 $\varepsilon = 10^{-6}$ at $\beta = 0.85$; note the *ranking* usually stabilizes far
-earlier than the values, which matters when the ranking is all you ship. **Scale:**
+earlier than the values, which matters when the ranking is all you ship.
+
+**Scale:**
 each iteration is one sparse matrix–vector product, $O(m)$ — PageRank on the full web
 was, and remains, a triumph of exactly the sparse-representation discipline Week 1
 preached; nobody has ever materialized the web's adjacency matrix.
@@ -282,8 +357,9 @@ Centralities rank single nodes. The next family of features asks about a node's
 For a node $u$ with degree $d_u \ge 2$,
 $$
 C_u \;=\; \frac{\#\{\text{edges among } \mathcal{N}(u)\}}{\binom{d_u}{2}}
-\;=\; \frac{\#\{\text{triangles at } u\}}{\binom{d_u}{2}} \;\in\; [0,1].
+\;=\; \frac{\#\{\text{triangles at } u\}}{\binom{d_u}{2}} \;\in\; [0,1],
 $$
+where $\mathcal{N}(u)$ is $u$'s neighbor set and $\binom{d_u}{2}$ counts its pairs.
 The fraction of your friend-pairs who are themselves friends.
 :::
 
@@ -297,8 +373,12 @@ structure" may be your imagination.
 Where do triangle counts come from? You already own the tool:
 
 ::: {#prp-triangles .proposition name="The diagonal of A³ counts triangles"}
-$(\mathbf{A}^3)[u,u] = 2 \times \#\{\text{triangles containing } u\}$, and
-$\operatorname{tr}(\mathbf{A}^3) = 6 \times \#\{\text{triangles in } G\}$.
+$$
+(\mathbf{A}^3)[u,u] \;=\; 2 \times \#\{\text{triangles containing } u\},
+\qquad
+\operatorname{tr}(\mathbf{A}^3) \;=\; 6 \times \#\{\text{triangles in } G\},
+$$ {#eq-w02-triangles}
+where $\operatorname{tr}$ denotes the trace — the sum of a matrix's diagonal entries.
 :::
 
 <details><summary>Proof (two lines, standing on Week 1's shoulders)</summary>
@@ -310,11 +390,17 @@ triangle twice at each of its 3 vertices. $\square$
 </details>
 
 Two versions of "the graph's clustering" circulate, and they disagree often enough to
-cause real confusion in papers. The **average clustering coefficient**
-$\bar C = \frac{1}{n}\sum_u C_u$ gives every node one vote — so a million tight
+cause real confusion in papers:
+$$
+\bar C \;=\; \frac{1}{n}\sum_u C_u,
+\qquad\qquad
+T \;=\; \frac{3 \times \#\{\text{triangles}\}}{\#\{\text{wedges}\}},
+$$ {#eq-w02-clustering-global}
+where $C_u$ is @def-clustering's local coefficient, $n$ the number of nodes, and a
+*wedge* is a path of two edges — a potential triangle. The **average clustering
+coefficient** $\bar C$ gives every node one vote — so a million tight
 little triangles among degree-2 nodes dominate it. The **global transitivity**
-$T = \frac{3 \times \#\text{triangles}}{\#\text{wedges}}$ (a *wedge* being a path of
-two edges — a potential triangle) gives every wedge one vote — so hubs, who own most
+$T$ gives every wedge one vote — so hubs, who own most
 wedges, dominate it. Hand-check both on the cast graph: wedges from the degree
 formula, $\sum_u \binom{d_u}{2} = 3 + 1 + 6 + 0 + 1 + 1 = 12$; triangles, two ($ABC$
 and $CEF$); so $T = 3 \cdot 2 / 12 = 0.5$, while $\bar C$ averages the six local
@@ -365,11 +451,21 @@ component. The space of such vectors has exactly one free value per component: i
 dimension is the number of components. $\square$
 </details>
 
-So on a connected graph, $0 = \lambda_1 < \lambda_2$, and the eigenvector for
-$\lambda_2$ — the **Fiedler vector** — is the *smoothest possible signal that is not
-constant*: it minimizes disagreement-across-edges $\mathbf{x}^\top\mathbf{L}\mathbf{x}$
-among unit vectors orthogonal to $\mathbf{1}$ (this variational characterization is
-proved in Week 6, where these eigenvectors become the graph's *frequencies*). A signal
+So on a connected graph, $0 = \lambda_1 < \lambda_2$ — and the eigenvector attached
+to that second-smallest eigenvalue is the object this whole subsection was built to
+reach.
+
+::: {#def-w02-fiedler .definition name="Fiedler vector"}
+The **Fiedler vector** of a connected graph is the eigenvector of its Laplacian
+$\mathbf{L}$ for the second-smallest eigenvalue $\lambda_2$: among unit vectors
+orthogonal to the constant vector $\mathbf{1}$, it minimizes the
+disagreement-across-edges $\mathbf{x}^\top\mathbf{L}\mathbf{x}$. Reading guidance: it
+is the *smoothest possible signal that is not constant* — the variational
+characterization is proved in Week 6, where these eigenvectors become the graph's
+*frequencies*.
+:::
+
+A signal
 that varies as little as possible across edges but must go somewhere has one option:
 sit near one value on one well-knit region, near another value on the other, and pay
 its disagreement only on the thin boundary between them. Threshold it at zero and you
@@ -390,8 +486,9 @@ conflict: one eigenvector of a matrix you already knew.
 {{< include ../assets/figures/fig-w2-fiedler.html >}}
 
 For $k$ communities, take eigenvectors $2 \ldots k$ as $k{-}1$ coordinates per node and
-run $k$-means in that space — **spectral clustering**, the version you will implement
-in the lab's stretch goal.
+run $k$-means (your ML course's "assign to the nearest of $k$ centroids, refit,
+repeat" clustering routine) in that space — **spectral clustering**, the version you
+will implement in the lab's stretch goal.
 
 ### 4.2 Modularity: communities against a null model
 
@@ -404,8 +501,10 @@ For a partition assigning node $u$ to community $c_u$,
 $$
 Q \;=\; \frac{1}{2m}\sum_{u,v}\left(\mathbf{A}[u,v] - \frac{d_u d_v}{2m}\right)\delta(c_u, c_v)
 \;=\; \sum_{c}\left[\frac{e_c}{m} - \left(\frac{D_c}{2m}\right)^{\!2}\right],
-$$
-where $e_c$ counts edges inside community $c$ and $D_c$ sums its degrees. In words:
+$$ {#eq-w02-modularity}
+where $\delta(c_u, c_v)$ is the Kronecker delta — $1$ if $u$ and $v$ sit in the same
+community, else $0$ — $m$ is the edge count, $e_c$ counts edges inside community $c$,
+and $D_c$ sums its members' degrees. In words:
 **edges observed inside, minus edges *expected* inside** if every edge were rewired at
 random while preserving all degrees.
 :::
@@ -433,8 +532,9 @@ count; it is a comparison against chance.
 :::
 
 **Maximizing Q: Louvain.** Exact maximization is NP-hard; the algorithm everyone
-actually runs — from the 2008 Louvain paper, one of the most-used algorithms in all of
-network science — is aggressive greed in two phases. **Phase 1 (local moves):** start
+actually runs — from the 2008 Louvain paper
+([Blondel et al., 2008](https://arxiv.org/abs/0803.0476)), one of the most-used
+algorithms in all of network science — is aggressive greed in two phases. **Phase 1 (local moves):** start
 with every node in its own community; sweep the nodes, moving each into the neighboring
 community with the best positive $\Delta Q$, until no single move helps.
 **Phase 2 (aggregation):** collapse each community into a super-node (edges become
@@ -447,7 +547,7 @@ counts $i$'s edges into $c$, and the expected term changes by
 $-\left(\tfrac{D_c + d_i}{2m}\right)^2 + \left(\tfrac{D_c}{2m}\right)^2 + \left(\tfrac{d_i}{2m}\right)^2 = -\tfrac{D_c\, d_i}{2m^2}$. So
 $$
 \Delta Q \;=\; \frac{k_{i \to c}}{m} \;-\; \frac{D_c\, d_i}{2m^2}:
-$$
+$$ {#eq-w02-deltaq}
 real connections in, minus expected connections in. The widget's very first move is this
 formula verbatim: node 0 joining node 1's singleton community, $k_{i\to c} = 1$,
 $d_i = D_c = 3$, $m = 18$, giving $\Delta Q = \tfrac{1}{18} - \tfrac{9}{648} \approx +0.042$
@@ -461,24 +561,33 @@ The widget's stall is not a bug in the demo — it *is* the lesson. Greedy node-
 reach a local optimum below the planted split, and the aggregation phase exists
 precisely to escape such plateaus by moving whole groups at once. One caution before
 you trust any $Q$: Louvain can produce internally *disconnected* communities as moves
-interact; the **Leiden** algorithm (2019, optional reading) repairs this with a
-refinement step and is what you should reach for in production. `networkx` ships both.
+interact; the **Leiden** algorithm
+([Traag et al., 2019](https://arxiv.org/abs/1810.08473) — optional reading) repairs
+this with a refinement step and is what you should reach for in production.
+`networkx` ships both.
 
 Two more facts complete your modularity education. First, the objective connects back
-to §4.1's spectra: Newman showed that maximizing $Q$ over bisections relaxes to an
-eigenvector problem for the **modularity matrix**
-$\mathbf{B} = \mathbf{A} - \frac{\mathbf{d}\mathbf{d}^\top}{2m}$ (observed minus
-expected, entrywise — the null model as a matrix), whose *leading* eigenvector's signs
-propose the split, exactly as the Laplacian's *Fiedler* eigenvector did for cuts. Two
-different objectives, one spectral escape hatch; recognizing the pattern is worth more
-than either instance. Second, the famous **resolution limit**, with numbers instead of
-folklore. Take a ring of $c$ cliques, each of $k$ nodes, joined by single edges — an
-unambiguous ground truth if there ever was one. Merging two adjacent cliques changes
-modularity by $\Delta Q = \frac{1}{m} - \left(\frac{k(k-1)+2}{2m}\right)^{\!2} \cdot 2 + \cdots$
-— the exact algebra is Lab 2's stretch goal, but the punchline is checkable: once the
-graph is big enough that $m \gtrsim k^2 c$-ish (precisely: when cliques have fewer
-than $\sim\sqrt{2m}$ internal edges), the merge *increases* $Q$, and the optimizer
-happily fuses perfect communities into pairs. On a ring of 24 triangles ($m = 96$),
+to §4.1's spectra: [Newman, 2006](https://arxiv.org/abs/physics/0602124) showed that
+maximizing $Q$ over bisections relaxes to an eigenvector problem for the **modularity
+matrix**
+$$
+\mathbf{B}_Q \;=\; \mathbf{A} \;-\; \frac{\mathbf{d}\,\mathbf{d}^\top}{2m},
+$$ {#eq-w02-modmatrix}
+where $\mathbf{d}$ is the degree vector and $2m$ the total degree — observed minus
+expected, entrywise: the null model as a matrix. (We subscript it $\mathbf{B}_Q$
+because plain $\mathbf{B}$ was Week 1's incidence matrix, an unrelated object.) Its
+*leading* eigenvector's signs propose the split, exactly as the Laplacian's *Fiedler*
+eigenvector did for cuts. Two different objectives, one spectral escape hatch;
+recognizing the pattern is worth more than either instance.
+
+Second, the famous **resolution limit**
+([Fortunato & Barthélemy, 2007](https://arxiv.org/abs/physics/0607100)), with numbers
+instead of folklore. Take a ring of $c$ cliques, each of $k$ nodes, joined by single
+edges — an unambiguous ground truth if there ever was one. Work out the $\Delta Q$ of
+merging two adjacent cliques (the exact algebra is Lab 2's stretch goal) and the
+punchline is checkable: once the graph is big enough — precisely, when cliques have
+fewer than $\sim\sqrt{2m}$ internal edges — the merge *increases* $Q$, and the
+optimizer happily fuses perfect communities into pairs. On a ring of 24 triangles ($m = 96$),
 maximum-modularity solutions merge neighbors — the ground truth is not the optimum.
 Moral: $Q$ compares partitions *at a scale set by the whole graph's* $m$; small
 structure is invisible to it by design, not by accident. When small communities are
@@ -491,16 +600,52 @@ different null.
 Everything so far scores nodes. To classify whole graphs — is this molecule toxic? is
 this binary malware? — you need features *per graph* that can be compared across graphs
 of different sizes with no shared node identity. The tool the field converged on is a
-relabeling procedure published by Boris Weisfeiler and Andrei Leman in 1968, decades
+relabeling procedure published by Boris Weisfeiler and Andrei Leman in 1968
+([English translation](https://www.iti.zcu.cz/wl2018/pdf/wl_paper_translation.pdf) of
+the original Russian article), decades
 before anyone needed graph features: it was built to test
 <span class="term" data-def="Graph isomorphism: a bijection between two graphs' node sets that exactly preserves edges — the graphs are 'the same drawing with different names'. No polynomial-time algorithm is known for testing it in general.">**graph isomorphism**</span>
 cheaply.
 
 **Color refinement.** Give every node the same color. Then repeat: each node's new
 color is a hash of *(its color, the multiset of its neighbors' colors)* — identical
-inputs, identical new color. Colors can only split, never merge, so on $n$ nodes the
-process stabilizes within $n$ rounds; the final **histogram of colors** is the graph's
-WL fingerprint.
+inputs, identical new color. @alg-w02-wl states the procedure exactly as Weisfeiler
+and Leman conceived it, and exactly as Lab 2's exercise 5 implements it, down to the
+shared signature table.
+
+::: {#alg-w02-wl .algorithm name="Weisfeiler–Leman Color Refinement"}
+Computes a color histogram per graph — comparable across graphs of any size.
+
+**Input:** graph $G$; number of rounds $h$; signature table $T$, shared across every
+graph being compared. **Output:** the histogram of all colors assigned in rounds
+$0 \ldots h$ — the graph's WL fingerprint.
+
+1. $c(v) \leftarrow c_0$ for every $v \in \mathcal{V}$ (one shared initial color)
+2. **for** round $i = 1 \ldots h$ **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;**for** each node $v$ **do**
+4. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$\mathit{sig} \leftarrow \bigl(i,\; c(v),\; \text{sorted multiset } \{c(u) : u \in \mathcal{N}(v)\}\bigr)$
+5. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**if** $\mathit{sig} \notin T$ **then** $T[\mathit{sig}] \leftarrow$ new color id
+6. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$c'(v) \leftarrow T[\mathit{sig}]$
+7. &nbsp;&nbsp;&nbsp;&nbsp;**end for**
+8. &nbsp;&nbsp;&nbsp;&nbsp;$c \leftarrow c'$
+9. **end for**
+10. **return** histogram of the colors from all rounds
+
+:::
+
+Three remarks on the listing. Including the round number $i$ in the signature (line 4)
+keeps colors from different rounds distinct, so line 10's all-rounds histogram is well
+defined. Sharing the table $T$ across graphs is what makes two fingerprints
+comparable — same signature, same id, whichever graph it occurs in. And each round is
+one pass over the edges, $O(m)$ with sorted buckets — $O(hm)$ total. Colors can only
+split, never merge, so on $n$ nodes the refinement stabilizes within $n$ rounds.
+
+::: {#def-w02-wl .definition name="WL fingerprint"}
+The **WL fingerprint** of a graph is the histogram of colors produced by all rounds of
+color refinement (@alg-w02-wl). Reading guidance: it summarizes the shape of every
+node's $h$-hop neighborhood, is invariant to node renumbering, and — per @prp-wl
+below — certifies difference but never sameness.
+:::
 
 {{< include ../assets/figures/fig-w2-wl.html >}}
 
@@ -533,14 +678,16 @@ yet one graph is connected and the other is not — you just watched this in the
 second scene. $\square$
 </details>
 
-**From test to feature: the WL kernel.** Shervashidze et al. (2011 — this week's
-required reading) turned the fingerprint into machine learning: run $h$ rounds,
+**From test to feature: the WL kernel.**
+[Shervashidze et al., 2011](https://jmlr.org/papers/v12/shervashidze11a.html) — this
+week's required reading — turned the fingerprint into machine learning: run $h$ rounds,
 concatenate the color histograms of all rounds into one long count vector per graph,
 and let the similarity of two graphs be the inner product of their vectors. Cost
 $O(hm)$ — linear in edges — while beating the combinatorially expensive graphlet
 kernels on most chemistry benchmarks. For a decade this was *the* way to classify
 graphs, and it is the classifier you will build for protein graphs in the lab.
 
+::: {#exm-wl-kernel .example name="One kernel value, by hand"}
 Compute one kernel value by hand, because the mechanism is simpler than the notation
 suggests. Let $G_1$ be our cast graph and $G_2$ the cast graph with edge $EF$ deleted.
 Round 0: both graphs are all one color — six nodes each, so the round-0 histograms
@@ -552,11 +699,15 @@ $1{\cdot}3 + 3{\cdot}1 + 1{\cdot}1 + 1{\cdot}1 = 8$. Running total
 $K(G_1, G_2) = 36 + 8 + \cdots$, with later rounds adding less and less as the
 partitions diverge — while $K(G_1, G_1)$ racks up $36 + 12 + \cdots$. One deleted
 edge, and the kernel already sees the two graphs drifting apart at round 1: that
-sensitivity, at $O(hm)$ prices, is the entire sales pitch. (Two library-shaped
-footnotes: real implementations hash signatures into a shared global table so
-feature vectors align across a whole dataset — your Lab 2 `wl_refine` already does
-this; and the counts are usually normalized per graph before the SVM, or big
-molecules dominate simply by having more nodes to count.)
+sensitivity, at $O(hm)$ prices, is the entire sales pitch.
+:::
+
+Two library-shaped footnotes on the example. Real implementations hash signatures
+into a shared global table so feature vectors align across a whole dataset — your
+Lab 2 `wl_refine` already does this (it is @alg-w02-wl's shared $T$). And the counts
+are usually normalized per graph before the SVM (support-vector machine — the
+max-margin classifier from your ML course), or big molecules dominate simply by
+having more nodes to count.
 
 File one sentence away for later — arguably the most consequential sentence of the
 first half of this course: **in Week 9 we will prove that message-passing GNNs
@@ -610,7 +761,9 @@ The methods of this lecture run today, at scale, in production: PageRank variant
 rank far more than web pages (papers, proteins, transaction risk); Louvain/Leiden is
 the workhorse inside modern LLM-retrieval systems you will meet in Week 5; WL is,
 verbatim, the preprocessing step of the strongest graph-classification baselines and
-— as Week 9 proves — the *ceiling* of an entire neural architecture family. What
+— as Week 9 proves — the *ceiling* of an entire neural architecture family.
+
+What
 "classical" actually means here is *cheap, interpretable, and assumption-explicit*:
 you can compute these features on a laptop, explain each one to a regulator, and say
 precisely which structural regularity each exploits. The deep methods coming next
@@ -732,7 +885,9 @@ $\mathbf{r}^{(1)} = (0, \tfrac12, \tfrac12)$ (all of $X$'s mass splits to $Y, Z$
 $\mathbf{r}^{(2)} = (\tfrac12, \tfrac12, 0)$. Different trajectory, same destination
 $(0.4, 0.4, 0.2)$: @prp-pagerank guarantees a *unique* fixed point with convergence
 from **any** starting distribution (with teleport, at rate $\beta^k$; here even the
-plain walk converges because the graph is strongly connected and aperiodic). The
+plain walk converges because the graph is strongly connected and aperiodic — its
+cycle lengths share no common divisor above 1, so the walk cannot lock into an
+oscillation). The
 initialization-independence is exam-relevant: it is why nobody worries about
 warm-starting PageRank.
 </details>
@@ -779,6 +934,19 @@ structural feature conjures them. What works: *continuous, learned* position (We
 embeddings — trained coordinates instead of one-hot membership), then models computing
 on structure and attributes jointly (Week 6 — on Cora, that road ends near 81%).
 </details>
+
+::: {.notions}
+**Notions introduced this week**
+
+- **Centrality** — any node-scoring function meant to capture structural importance; this week's five: degree, closeness (@eq-w02-closeness), betweenness (@eq-w02-betweenness), eigenvector (@eq-w02-eigvec), Katz (@eq-w02-katz).
+- **PageRank / stationary distribution** (@def-w02-pagerank) — the teleporting surfer's long-run visit rates: the unique fixed point of @eq-w02-pagerank, found by @alg-w02-pagerank.
+- **Personalized PageRank (PPR)** — the same fixed point with the teleport aimed at one node or set; importance *relative to a viewpoint*.
+- **Local clustering coefficient** (@def-clustering) **and transitivity** (@eq-w02-clustering-global) — two non-interchangeable answers to "how tight-knit"; always say which one you report.
+- **Graphlet degree vector** — the census of small subgraph shapes around a node.
+- **Fiedler vector** (@def-w02-fiedler) — the Laplacian's second eigenvector; thresholding it at zero is spectral bisection.
+- **Modularity** (@def-modularity) — edges observed minus expected inside communities under the degree-preserving null; greedily maximized by Louvain, limited by the **resolution limit** (nothing below $\sim\sqrt{2m}$ internal edges).
+- **WL fingerprint** (@def-w02-wl) — the all-rounds color histogram of @alg-w02-wl; sound but incomplete as an isomorphism test (@prp-wl).
+:::
 
 ## Where this leaves us
 

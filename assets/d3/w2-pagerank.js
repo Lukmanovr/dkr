@@ -68,11 +68,16 @@
       .attr("fill", (u) => (u === "Q" ? P.accent : u === "V" ? P.purple : P.blue))
       .attr("opacity", (u) => (u === "Q" || u === "V" ? 0.95 : u === "Hub" ? 0.8 : 0.55));
     nd.append("text").attr("text-anchor", "middle").attr("dy", 4)
-      .attr("font-size", 12).attr("font-weight", 700).attr("fill", "#fff")
+      .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", "#fff")
       .text((u) => (u === "Q" || u === "V" ? u : u === "Hub" ? "hub" : ""));
-    nd.append("text").attr("text-anchor", "middle")
-      .attr("y", (u) => -(9 + 85 * pr[u]) - 5)
-      .attr("font-size", 12).attr("fill", P.muted)
+    // mass labels in the full text color (muted was too dim against the page),
+    // with L1/L2 pushed to the sides so they clear the arrows converging on V
+    const SIDE = { L1: -1, L2: 1 };
+    nd.append("text")
+      .attr("text-anchor", (u) => (SIDE[u] ? (SIDE[u] < 0 ? "end" : "start") : "middle"))
+      .attr("x", (u) => (SIDE[u] ? SIDE[u] * (9 + 85 * pr[u] + 5) : 0))
+      .attr("y", (u) => (SIDE[u] ? 4 : -(9 + 85 * pr[u]) - 5))
+      .attr("font-size", 12.5).attr("fill", P.text)
       .text((u) => pr[u].toFixed(3));
 
     // right panel: ranked bars of the current estimate
@@ -89,7 +94,7 @@
         .attr("fill", u === "Q" ? P.accent : u === "V" ? P.purple : P.blue)
         .attr("opacity", u === "Q" || u === "V" ? 0.95 : 0.45);
       panel.append("text").attr("x", 8 + 96 * (pr[u] / bmax)).attr("y", y + 12.5)
-        .attr("font-size", 12).attr("fill", P.muted).text(u);
+        .attr("font-size", 12.5).attr("fill", P.muted).text(u);
     });
 
     const status = iter === 0

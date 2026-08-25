@@ -87,7 +87,7 @@
       .attr("transform", (i) => `translate(${pxy(i)[0]},${pxy(i)[1]})`);
     pp.append("circle").attr("r", 17).attr("fill", (i) => PCOLOR[i]);
     pp.append("text").attr("text-anchor", "middle").attr("dy", 4.5)
-      .attr("font-size", 12).attr("font-weight", 700).attr("fill", "#fff").text((i) => PEOPLE[i]);
+      .attr("font-size", 13).attr("font-weight", 700).attr("fill", "#fff").text((i) => PEOPLE[i]);
     // items
     if (M.pos.i) {
       const ii = g.selectAll("g.i").data(d3.range(2)).join("g")

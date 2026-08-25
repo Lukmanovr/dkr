@@ -11,10 +11,11 @@ The onboarding lab, implementing the [Week 1 lecture](../lectures/01-why-graphs.
 
 1. **Set up the semester's environment** — the exact pinned Colab/CPU stack every later
    lab assumes (one install line; the notebook explains the contract).
-2. **Meet the real karate club** — load Zachary's 1977 network, check the lecture's
-   numbers against it, and draw it colored by the actual split.
+2. **Meet the real karate club** — load [Zachary's 1977 network](https://doi.org/10.1086/jar.33.4.3629752),
+   check the lecture's numbers against it, and draw it colored by the actual split.
 3. **Build the cast graph by hand** (exercise 1): write its PyG `edge_index` from the
-   edge list and pass the assertions — the representation the whole course runs on.
+   edge list, following the lecture's Algorithm 1, and pass the assertions — the
+   representation the whole course runs on.
 4. **Degrees without a matrix** (exercise 2): the sparse habit, from day one.
 5. **Verify the lecture's pencil math** (exercise 3): $\mathbf{A}^2$ walk counts and
    the Laplacian's cut-counting quadratic form, matched digit for digit.

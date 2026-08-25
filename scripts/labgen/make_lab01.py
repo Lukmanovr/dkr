@@ -29,9 +29,16 @@ CELLS = [
 **Week 1 · [lecture](https://lukmanovr.github.io/dkr/lectures/01-why-graphs.html) · ≈ 15 min of compute (free Colab or CPU — no GPU needed today)**
 
 This is the onboarding lab: you set up the exact environment used all semester, meet the
-real Zachary karate club, build the course's cast graph as a PyTorch Geometric
+real Zachary karate club — the 34-member network from
+[Zachary, 1977](https://doi.org/10.1086/jar.33.4.3629752) that opened the lecture —
+build the course's cast graph as a PyTorch Geometric
 `edge_index` **by hand**, verify the lecture's hand computations numerically, and take a
 first look at Cora and at a real Wikidata fragment.
+
+The representations built here are the substrate of every method in this course: the
+survey of [Hamilton et al., 2017](https://arxiv.org/abs/1709.05584) frames all of
+graph ML as encoders and decoders over exactly these structures, and every one of them
+starts life as an `edge_index`.
 
 ### Goals
 1. A working, pinned Colab/CPU environment (the one every later lab assumes).
@@ -94,6 +101,23 @@ The lecture's cast graph: nodes A–F numbered 0–5, undirected edges
 AB, AC, AD, BC, CE, CF, EF. PyG stores an *undirected* graph as a **directed edge list
 containing both directions** — a `(2, 2m)` integer tensor called `edge_index`.
 
+Code against the lecture's spec (Algorithm 1 there — exercise 1 is lines 1–5,
+exercise 2 below is lines 6–7):
+
+> **Algorithm 1 · Edge list → COO `edge_index`, with degrees**
+>
+> **Input:** undirected edge set E = {(u₁,v₁), …, (u_m,v_m)}; node count n
+> **Output:** `edge_index` ∈ ℤ^(2×2m); degree vector d ∈ ℤⁿ
+>
+> 1. P ← empty list
+> 2. **for** each edge (u, v) ∈ E **do**
+> 3. &nbsp;&nbsp;&nbsp;&nbsp;append (u, v) to P; append (v, u) to P *(both directions)*
+> 4. **end for**
+> 5. `edge_index` ← transpose(P) — shape (2, 2m)
+> 6. d ← zeros(n)
+> 7. **for** each entry u in row 0 of `edge_index` **do** d[u] ← d[u] + 1
+> 8. **return** `edge_index`, d — sanity: Σᵤ dᵤ = 2m (handshake lemma)
+
 Write it out by hand. Order of columns is up to you; both directions are not.
 """),
 
@@ -150,6 +174,7 @@ print("exercise 1 ✓ — the cast graph lives in a tensor now")"""),
     md("""## 3 · Degrees from the edge list  *(exercise 2 — skill: structure numbers without a matrix)*
 
 Degrees straight from `edge_index`, no matrix anywhere — the sparse habit from Pitfall 1.
+This is lines 6–7 of Algorithm 1 above, and torch collapses the loop into one call.
 """),
 
     todo("""def degrees(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:

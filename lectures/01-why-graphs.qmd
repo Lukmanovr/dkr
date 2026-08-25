@@ -32,7 +32,7 @@ side.
 Zachary had no machine learning — it was 1977. What he had was a record of **who was
 friends with whom**: 34 people, 78 friendships. He modeled the split as information
 flowing through friendships and predicted each member's choice from the network's
-structure alone.
+structure alone [Zachary, 1977](https://doi.org/10.1086/jar.33.4.3629752).
 
 ::: {.predict}
 **Commit before you look.** Out of 34 members, how many do you think structure alone —
@@ -73,13 +73,17 @@ Half a century later, the systems around you run on the same idea at billion-nod
 {{< include ../assets/figures/fig-w1-systems.html >}}
 
 Put numbers on the panels, because the scale is the point. Google's Knowledge Graph
-reported five *billion* entities and five hundred billion facts back in 2020 — every
+reported five *billion* entities and five hundred billion facts back in 2020
+[Google, 2020](https://blog.google/products/search/about-knowledge-graph-and-knowledge-panels/) — every
 search box query touches it. Pinterest's recommender propagates signals over a graph
-of billions of pins and boards; Google Maps' ETA system, in production since 2020,
+of billions of pins and boards [Ying et al., 2018](https://arxiv.org/abs/1806.01973);
+Google Maps' ETA system, in production since 2020,
 treats road networks as graphs and runs a graph neural network over them for a billion
-users. The molecule panel is the one with a Nobel-adjacent punchline: the 2020
+users [Derrow-Pinion et al., 2021](https://arxiv.org/abs/2108.11482). The molecule
+panel is the one with a Nobel-adjacent punchline: the 2020
 discovery of the antibiotic halicin came from a graph-level model screening millions
-of candidate molecular graphs — structure-based prediction finding, in hours, what
+of candidate molecular graphs [Stokes et al., 2020](https://doi.org/10.1016/j.cell.2020.01.021)
+— structure-based prediction finding, in hours, what
 bench chemistry had missed for decades. And the quietest panel is the most universal:
 every company's relational database *is* a graph wearing tables (foreign keys are
 edges), which is why Week 14's "relational deep learning" may be the most
@@ -116,7 +120,9 @@ $\mathcal{V}$ and a set of **edges** $\mathcal{E} \subseteq \mathcal{V} \times \
 each edge a pair of nodes. A **simple graph** is undirected, with no self-loops and at
 most one edge per pair; $n = |\mathcal{V}|$, $m = |\mathcal{E}|$. Each node $u$ may
 carry a **feature vector** $\mathbf{x}_u \in \mathbb{R}^{m_0}$, stacked into
-$\mathbf{X} \in \mathbb{R}^{n \times m_0}$.
+$\mathbf{X} \in \mathbb{R}^{n \times m_0}$. The subscripted $m_0$ is the *feature
+dimension* — how many attributes each node carries — and is a different quantity from
+$m$, the edge count; the unfortunate letter collision is standard notation.
 :::
 
 ::: {.math-note}
@@ -193,7 +199,9 @@ the right first baseline, but the types are signal: a path
 patient→drug→patient means "shared medication", while patient→doctor→patient means
 "shared physician", and a model that cannot tell those apart is averaging over
 meanings. Weeks 4–5 treat the fully-typed case (knowledge graphs), and Week 10 builds
-neural models that respect types natively. Multigraphs — several edges between one
+neural models that respect types natively.
+
+Multigraphs — several edges between one
 pair — appear whenever events repeat (transactions, messages, flights); collapsing
 them to a weighted single edge is the standard move, and the standard information
 loss: the *timing pattern* of a hundred transfers between two accounts is exactly
@@ -242,8 +250,37 @@ The **adjacency list** stores, per node, the list of its neighbors — the repre
 your BFS used. The **edge list** just stores the $m$ pairs; stacked as a $2 \times m$
 integer tensor it is called
 <span class="term" data-def="COO — coordinate format: a sparse tensor stored as the list of coordinates of its nonzero entries. A graph's edge list IS its adjacency matrix in COO form. PyTorch Geometric's edge_index is exactly this.">COO format</span>,
-and under the name `edge_index` it is the representation PyTorch Geometric — and
+and under the name `edge_index` it is the representation PyTorch Geometric
+[Fey & Lenssen, 2019](https://arxiv.org/abs/1903.02428) — and
 therefore this course's labs — runs on.
+
+The construction is short enough to state completely, and worth stating, because
+Lab 1's first two exercises implement it line by line — read @alg-w01-edge-index as
+the spec you will code against.
+
+::: {#alg-w01-edge-index .algorithm name="Edge list → COO edge_index, with degrees"}
+Builds the tensor representation the whole course runs on — plus the degree vector —
+straight from a raw undirected edge list.
+
+**Input:** undirected edge set $\mathcal{E} = \{(u_1,v_1),\dots,(u_m,v_m)\}$; node count $n$. **Output:** `edge_index` $\in \mathbb{Z}^{2 \times 2m}$; degree vector $\mathbf{d} \in \mathbb{Z}^{n}$.
+
+1. $P \leftarrow$ empty list
+2. **for** each edge $(u, v) \in \mathcal{E}$ **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;append $(u, v)$ to $P$; append $(v, u)$ to $P$
+4. **end for**
+5. `edge_index` $\leftarrow$ transpose($P$), giving shape $(2, 2m)$
+6. $\mathbf{d} \leftarrow$ zeros($n$)
+7. **for** each entry $u$ in row 0 of `edge_index` **do** $d_u \leftarrow d_u + 1$
+8. **return** `edge_index`, $\mathbf{d}$
+:::
+
+Line 3 is the convention that trips everyone once: PyG stores an *undirected* edge as
+*two directed ones*, which is why the tensor is $2 \times 2m$ rather than
+$2 \times m$. Line 7 is a single `torch.bincount` call in practice — and because both
+directions are present, counting row-0 occurrences counts each undirected edge once
+per endpoint, so the result really is the degree. Total cost: one pass over the
+edges, $O(m)$ time and memory. Every loaded dataset should then pass the sanity
+check $\sum_u d_u = 2m$ — the handshake lemma, which §3 proves.
 
 {{< include ../assets/figures/fig-w1-representations.html >}}
 
@@ -279,7 +316,9 @@ mostly zeros, which for a sparse graph is almost all wasted work. The adjacency 
 iterates neighbors in $O(d_u)$ — optimal — but answers edge queries in $O(d_u)$ too
 (scan the list), which is why systems that need fast membership add a hash set on the
 side. The raw edge list is unbeatable for streaming and for building the *others*,
-but supports neither query efficiently. And the format the fine print of every graph
+but supports neither query efficiently.
+
+And the format the fine print of every graph
 library actually runs on is a fourth one you should recognize on sight: **CSR**
 (compressed sparse row) — the adjacency list flattened into two arrays, one holding
 all neighbors consecutively, one holding each node's offset into it. CSR is the
@@ -324,12 +363,18 @@ millions. The practical consequences arrive immediately and never leave. A rando
 edge is far more likely to touch a hub than a random node is *to be* one — so
 anything that samples edges (walks, Week 3; message passing, Week 6) over-represents
 hubs unless corrected. Averages mislead: "the average paper has 4 citations" is true
-of Cora and describes almost no individual paper. And hubs are single points of both
+of Cora and describes almost no individual paper.
+
+And hubs are single points of both
 efficiency and failure — remove the top 1% of nodes by degree and many real networks
 shatter, which is either a vulnerability (infrastructure) or a strategy
 (immunization), depending on which side you are on. You will meet this tail again as
 "degree bias" in at least four different costumes this semester; it is worth one
-minute now to see that they are all the same animal.
+minute now to see that they are all the same animal. Here is the karate club's own
+tail — even 34 people suffice to produce it. The two dashed verticals are a
+one-picture preview of a theorem §3 will prove:
+
+{{< include ../assets/figures/fig-w1-degrees.html >}}
 
 **Distances are absurdly short.** In a graph with heavy-tailed degrees and a little
 randomness, almost everyone is within a few hops of almost everyone — six degrees of
@@ -355,12 +400,26 @@ machine for cashing in that difference.
 Before any learning, the representations themselves already answer questions. Three
 objects, all built from $\mathbf{A}$, will follow us to Week 15.
 
-**Degree.** $d_u = \sum_v \mathbf{A}[u,v]$ — how connected a node is; collected into the
-diagonal **degree matrix** $\mathbf{D}$. In the karate club, Mr. Hi and the Officer are
+**Degree.** The first number you can read off the adjacency matrix:
+
+$$
+d_u \;=\; \sum_{v \in \mathcal{V}} \mathbf{A}[u,v],
+$$ {#eq-w01-degree}
+
+where — $d_u$ is the **degree** of node $u$, its number of neighbors; $\mathbf{A}$ is
+the adjacency matrix of @def-adj; and the sum runs over all nodes $v$. Collected on a
+diagonal, the degrees form the **degree matrix** $\mathbf{D}$. In the karate club, Mr. Hi and the Officer are
 the two highest-degree nodes — the hubs the factions formed around. (Degree is the first
 and crudest of the *centralities*; Week 2 builds the full toolbox.) Two bookkeeping
 facts and one genuine theorem come free with the definition. Bookkeeping first: summing
-degrees counts each edge twice, so $\sum_u d_u = 2m$ always — the **handshake lemma**,
+degrees counts each edge twice — every edge has two endpoints, and each endpoint's
+degree claims it once — so
+
+$$
+\sum_{u \in \mathcal{V}} d_u \;=\; 2m
+$$ {#eq-w01-handshake}
+
+always, where $m$ is the number of edges. @eq-w01-handshake is the **handshake lemma**,
 and your fastest sanity check on any loaded dataset ("does the degree sum match twice
 my edge count? no? your loader symmetrized, or didn't"). And a convention warning that
 costs real debugging time: for directed graphs, some books define $\mathbf{A}[u,v]=1$
@@ -369,28 +428,47 @@ convention and in-degrees in the other. This course fixes $\mathbf{A}[u,v] = 1 \
 (u,v) \in \mathcal{E}$, rows = sources; check any other source's fine print before
 copying its formulas.
 
-The theorem is the **friendship paradox**, and it is the heavy tail of §2 biting for
+The theorem is the **friendship paradox**
+[Feld, 1991](https://doi.org/10.1086/229693), and it is the heavy tail of §2 biting for
 the first time: *on average, your friends have more friends than you do.* Precisely —
 pick a random node and ask for its degree: expected value $\bar d = 2m/n$. Pick a
 random *edge* and ask an endpoint's degree: expected value
-$\frac{\sum_u d_u^2}{\sum_u d_u} = \bar d + \frac{\mathrm{Var}(d)}{\bar d} \ge \bar d$,
-with equality only when every degree is equal. The proof is one rearrangement — a node
+
+$$
+\frac{\sum_u d_u^2}{\sum_u d_u} \;=\; \bar d + \frac{\mathrm{Var}(d)}{\bar d} \;\ge\; \bar d,
+$$ {#eq-w01-friendship}
+
+where — $d_u$ is the degree of node $u$; $\bar d = 2m/n$ is the mean degree;
+$\mathrm{Var}(d)$ is the variance of the degree sequence (zero only when every degree
+is equal, which is when equality holds). The proof is one rearrangement — a node
 of degree $d$ is an endpoint of $d$ edges, so edge-sampling weights each node by its
-own degree, and high-degree nodes are oversampled by exactly their excess. On the
+own degree, and high-degree nodes are oversampled by exactly their excess.
+
+On the
 karate club: $\bar d = 2 \cdot 78/34 \approx 4.6$, while the mean degree of a random
 friendship's endpoint works out to $\approx 7.8$ — your average club-mate's friend is
-nearly twice as connected as the average club-mate. This is not a party trick: it is
+nearly twice as connected as the average club-mate. Those are exactly the two dashed
+verticals in §2's degree-distribution figure, and the gap between them is
+@eq-w01-friendship drawn to scale. This is not a party trick: it is
 the mathematical core of why random walks oversample hubs (Week 3 corrects for it),
 why sampling neighbors is not sampling nodes (Week 6's SAGE must care), and why
 immunizing the *friends of* random people beats immunizing random people. One
 inequality, four weeks of consequences.
 
 **Walks, by matrix power.** Here is the first genuinely surprising payoff of the matrix
-representation:
+representation. One term first, because everything propagation-shaped in this course
+is built on it:
+
+::: {#def-w01-walk .definition name="Walk"}
+A **walk** of length $k$ from $u$ to $v$ is a sequence of nodes
+$u = w_0, w_1, \dots, w_k = v$ in which every consecutive pair $(w_{i-1}, w_i)$ is an
+edge. Nodes and edges may repeat — that freedom is what distinguishes a walk from a
+*path*, and it is precisely the freedom that makes walks countable by linear algebra.
+:::
 
 ::: {#prp-walks .proposition name="Powers of A count walks"}
-For any $k \ge 1$, $(\mathbf{A}^k)[u,v]$ equals the number of **walks** of length
-exactly $k$ from $u$ to $v$ (a walk may revisit nodes and edges). In particular
+For any $k \ge 1$, $(\mathbf{A}^k)[u,v]$ equals the number of walks
+(@def-w01-walk) of length exactly $k$ from $u$ to $v$. In particular
 $(\mathbf{A}^2)[u,u] = d_u$, and for $u \neq v$, $(\mathbf{A}^2)[u,v]$ counts the
 **common neighbors** of $u$ and $v$.
 :::
@@ -400,8 +478,12 @@ Base case $k = 1$: $\mathbf{A}[u,v]$ is $1$ exactly when a length-1 walk (an edg
 exists, and a pair has at most one. Inductive step: assume $(\mathbf{A}^{k-1})[u,w]$
 counts length-$(k{-}1)$ walks $u \to w$. Every length-$k$ walk $u \to v$ is a
 length-$(k{-}1)$ walk to some neighbor $w$ of $v$, followed by the edge $(w,v)$, and
-this decomposition is unique. Summing over the possible penultimate nodes:
-$\#\{\text{length-}k\text{ walks } u \to v\} = \sum_w (\mathbf{A}^{k-1})[u,w] \, \mathbf{A}[w,v] = (\mathbf{A}^k)[u,v]$
+this decomposition is unique. Summing over the possible penultimate nodes $w$:
+
+$$
+\#\{\text{length-}k\text{ walks } u \to v\} \;=\; \sum_w (\mathbf{A}^{k-1})[u,w] \, \mathbf{A}[w,v] \;=\; (\mathbf{A}^k)[u,v]
+$$
+
 — which is precisely the definition of the matrix product. $\square$
 </details>
 
@@ -429,10 +511,13 @@ it. Every row sums to zero.
 For any signal $\mathbf{x} \in \mathbb{R}^n$ (one number per node),
 
 $$
-\mathbf{x}^\top \mathbf{L} \mathbf{x} \;=\; \sum_{(u,v) \in \mathcal{E}} (x_u - x_v)^2 .
-$$
+\mathbf{x}^\top \mathbf{L} \mathbf{x} \;=\; \sum_{(u,v) \in \mathcal{E}} (x_u - x_v)^2 ,
+$$ {#eq-w01-quadform}
 
-The quadratic form measures how much $\mathbf{x}$ **disagrees across edges** — zero
+where — $\mathbf{L} = \mathbf{D} - \mathbf{A}$ is the Laplacian of @def-lap; $x_u$ is
+the signal's value at node $u$; and the sum runs over the edge set $\mathcal{E}$, each
+undirected edge counted once. The quadratic form measures how much $\mathbf{x}$
+**disagrees across edges** — zero
 exactly when $\mathbf{x}$ is constant on every connected component, large when
 neighbors differ.
 :::
@@ -453,11 +538,21 @@ edge. It is rarely how you *store* a graph (it is even bigger than the dense
 adjacency for $m > n$), but it explains the Laplacian in one identity:
 
 ::: {#prp-incidence .proposition name="The Laplacian factorizes"}
-$\mathbf{L} = \mathbf{B}\mathbf{B}^\top$, for any choice of edge orientations. In
-particular $\mathbf{x}^\top \mathbf{L} \mathbf{x} = \|\mathbf{B}^\top \mathbf{x}\|^2$,
-which re-proves both PSD-ness and the quadratic form at a glance:
-$\mathbf{B}^\top \mathbf{x}$ is the vector of per-edge differences $(x_u - x_v)$, and
-its squared norm is their sum of squares.
+For any choice of edge orientations,
+
+$$
+\mathbf{L} = \mathbf{B}\mathbf{B}^\top
+\qquad\text{and hence}\qquad
+\mathbf{x}^\top \mathbf{L} \mathbf{x} = \|\mathbf{B}^\top \mathbf{x}\|^2 ,
+$$ {#eq-w01-factorization}
+
+where — $\mathbf{B}$ is the incidence matrix above and $\mathbf{x} \in \mathbb{R}^n$
+is any node signal. This re-proves two facts at a glance: the quadratic form
+(@eq-w01-quadform), since $\mathbf{B}^\top \mathbf{x}$ is the vector of per-edge
+differences $(x_u - x_v)$ and its squared norm is their sum of squares — and
+*positive semidefiniteness* (PSD): $\mathbf{x}^\top\mathbf{L}\mathbf{x} \ge 0$ for
+every $\mathbf{x}$, because it is a squared length. PSD matrices return in Week 2,
+where that inequality does real work.
 :::
 
 <details><summary>Proof (multiply one entry)</summary>
@@ -476,6 +571,34 @@ components** equals $n - \operatorname{rank}(\mathbf{B})$, and your BFS from
 algorithms class computes it in $O(n + m)$ — always the first statistic to check on a
 new dataset, because many "mysterious" results (isolated test nodes scoring at
 chance; embeddings drifting for one cluster) are just an unnoticed second component.
+The sweep is worth writing down once in this course's notation, since we will call on
+it casually for fourteen weeks:
+
+::: {#alg-w01-components .algorithm name="Connected components by BFS sweep"}
+Labels every node with its component id and counts the components — the first
+statistic to compute on any new graph dataset.
+
+**Input:** adjacency list $N(\cdot)$; node set $\mathcal{V}$. **Output:** component id $c(v)$ for every $v$; component count $K$.
+
+1. $K \leftarrow 0$; mark every $v$ unvisited
+2. **for** each $s \in \mathcal{V}$ **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;**if** $s$ visited **then** continue
+4. &nbsp;&nbsp;&nbsp;&nbsp;$K \leftarrow K + 1$; $Q \leftarrow \{s\}$; mark $s$; $c(s) \leftarrow K$
+5. &nbsp;&nbsp;&nbsp;&nbsp;**while** $Q$ not empty **do**
+6. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$u \leftarrow$ pop($Q$)
+7. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**for** each unvisited $w \in N(u)$ **do** mark $w$; $c(w) \leftarrow K$; push($Q$, $w$)
+8. &nbsp;&nbsp;&nbsp;&nbsp;**end while**
+9. **end for**
+10. **return** $c$, $K$
+:::
+
+The outer loop guarantees no node is skipped; the inner BFS claims exactly one
+component per restart, so $K$ ends up equal to the number of components. Each node
+enters $Q$ once and each edge is examined twice — once from each endpoint — giving the
+$O(n + m)$ bound, which on a sparse graph is simply "linear in the data". Note the
+algorithm consumes the *adjacency list*, not the matrix: this is the §2 cost table
+becoming practice.
+
 Real networks typically have one **giant component** holding most nodes and a dust of
 tiny ones; Cora's giant component covers ~92% of papers, and the other 8% are exactly
 the nodes structure-based methods can say least about — remember them when they
@@ -484,8 +607,20 @@ reappear as outliers in Week 3.
 Why care, this week? Because "how much does a quantity vary across edges" is the
 mathematical form of the question the karate club answered: allegiance varied *little*
 across friendships — friends chose the same side. That tendency has a name you will use
-weekly, <span class="term" data-def="Homophily: connected nodes tend to be alike — friends share sides, papers cite their own topic, fraudsters transact with mules. The single assumption doing the most silent work in graph ML; its failure (heterophily) is where naive methods break.">**homophily**</span>,
-and the Laplacian is the instrument that measures it. Next week $\mathbf{L}$ finds
+weekly, and it has earned a formal home:
+
+::: {#def-w01-homophily .definition name="Homophily"}
+A graph exhibits **homophily** with respect to a node quantity $\mathbf{x}$ when
+connected nodes tend to have similar values of $\mathbf{x}$ — equivalently, when
+$\mathbf{x}^\top \mathbf{L} \mathbf{x}$ is small relative to what random pairing would
+give. Its failure mode, connected nodes differing *systematically*, is called
+**heterophily**. Read it as the single assumption doing the most silent work in graph
+ML: friends share sides, papers cite their own topic — but fraudsters transact with
+victims, and naive methods break exactly there.
+:::
+
+The Laplacian, then, is the instrument that measures homophily — that is what the
+quadratic form (@eq-w01-quadform) computes. Next week $\mathbf{L}$ finds
 communities; in Week 6 its eigenvectors become the *frequencies* of a graph and explain
 what "convolutional" means in GCN. When a matrix keeps showing up like that, learn its
 face early.
@@ -500,10 +635,13 @@ degrees, and there are two conventional ways:
 $$
 \mathbf{L}_{\text{sym}} = \mathbf{I} - \mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2},
 \qquad
-\mathbf{L}_{\text{rw}} = \mathbf{I} - \mathbf{D}^{-1}\mathbf{A}.
-$$
+\mathbf{L}_{\text{rw}} = \mathbf{I} - \mathbf{D}^{-1}\mathbf{A},
+$$ {#eq-w01-normlap}
 
-Read the objects being subtracted, because both will headline later weeks:
+where — $\mathbf{I}$ is the $n \times n$ identity matrix; $\mathbf{D}^{-1}$ and
+$\mathbf{D}^{-1/2}$ divide by degrees and by their square roots (diagonal matrices,
+so the inverses are entrywise); "sym" is the *symmetric* normalization and "rw" the
+*random-walk* one. Read the objects being subtracted, because both will headline later weeks:
 $\mathbf{D}^{-1}\mathbf{A}$ has rows summing to one — it is a **transition matrix**,
 "average over my neighbors", the exact operator a random walker uses (Week 2's
 PageRank walks on it, Week 3's DeepWalk samples from it). The symmetric version
@@ -522,9 +660,18 @@ understand three weeks before the papers that made it famous.
 **What walk-counting is for.** Lest $(\mathbf{A}^k)$ read as an algebra exercise:
 common-neighbor counts ($\mathbf{A}^2$) are the baseline behind friend suggestion;
 $(\mathbf{A}^3)$'s diagonal counts triangles, which Week 2 turns into clustering
-features; damped sums $\sum_k \beta^k \mathbf{A}^k$ — "walks of all lengths, long
-ones discounted" — are Katz centrality, a Week 2 protagonist and the conceptual
-grandparent of PageRank; and the matrices whose products a GCN computes are, as we
+features; and damped sums
+
+$$
+\sum_{k \ge 1} \beta^k \mathbf{A}^k
+$$ {#eq-w01-katz}
+
+— "walks of all lengths, long ones discounted" — are Katz centrality, a Week 2
+protagonist and the conceptual grandparent of PageRank. In @eq-w01-katz, $\beta \in
+(0, 1)$ is a *discount factor*: a walk of length $k$ contributes with weight
+$\beta^k$, so longer walks count geometrically less, and for $\beta$ small enough the
+infinite sum converges (Week 2 makes "small enough" precise). Finally, the matrices
+whose products a GCN computes are, as we
 just saw, normalized relatives of $\mathbf{A}$, so a $k$-layer GCN's receptive field
 is exactly the length-$k$ walk structure you can now count. One proposition, five
 weeks of dividends.
@@ -557,7 +704,8 @@ them now so that when they recur weekly they feel like old acquaintances.
 independent, since neighbors leak information to each other, and that non-independence
 is simultaneously the signal you want and the leakage you must control. At graph
 level, each graph is a genuinely independent example, and classical ML intuitions
-(i.i.d. splits, cross-validation) apply almost unchanged. Edge level is the strange
+(i.i.d. — independent and identically distributed — splits, cross-validation) apply
+almost unchanged. Edge level is the strange
 middle: your examples are pairs, your negatives are *absences* (which, as Week 4 will
 make painfully precise, are not the same as falsehoods), and the number of potential
 examples is $O(n^2)$ while the positives are $O(n)$ — extreme class imbalance is the
@@ -569,7 +717,9 @@ feature pipeline can smuggle test labels through the graph (a theme with its own
 dramatic episodes in Weeks 3 and 5). Edge level: you must hide *edges*, and every
 upstream computation — walks, features, anything touching adjacency — must run on the
 train graph only; violating this is the single most common broken evaluation in graph
-ML, and Lab 3 will make you measure its cost in AUC points. Graph level: split by
+ML, and Lab 3 will make you measure its cost in **AUC** points (AUC — area under the
+ROC curve — is the probability that a model ranks a random true example above a
+random negative one; 0.5 is a coin flip, 1.0 is perfect ranking). Graph level: split by
 graphs, but watch for near-duplicates (the same molecule under two IDs) and for
 covariate shift between collections. If your split has timestamps available, split by
 time; the future does not leak into the past, and models deployed in production live
@@ -606,16 +756,33 @@ now, carry the warning: **node order is storage, not information.**
 :::
 
 Let us make the demand precise enough to use, because it will quietly grade every
-method in this course. Write $\mathbf{P}$ for the permutation matrix of a renumbering.
-A function that outputs one value per *graph* — "is this molecule toxic?" — must be
-**permutation-invariant**:
-$f(\mathbf{P}\mathbf{A}\mathbf{P}^\top,\, \mathbf{P}\mathbf{X}) = f(\mathbf{A}, \mathbf{X})$;
-renumber the atoms, same verdict. A function that outputs one value per *node* —
+method in this course.
+
+::: {#def-w01-perminv .definition name="Permutation invariance and equivariance"}
+Write $\mathbf{P}$ for the permutation matrix of a renumbering of the nodes, so that
+$\mathbf{P}\mathbf{A}\mathbf{P}^\top$ and $\mathbf{P}\mathbf{X}$ are the same graph
+stored in the new order. A function $f$ that outputs one value per *graph* — "is this
+molecule toxic?" — must be **permutation-invariant**:
+
+$$
+f(\mathbf{P}\mathbf{A}\mathbf{P}^\top,\, \mathbf{P}\mathbf{X}) \;=\; f(\mathbf{A}, \mathbf{X})
+$$ {#eq-w01-invariance}
+
+— renumber the atoms, same verdict. A function that outputs one value per *node* —
 "which members join Mr. Hi?" — cannot be invariant (its output has an order too);
-instead it must be **permutation-equivariant**: renumber the inputs and the outputs
-renumber the same way,
-$f(\mathbf{P}\mathbf{A}\mathbf{P}^\top,\, \mathbf{P}\mathbf{X}) = \mathbf{P}\, f(\mathbf{A}, \mathbf{X})$
-— predictions travel *with* their nodes. Two sanity checks you can run in your head:
+instead it must be **permutation-equivariant**:
+
+$$
+f(\mathbf{P}\mathbf{A}\mathbf{P}^\top,\, \mathbf{P}\mathbf{X}) \;=\; \mathbf{P}\, f(\mathbf{A}, \mathbf{X})
+$$ {#eq-w01-equivariance}
+
+— predictions travel *with* their nodes. In both displays, $\mathbf{A}$ is the
+adjacency matrix, $\mathbf{X}$ the node-feature matrix, and $\mathbf{P}$ ranges over
+*all* $n!$ renumberings: the property must hold for every one of them, which is what
+makes it a real constraint rather than a convention.
+:::
+
+Two sanity checks you can run in your head:
 the degree vector is equivariant (renumber nodes, degrees follow), and the sorted
 degree sequence is invariant (renumbering cannot touch it) — so both are legitimate
 features, which is why Week 2 can build on them. The flattened adjacency matrix fed
@@ -669,7 +836,8 @@ you the tools) before believing any result.
 
 [Lab 1](../labs/lab01.qmd) is the course onboarding: you set up the exact Colab + PyTorch
 Geometric environment used all semester, load the real karate club and reproduce today's
-hero figure's data, build the cast graph as a PyG `edge_index` **by hand** (and check it
+hero figure's data, build the cast graph as a PyG `edge_index` **by hand** following
+@alg-w01-edge-index (and check it
 against assertions), compute degrees, $\mathbf{A}^2$, and the Laplacian in torch —
 verifying @exm-walks numerically — and take a first look at Cora, the dataset that
 returns in Week 6. Plus a two-minute detour into a real Wikidata fragment, so knowledge
@@ -726,7 +894,7 @@ bipartite-graph shape at Pinterest scale; read the systems story, defer the math
 Directed (money flows one way — symmetrizing destroys the laundering pattern),
 weighted (amounts matter), multigraph or timestamped edges (repeat transfers between
 the same pair are the signal, not noise), homogeneous nodes but with features
-(account age, KYC status). The task is node-level (flag mules) — and note this graph is
+(account age, KYC — "know your customer" identity-verification — status). The task is node-level (flag mules) — and note this graph is
 likely *heterophilous*: mules transact with victims, not with other mules (Pitfall 5).
 </details>
 
@@ -790,6 +958,21 @@ fraudster–victim transaction network — connected nodes are systematically *o
 so "predict my label from my neighbors' labels" inverts the truth. Checking which
 regime you are in, before modeling, is the Week 2 skill.
 </details>
+
+::: {.notions}
+**Notions introduced this week**
+
+- **Graph, simple graph** (@def-graph) — nodes, edges, optional features $\mathbf{X}$; everything else is decoration on this.
+- **Graph types** — directed, weighted, bipartite, heterogeneous, multigraph, temporal: a *modeling decision*, not a property of the world.
+- **Adjacency matrix / adjacency list / edge list (COO)** (@def-adj) — one graph, three storages; sparse regime $m = O(n)$ decides which survives.
+- **Degree, degree matrix, handshake lemma** (@eq-w01-degree, @eq-w01-handshake) — the first structure numbers and the first sanity check.
+- **Friendship paradox** (@eq-w01-friendship) — edge-sampling oversamples hubs; the heavy tail's first theorem.
+- **Walk** (@def-w01-walk) — and walk counting by powers of $\mathbf{A}$ (@prp-walks).
+- **Laplacian** $\mathbf{L} = \mathbf{D} - \mathbf{A}$ (@def-lap) — the variation meter (@eq-w01-quadform), its factorization $\mathbf{B}\mathbf{B}^\top$, and its normalized cousins (@eq-w01-normlap).
+- **Homophily / heterophily** (@def-w01-homophily) — the silent assumption; small $\mathbf{x}^\top\mathbf{L}\mathbf{x}$ is what "friends chose alike" means.
+- **Node- / edge- / graph-level tasks** — the level dictates data points, splits, and metrics.
+- **Permutation invariance and equivariance** (@def-w01-perminv) — node order is storage, not information; the deepest idea of the course.
+:::
 
 ## Where this leaves us
 

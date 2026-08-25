@@ -28,8 +28,9 @@ In 2013, a small team at Google showed that if you feed a neural network billion
 sentences and ask it to guess each word's neighbors, the network is forced to invent a
 **vector for every word** — and those vectors turn out to carry meaning: countries
 cluster together, verb tenses align along one direction, and the arithmetic
-*king − man + woman* famously lands near *queen*. The system was
-called word2vec, and it rearranged natural language processing in about a year.
+*king − man + woman* famously lands near *queen*. The system was called word2vec
+[Mikolov et al., 2013](https://arxiv.org/abs/1301.3781), and it rearranged natural
+language processing in about a year.
 
 Graph researchers read that paper with a specific kind of greed, and within a year
 had committed the field's most productive act of theft. Their problem was
@@ -46,7 +47,8 @@ unchanged, what would a sentence be?
 ::: {.predict-answer}
 **A random walk.** Start anywhere, follow random edges, write down the nodes you visit:
 a linear sequence of tokens in which co-occurrence means proximity — exactly what a
-sentence is to word2vec. That one-line answer is the DeepWalk paper (2014), one of the
+sentence is to word2vec. That one-line answer is the
+[DeepWalk paper (2014)](https://arxiv.org/abs/1403.6652), one of the
 most influential ideas in graph ML, and you already own every ingredient: you built the
 walk machinery for PageRank last week.
 :::
@@ -67,14 +69,18 @@ from the center. Skip-gram is the one graph methods took, for a reason that matt
 here more than in text: averaging a context before predicting (CBOW) blurs rare
 nodes into their popular neighbors, while skip-gram gives every individual
 co-occurrence its own gradient — and graphs, with their heavy-tailed degrees (Week 1),
-have a far worse rare-versus-popular imbalance than vocabulary does. Second
+have a far worse rare-versus-popular imbalance than vocabulary does.
+
+Second
 inheritance: word2vec keeps **two vectors per word** — a center table and a context
 table — because one object plays two statistical roles ("how I behave as a focus" vs
 "how I behave as company"); using one table forces $\mathbf{z}_u^\top \mathbf{z}_u$
 terms into the objective, which pressures every vector toward a large norm for no
 semantic reason. Graph implementations follow suit, then typically keep only the
 center table (as our lab will; the homework asks you to think about why that is
-safe). Third inheritance, and the least advertised: word2vec *subsamples frequent
+safe).
+
+Third inheritance, and the least advertised: word2vec *subsamples frequent
 words* — it randomly deletes a fraction of "the" and "of" occurrences before
 windowing, precisely because ultra-frequent tokens flood $\mathcal{D}$ with
 uninformative pairs. The graph translation writes itself: hubs are the stop-words of
@@ -104,12 +110,19 @@ Strip any node-embedding method to its skeleton and four decisions remain:
 
 {{< include ../assets/figures/fig-w3-encdec.html >}}
 
-- the <span class="term" data-def="Encoder: the function mapping a node id to its vector. This week it is pure table lookup — ENC(u) = Z[u], one trainable row per node. In Week 6 the encoder becomes a neural network that computes the vector from features and neighbors.">**encoder**</span> maps each node to a vector. This week it is the simplest thing that could work: a **lookup table** $\mathbf{Z} \in \mathbb{R}^{|\mathcal{V}| \times d}$, one free row per node, $d \approx 64$–$256$. No computation — the parameters *are* the answer;
-- the **decoder** turns two vectors into a score for the pair. This week: the dot
+::: {#def-w03-encdec .definition name="Encoder–decoder template"}
+A node-embedding method is a choice of four components:
+
+- an <span class="term" data-def="Encoder: the function mapping a node id to its vector. This week it is pure table lookup — ENC(u) = Z[u], one trainable row per node. In Week 6 the encoder becomes a neural network that computes the vector from features and neighbors.">**encoder**</span> mapping each node to a vector. This week it is the simplest thing that could work: a **lookup table** $\mathbf{Z} \in \mathbb{R}^{|\mathcal{V}| \times d}$, one free row $\mathbf{z}_u = \mathbf{Z}[u]$ per node, $d \approx 64$–$256$. No computation — the parameters *are* the answer;
+- a **decoder** turning two vectors into a score for the pair. This week: the dot
   product $\mathbf{z}_u^\top \mathbf{z}_v$ (sometimes passed through a sigmoid);
-- the **similarity** $S(u,v)$ is what the graph says the score *should* be — the
+- a **similarity** $S(u,v)$: what the graph says the score *should* be — the
   design decision that actually distinguishes methods;
-- the **loss** measures the disagreement and drives SGD on the table $\mathbf{Z}$.
+- a **loss** measuring the disagreement, driving SGD on the table $\mathbf{Z}$.
+
+Read any new embedding paper by filling in these four slots first — almost always
+only the similarity is genuinely new.
+:::
 
 The filing cabinet, which we will keep filling until Week 6 — memorize its columns,
 not its rows, because the columns are the questions you ask of every new method:
@@ -139,23 +152,62 @@ walks, slide a window, count pairs. Watch the raw material being made:
 
 {{< include ../assets/d3/w3-walks.html >}}
 
-Formally: fix a walk length $\ell$ and a window size $w$. Run $r$ walks from every
-node. For each walk $(v_1, \ldots, v_\ell)$ and each position $i$, emit the pairs
-$(v_i, v_j)$ for all $j \neq i$ with $|i - j| \le w$. Call the multiset of emitted
-pairs $\mathcal{D}$, and write $\mathcal{N}_R(u)$ for the multiset of contexts emitted
-for center $u$. The empirical similarity is then simply
+Formally: fix a walk length $K$ and a window size $w$. Run $\gamma$ walks from every
+node. For each walk $(v_1, \ldots, v_K)$ and each position $i$, emit the pairs
+$(v_i, v_j)$ for all $j \neq i$ with $|i - j| \le w$, and call the multiset of all
+emitted pairs $\mathcal{D}$. This is the entire data pipeline of DeepWalk
+[Perozzi et al., 2014](https://arxiv.org/abs/1403.6652), and since Lab 3 has you
+build it, here it is as a procedure — @alg-w03-corpus is exercises 1 and 2 of the
+lab, step for step:
+
+::: {#alg-w03-corpus .algorithm name="Walk Corpus → Skip-Gram Pairs (DeepWalk)"}
+Manufactures the training multiset $\mathcal{D}$ of (center, context) pairs from truncated random walks.
+
+**Input:** graph $G = (\mathcal{V}, \mathcal{E})$; walks per node $\gamma$; walk length $K$; window $w$; seed $s$. **Output:** multiset $\mathcal{D}$ of (center, context) pairs.
+
+1. rng ← Random($s$); $W$ ← empty list; $\mathcal{D}$ ← empty multiset
+2. **for** round $= 1, \ldots, \gamma$ **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;**for** each start node $v \in \mathcal{V}$, in sorted order, **do**
+4. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;walk ← $(v)$
+5. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**while** $|\text{walk}| < K$ and last(walk) has neighbors **do**
+6. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;append a neighbor of last(walk), chosen uniformly by rng
+7. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;append walk to $W$
+8. **end for**
+9. **for** each walk $(v_1, \ldots, v_K) \in W$ and each position $i$ **do**
+10. &nbsp;&nbsp;&nbsp;&nbsp;**for** each $j \neq i$ with $|i - j| \le w$: add $(v_i, v_j)$ to $\mathcal{D}$
+11. **end for**
+12. **return** $\mathcal{D}$
+:::
+
+Three notes on the listing, because each one is a lab assert. The single seeded rng
+and the sorted node order are the determinism contract — same seed, same corpus,
+always. The **while** guard handles dead ends: a walk stuck at an isolated node
+simply stops early. And the pair count is exact: a full-length walk emits
+$2wK - w(w{+}1)$ pairs, so $|\mathcal{D}| = |\mathcal{V}| \cdot \gamma \cdot \bigl(2wK - w(w{+}1)\bigr)$
+when no walk ends early — exercise 2 checks your code against this closed form. The
+empirical similarity is then simply
+
 $$
 S(u, v) \;=\; \#\{(u,v) \in \mathcal{D}\}
-$$
-— the matrix you watched fill up in Figure 1. It is a blurred, multi-hop version of
-adjacency: row $u$ resembles row $u$ of $\mathbf{A}$ smeared over $w$ hops, with counts
-where 0/1 entries used to be.
+$$ {#eq-w03-simcount}
+
+where $\#\{(u,v) \in \mathcal{D}\}$ counts how many times the ordered pair $(u, v)$
+occurs in the multiset $\mathcal{D}$ — the matrix you watched fill up in Figure 1. It
+is a blurred, multi-hop version of adjacency: row $u$ resembles row $u$ of
+$\mathbf{A}$ smeared over $w$ hops, with counts where 0/1 entries used to be.
 
 What, exactly, does the blur compute? In expectation, a window-$w$ co-occurrence
 from center $u$ is a step of the random walk iterated between 1 and $w$ times — so
-$\mathbb{E}[S(u, \cdot)]$ is proportional to a mixture of the transition-matrix
-powers $(\mathbf{D}^{-1}\mathbf{A})^1$ through $(\mathbf{D}^{-1}\mathbf{A})^w$,
-averaged. You have held every ingredient of that sentence since Week 1: powers of an
+the expected similarity matrix is a mixture of transition-matrix powers:
+
+$$
+\mathbb{E}\bigl[S\bigr] \;\propto\; \frac{1}{w} \sum_{i=1}^{w} \bigl(\mathbf{D}^{-1}\mathbf{A}\bigr)^{i}
+$$ {#eq-w03-expwalk}
+
+where $S$ is the co-occurrence-count matrix of @eq-w03-simcount, $\mathbf{A}$ is the
+adjacency matrix, $\mathbf{D}$ the diagonal degree matrix — so $\mathbf{D}^{-1}\mathbf{A}$
+is Week 2's random-walk transition matrix — and its $i$-th power moves the walker $i$
+steps. You have held every ingredient of @eq-w03-expwalk since Week 1: powers of an
 adjacency-like matrix count walk structure, the $\mathbf{D}^{-1}$ makes them
 probabilities, and $w$ sets how many powers get mixed in. This is also the cleanest
 way to *see* the window knob's meaning before we tune it later: $w = 1$ recovers
@@ -188,9 +240,9 @@ $$
 \qquad
 \Pr(v \mid u) \;=\;
 \frac{\exp(\mathbf{z}_u^\top \mathbf{z}_v)}{\sum_{n \in \mathcal{V}} \exp(\mathbf{z}_u^\top \mathbf{z}_n)} .
-$$
+$$ {#eq-w03-softmax}
 
-::: {.callout-important title="Every symbol, defined — read this box like a contract" icon="false"}
+::: {.callout-important title="Every symbol of the softmax objective, defined — read this box like a contract" icon="false"}
 This formula has appeared on this course's midterm before, written sloppily, and it
 cost everyone points. The precise inventory: $\mathcal{D}$ is the multiset of
 (center, context) pairs emitted by the walk-and-window pipeline of §2 — *it is data,
@@ -205,10 +257,11 @@ matters.)
 The denominator is the whole problem: every SGD step on every pair touches all
 $|\mathcal{V}|$ embeddings — $O(|\mathcal{V}|)$ per pair, hopeless at
 $|\mathcal{V}| = 10^8$ (a single epoch over a billion pairs would cost $10^{17}$
-embedding touches — years of compute for one pass). word2vec's escape, inherited verbatim by DeepWalk and node2vec,
-is <span class="term" data-def="Negative sampling: replace the softmax's classify-against-everyone with a cheap binary discrimination — is this pair real, or one of k fakes drawn from a noise distribution? Cost drops from O(|V|) to O(k) per pair, k ≈ 5–20.">**negative sampling**</span>:
-stop normalizing, start discriminating. For each real pair, draw $k$ fake contexts from
-a noise distribution $P_n$ and train a logistic classifier to tell them apart:
+embedding touches — years of compute for one pass). word2vec's escape
+[Mikolov et al., 2013](https://arxiv.org/abs/1310.4546), inherited verbatim by
+DeepWalk and node2vec, is **negative sampling**: stop normalizing, start
+discriminating. For each real pair, draw $k$ fake contexts from a noise distribution
+$P_n$ and train a logistic classifier to tell them apart:
 
 $$
 \mathcal{L} \;=\;
@@ -218,25 +271,86 @@ $$
 \;+\;
 \sum_{i=1}^{k} \mathbb{E}_{n_i \sim P_n} \log \sigma(-\mathbf{z}_u^\top \mathbf{z}_{n_i})
 \Bigr]
-$$
+$$ {#eq-w03-sgns}
 
-— maximize: pull real pairs together (first term), push $k$ random impostors apart
-(second). Cost per pair: $O(k)$, with $k \approx 5$–$20$. The noise distribution is
-*not* uniform in practice: word2vec's $P_n(v) \propto \deg(v)^{3/4}$ — sample
-frequent/high-degree nodes as negatives more often, or the model learns mostly that
-hubs exist (Pitfall 5 will return to this).
+where — $\mathcal{D}$ is the pair multiset manufactured by @alg-w03-corpus;
+$\sigma(x) = 1/(1+e^{-x})$ is the logistic sigmoid; $k$ is the number of negatives
+per real pair; the $n_i$ are the fake contexts, drawn from the noise distribution
+$P_n$ over nodes; and $\mathbf{z}_u, \mathbf{z}_v, \mathbf{z}_{n_i} \in \mathbb{R}^d$
+are rows of the trainable table. Maximize: pull real pairs together (first term),
+push $k$ random impostors apart (second). Cost per pair: $O(k)$, with
+$k \approx 5$–$20$.
+
+::: {#def-w03-negsampling .definition name="Negative sampling"}
+Replace a softmax's classify-against-everyone objective by binary discrimination:
+for every observed pair, train the score to accept the real pair and reject $k$
+fakes drawn from a noise distribution $P_n$, as in @eq-w03-sgns. Cost per pair drops
+from $O(|\mathcal{V}|)$ to $O(k)$. Read it as a bargain: give up computing exact
+probabilities over all nodes, keep the geometry those probabilities would induce.
+:::
+
+The noise distribution is *not* uniform in practice — word2vec's choice:
+
+$$
+P_n(v) \;\propto\; \deg(v)^{3/4}
+$$ {#eq-w03-noise}
+
+where $P_n(v)$ is the probability that node $v$ is drawn as a fake context and
+$\deg(v)$ is its degree — sample frequent/high-degree nodes as negatives more often,
+or the model learns mostly that hubs exist (Pitfall 5 will return to this). Lab 3
+keeps $P_n$ uniform — a deliberate simplification that costs little on the small,
+degree-tame graphs you will train on there.
 
 Take the gradient once by hand, because "one sigmoid pull, $k$ sigmoid pushes" should
-be arithmetic to you, not poetry. For a single pair with score
-$s = \mathbf{z}_u^\top \mathbf{z}_v$, using $\frac{d}{ds}\log\sigma(s) = \sigma(-s) = 1 - \sigma(s)$:
+be arithmetic to you, not poetry. The only calculus required is the sigmoid's
+log-derivative:
+
+$$
+\frac{d}{ds}\log\sigma(s) \;=\; \sigma(-s) \;=\; 1 - \sigma(s)
+$$ {#eq-w03-siggrad}
+
+where $s$ is whatever score the loss feeds to $\log \sigma$ — here a dot product.
+Applying @eq-w03-siggrad to each term of @eq-w03-sgns for a single pair:
+
 $$
 \frac{\partial \mathcal{L}}{\partial \mathbf{z}_u}
 = \bigl(1 - \sigma(\mathbf{z}_u^\top \mathbf{z}_v)\bigr)\,\mathbf{z}_v
-\;-\; \sum_{i=1}^{k} \sigma(\mathbf{z}_u^\top \mathbf{z}_{n_i})\,\mathbf{z}_{n_i},
-$$
-and symmetrically for $\mathbf{z}_v$ (pulled toward $\mathbf{z}_u$, weighted by the
-same "surprise" factor) and each negative (pushed away, weighted by how *fooled* the
-model currently is). Numbers, in $d = 2$ with one negative: let
+\;-\; \sum_{i=1}^{k} \sigma(\mathbf{z}_u^\top \mathbf{z}_{n_i})\,\mathbf{z}_{n_i}
+$$ {#eq-w03-grad}
+
+where the coefficient $1 - \sigma(\mathbf{z}_u^\top \mathbf{z}_v)$ is the *pull*
+strength — how surprised the model still is by the real pair — and each
+$\sigma(\mathbf{z}_u^\top \mathbf{z}_{n_i})$ is a *push* strength — how fooled it
+currently is by negative $n_i$. The gradient for $\mathbf{z}_v$ is symmetric (pulled
+toward $\mathbf{z}_u$ by the same surprise factor), and each negative is pushed away.
+Assembled into a procedure, with the two tables the faithful implementation keeps,
+this gradient is exactly what Lab 3's exercise 3 computes — @alg-w03-sgns is one
+optimizer step of your `sgns_loss`:
+
+::: {#alg-w03-sgns .algorithm name="One SGNS Update"}
+Applies the gradient of @eq-w03-sgns for one observed pair, by gradient ascent.
+
+**Input:** pair $(u, v) \in \mathcal{D}$; center table $\mathbf{Z}$ and context table $\mathbf{Z}'$; number of negatives $k$; noise distribution $P_n$; learning rate $\eta$. **Output:** updated rows $\mathbf{z}_u$, $\mathbf{z}'_v$, $\mathbf{z}'_{n_1}, \ldots, \mathbf{z}'_{n_k}$.
+
+1. draw fake contexts $n_1, \ldots, n_k \sim P_n$
+2. $g \leftarrow 1 - \sigma(\mathbf{z}_u^\top \mathbf{z}'_v)$ &nbsp;&nbsp;▹ pull strength
+3. $\boldsymbol{\Delta} \leftarrow g\,\mathbf{z}'_v$; &nbsp; then $\mathbf{z}'_v \leftarrow \mathbf{z}'_v + \eta\, g\, \mathbf{z}_u$
+4. **for** $i = 1, \ldots, k$ **do**
+5. &nbsp;&nbsp;&nbsp;&nbsp;$h \leftarrow \sigma(\mathbf{z}_u^\top \mathbf{z}'_{n_i})$ &nbsp;&nbsp;▹ push strength
+6. &nbsp;&nbsp;&nbsp;&nbsp;$\boldsymbol{\Delta} \leftarrow \boldsymbol{\Delta} - h\,\mathbf{z}'_{n_i}$; &nbsp; then $\mathbf{z}'_{n_i} \leftarrow \mathbf{z}'_{n_i} - \eta\, h\, \mathbf{z}_u$
+7. **end for**
+8. $\mathbf{z}_u \leftarrow \mathbf{z}_u + \eta\, \boldsymbol{\Delta}$
+9. **return**
+:::
+
+The primes mark the context table — the "two vectors per node" inheritance from the
+opening; the lab's `train_sgns` keeps both and returns the center table. The
+accumulator $\boldsymbol{\Delta}$ exists so that every pull and push is computed from
+the *pre-update* vectors, as a simultaneous gradient step requires. Cost: $k + 1$
+dot products and $k + 2$ row updates — $O(kd)$ per pair, independent of
+$|\mathcal{V}|$.
+
+Numbers, in $d = 2$ with one negative: let
 $\mathbf{z}_u = (1, 0)$, $\mathbf{z}_v = (0.5, 0.5)$, $\mathbf{z}_n = (0.8, -0.2)$.
 Then $s_{uv} = 0.5$, $\sigma(0.5) \approx 0.62$, so the pull coefficient is $0.38$;
 $s_{un} = 0.8$, $\sigma(0.8) \approx 0.69$ — a *hard* negative, big push. Gradient on
@@ -248,21 +362,32 @@ $\to 0$ — SGNS self-anneals, no schedule heroics required), and every update t
 exactly $k + 2$ rows of the tables — the locality that makes a 100-million-node
 embedding trainable at all.
 
-Is negative sampling just a hack? No — it has a precise fixed point, and the fixed
-point is a familiar object:
+Is negative sampling just a hack? No — it has a precise fixed point
+([Levy & Goldberg, 2014](https://papers.nips.cc/paper/5477-neural-word-embedding-as-implicit-matrix-factorization);
+[Qiu et al., 2018](https://arxiv.org/abs/1710.02971)), and the fixed point is a
+familiar object:
 
 ::: {#prp-netmf .proposition name="What SGNS secretly optimizes (Levy–Goldberg 2014; NetMF 2018 — statement only)"}
 With embedding dimension large enough, the SGNS objective is minimized when
+
 $$
 \mathbf{z}_u^\top \mathbf{z}'_v \;=\; \mathrm{PMI}(u, v) - \log k
 \;=\; \log \frac{\#(u,v)\,|\mathcal{D}|}{\#(u)\,\#(v)} - \log k,
-$$
-i.e. DeepWalk **implicitly factorizes** the (shifted) pointwise-mutual-information
-matrix of its walk co-occurrences. NetMF (Qiu et al., 2018) computes this matrix in
+$$ {#eq-w03-netmf}
+
+where — $\#(u,v)$ is the number of times the pair $(u,v)$ occurs in the corpus
+$\mathcal{D}$; $\#(u) = \sum_x \#(u,x)$ and $\#(v) = \sum_x \#(x,v)$ are $u$'s total
+count as a center and $v$'s as a context; $|\mathcal{D}|$ is the total number of
+pairs; $k$ is the number of negatives; and $\mathrm{PMI}$, the pointwise mutual
+information, *is* the log-ratio shown — how much more often the pair co-occurs than
+independent draws would predict. In words: DeepWalk **implicitly factorizes** the
+(shifted) PMI matrix of its walk co-occurrences — and the prime finally matters,
+because the factorization is of the center table against the context table. NetMF
+([Qiu et al., 2018](https://arxiv.org/abs/1710.02971)) computes this matrix in
 closed form from $\mathbf{A}$ — powers of the transition matrix averaged over the
-window — and factorizing it directly ("DeepWalk without the walks") often *beats*
-DeepWalk. The optional reading has the derivation; on the exam you need the statement
-and its uses.
+window, as in @eq-w03-expwalk — and factorizing it directly ("DeepWalk without the
+walks") often *beats* DeepWalk. The optional reading has the derivation; on the exam
+you need the statement and its uses.
 :::
 
 The statement earns its keep as a reasoning tool. Two immediate consequences: walk
@@ -274,13 +399,16 @@ low-rank factorization of a fixed matrix, which is why the figure below could co
 "DeepWalk's answer" exactly, with no SGD at all.
 
 The statement also organizes the *history*, which on exams and in interviews doubles
-as a map of the design space. DeepWalk (2014) opened the era; **LINE** (2015) asked
+as a map of the design space. DeepWalk (2014) opened the era;
+[**LINE** (2015)](https://arxiv.org/abs/1503.03578) asked
 "why walk at all?" and optimized two explicit objectives instead — first-order
 proximity (endpoints of an edge should be close: $S = \mathbf{A}$ with a logistic
 loss) and second-order proximity (nodes with similar *neighborhoods* should be close)
 — trading the walk's multi-hop blur for controllable, separately-trained notions of
 similarity at hundred-million-edge scale. **node2vec** (2016) kept the walks and made
-their bias a dial. Then **NetMF** (2018) ended the era's theoretical innocence by
+their bias a dial.
+
+Then **NetMF** (2018) ended the era's theoretical innocence by
 proving all of them — DeepWalk, LINE, node2vec, and their text ancestors — implicitly
 factorize closed-form matrices, with LINE falling out as *exactly* DeepWalk at window
 $w = 1$. Four papers, one filing-cabinet drawer: a similarity choice ($\mathbf{A}$,
@@ -292,10 +420,24 @@ while clarifying the method entirely.
 ## 4. node2vec: steering the walker
 
 If similarity = "where my walks go", then *biasing the walks changes the geometry of
-the embedding space*. node2vec (2016) adds exactly two knobs to the walker. Standing at
-$v$, having arrived from $t$, the unnormalized weight of each next step $x$ is:
-$1/p$ to return to $t$; $1$ to a common neighbor of $t$ and $v$ (staying in $t$'s
-orbit); $1/q$ to a node farther from $t$ (pushing outward).
+the embedding space*. [node2vec (2016)](https://arxiv.org/abs/1607.00653) adds
+exactly two knobs to the walker. Standing at $v$, having arrived from $t$, the
+walker weighs each candidate next step $x$ by
+
+$$
+\alpha_{pq}(t, x) \;=\;
+\begin{cases}
+1/p & \text{if } d(t, x) = 0 \quad \text{(return to } t\text{)}\\
+1 & \text{if } d(t, x) = 1 \quad \text{(a common neighbor of } t \text{ and } v\text{)}\\
+1/q & \text{if } d(t, x) = 2 \quad \text{(farther from } t\text{)}
+\end{cases}
+$$ {#eq-w03-pq}
+
+where $d(t, x)$ is the graph distance from the previous node $t$ to the candidate
+$x$ — necessarily 0, 1, or 2, since $x$ neighbors the current node $v$; $p$ is the
+**return** parameter (large $p$ discourages stepping back); $q$ is the **in-out**
+parameter (small $q$ pushes the walk outward); and the weights $\alpha_{pq}$ are
+normalized over $v$'s neighbors to give transition probabilities.
 
 {{< include ../assets/figures/fig-w3-pq.html >}}
 
@@ -315,7 +457,8 @@ adjectives on faith — measure them:
 Make the bias concrete with one full hand computation, because the midterm's
 node2vec question is always this computation with different numbers. On the cast
 graph, suppose the walker stepped $A \to C$ (so $t = A$, current $v = C$) with
-$p = 4$, $q = 0.5$. $C$'s neighbors are $A, B, E, F$. Classify each against $t = A$:
+$p = 4$, $q = 0.5$. $C$'s neighbors are $A, B, E, F$. Classify each against $t = A$
+using @eq-w03-pq:
 $A$ is the way back (weight $1/p = 0.25$); $B$ is a neighbor of $A$ (weight $1$);
 $E$ and $F$ are not adjacent to $A$ (weight $1/q = 2$ each). Normalizing over
 $0.25 + 1 + 2 + 2 = 5.25$: the walker returns to $A$ with probability $\approx 0.05$,
@@ -328,8 +471,9 @@ a corpus's character before generating it.
 
 One honest caveat the original paper is often paraphrased past: the walker is
 second-order (it remembers one step back), so this is a nudge, not a guarantee — truly
-role-based embeddings need different machinery (struc2vec, GraphWave — mentioned, not
-examined). What *is* exam-fair: given a graph and a task, predict which $(p, q)$ regime
+role-based embeddings need different machinery
+([struc2vec](https://arxiv.org/abs/1704.03165), [GraphWave](https://arxiv.org/abs/1710.10321)
+— mentioned, not examined). What *is* exam-fair: given a graph and a task, predict which $(p, q)$ regime
 helps, and defend it in the BFS/DFS vocabulary.
 
 ## 5. Training, watched live
@@ -356,7 +500,9 @@ pulls and pushes nearly cancel. Then the phase change: some pair of frequently
 co-walking members drifts together by chance, their mutual pulls compound, their
 shared negatives push the same directions, and a *cluster nucleates* — after which
 growth is fast, because joining an existing cluster is downhill for every member the
-walks associate with it. Last, the slow endgame: clusters formed, gradients small,
+walks associate with it.
+
+Last, the slow endgame: clusters formed, gradients small,
 points shuffling within their blobs while boundary members 2 and 8 wander the strait
 between the camps — their walk statistics genuinely straddle both, so *no* stable
 position exists for them except the middle, and that indecision is correct. You have
@@ -368,8 +514,10 @@ we can skip the training entirely and compute where the points *must* end up:
 
 {{< include ../assets/figures/fig-w3-embedding.html >}}
 
-The static figure is the widget's asymptote: PPMI matrix of real walk co-occurrences,
-factorized, two dimensions kept. Compare where the ringed boundary members sit in both
+The static figure is the widget's asymptote: the PPMI matrix of real walk
+co-occurrences — *positive* PMI, meaning @eq-w03-netmf's log-ratio with every
+negative entry clipped to zero, the standard cure for the $-\infty$ that
+never-co-occurring pairs would produce — factorized, two dimensions kept. Compare where the ringed boundary members sit in both
 — training and factorization agree that members 2 and 8 live between the camps, which
 is the same verdict the Fiedler vector delivered last week. Three different algorithms,
 one geometric truth: **position in this graph is a low-dimensional, learnable thing.**
@@ -377,24 +525,20 @@ one geometric truth: **position in this graph is a low-dimensional, learnable th
 ### Choosing the knobs, and knowing what each one means
 
 The pipeline has five hyperparameters, and — unusually for deep-learning-adjacent
-methods — each has a *semantic* reading, so tuning them is reasoning, not grid search.
-**Dimension $d$:** the rank of the factorization (@prp-netmf), i.e. how much of the
-co-occurrence spectrum you keep. Communities are low-rank structure; walk noise is
-high-rank. Typical $64$–$256$; you saw in the homework-adjacent discussion (Q4) why
-more can hurt. **Window $w$:** the *scale of "nearby"*. Small $w$ makes co-occurrence
-nearly adjacency (sharp, local); large $w$ blurs it toward "same region" — on Cora,
-pushing $w$ up merges sub-topics into topics. It is the single most task-sensitive
-knob and the subject of the natural Part-C investigation in HW1. **Walks per node
-and walk length:** pure variance control — more corpus, less sampling noise around
-the same expected statistics; DeepWalk's famous defaults (80 walks of length 40) are
-generous overkill for small graphs, and our lab's lean settings deliberately are not.
-**Negatives $k$:** by the fixed point, $k$ enters as the shift $-\log k$ — larger $k$
-demands more evidence before a pair scores positive, acting as sparsification-slash-
-regularization; it also linearly buys gradient quality per pair. **Learning rate and
-epochs:** ordinary SGD lore applies, with the one graph-specific note you measured in
-the lab — that past the point where communities are formed, further epochs mostly fit
-walk-sampling noise. When a paper reports beating DeepWalk, your first question is now
-professional reflex: *at whose hyperparameters?*
+methods — each has a *semantic* reading, so tuning them is reasoning, not grid
+search. Read the table column by column; it is the lecture-hall artifact worth
+photographing today:
+
+| knob | semantic reading | typical setting |
+|---|---|---|
+| dimension $d$ | the rank of the factorization (@prp-netmf): how much of the co-occurrence spectrum you keep — communities are low-rank structure, walk noise is high-rank | $64$–$256$; Q4 shows why more can hurt |
+| window $w$ | the *scale of "nearby"*: small $w$ ≈ sharp, local adjacency; large $w$ blurs toward "same region" — on Cora, raising $w$ merges sub-topics into topics | the single most task-sensitive knob — the natural Part-C investigation in HW1 |
+| walks $\gamma$, length $K$ | pure variance control: more corpus, less sampling noise around the same expected statistics | DeepWalk's famous $80 \times 40$ is generous overkill for small graphs; the lab's lean settings deliberately are not |
+| negatives $k$ | enters @eq-w03-netmf as the shift $-\log k$: larger $k$ demands more evidence before a pair scores positive (a regularizer), and linearly buys gradient quality per pair | $5$–$20$ |
+| learning rate, epochs | ordinary SGD lore, plus one graph-specific note you measure in the lab: past the point where communities form, further epochs mostly fit walk-sampling noise | the lab's Adam defaults; stop early |
+
+When a paper reports beating DeepWalk, your first question is now professional
+reflex: *at whose hyperparameters?*
 
 ### Living with embeddings in production
 
@@ -404,10 +548,15 @@ on-call. **Retraining and alignment:** the loss is rotation-invariant (Pitfall 2
 Tuesday's retrain produces vectors incompatible with Monday's — any downstream system
 that cached similarities or trained a model on the old coordinates silently degrades.
 Fixes: align successive runs with orthogonal Procrustes (find the rotation minimizing
-$\|\mathbf{Z}_{\text{new}}\mathbf{R} - \mathbf{Z}_{\text{old}}\|$ — a one-line SVD),
-or warm-start training from the previous table. **Drift monitoring:** the graph
+$\|\mathbf{Z}_{\text{new}}\mathbf{R} - \mathbf{Z}_{\text{old}}\|$ — one line of code
+via the SVD, the singular value decomposition your linear algebra course called the
+master factorization), or warm-start training from the previous table.
+
+**Drift monitoring:** the graph
 changes under the model; track a fixed probe set's neighborhood overlap between
-versions, and alert when it drops — embarrassingly few teams do. **Cold start:** new
+versions, and alert when it drops — embarrassingly few teams do.
+
+**Cold start:** new
 entities have no row (limitation 2); production stopgaps include averaging the
 embeddings of a new node's first neighbors (surprisingly strong), keeping a "fresh
 node" model on features alone, and scheduled fold-in mini-trainings. All three are
@@ -433,6 +582,7 @@ see only structure), but from a better-shaped compression of the same informatio
 Representation quality is a real, separable axis from information content; that
 distinction is half of what "representation learning" means, and this ladder is the
 cleanest demonstration of it you will ever compute.
+
 (One practical rite of passage awaits you in the lab: the probe only clears ~64% until
 you L2-normalize the vectors — SGNS stores walk *frequency* in a vector's norm and
 *position* in its direction, and the probe wants the direction.)
@@ -457,20 +607,33 @@ build an edge feature from the pair and classify it). The node2vec paper's Table
 compared four ways of turning two node vectors into one edge vector — average,
 Hadamard (elementwise product), absolute difference, squared difference — and
 Hadamard won broadly enough that it became the field's default. It is worth ten
-seconds seeing *why* it should: a logistic regression on the Hadamard vector
-computes $\mathbf{w}^\top(\mathbf{z}_u \odot \mathbf{z}_v) = \sum_i w_i z_{u,i} z_{v,i}$
-— a *weighted* dot product, i.e. the plain dot-product scorer with a learned
-importance per dimension. (File that shape away: next week an entire KG model —
-DistMult — is exactly this formula with the weights renamed as a relation.) This is
+seconds seeing *why* it should: a logistic regression on the Hadamard vector computes
+
+$$
+\mathbf{w}^\top(\mathbf{z}_u \odot \mathbf{z}_v) \;=\; \sum_{i=1}^{d} w_i\, z_{u,i}\, z_{v,i}
+$$ {#eq-w03-hadamard}
+
+where $\odot$ is the elementwise (Hadamard) product, $z_{u,i}$ is coordinate $i$ of
+$u$'s embedding, and $\mathbf{w} \in \mathbb{R}^d$ is the learned classifier weight
+vector — so the score is a *weighted* dot product: the plain dot-product scorer with
+a learned importance per dimension. (File that shape away: next week an entire KG
+model — DistMult — is exactly @eq-w03-hadamard with the weights renamed as a
+relation.) This is
 the deployment shape of friend suggestion and co-purchase recommendation. But the evaluation has a trap that
 publishes wrong numbers every year, so learn the protocol as a reflex:
 
 ::: {.callout-important title="Link prediction without lying to yourself" icon="false"}
-Held-out edges must be **invisible at every stage**: (1) remove the test edges *before*
-running any walks — walks that stroll across a test edge leak it straight into the
-similarity counts; (2) sample negative test pairs (non-edges) honestly, and report the
-positives-vs-negatives ranking quality (AUC here; Hits@K when Week 12 does this
-properly); (3) never tune on the test AUC. In Lab 3 you will run the leaky version and
+Held-out edges must be **invisible at every stage**:
+
+1. remove the test edges *before* running any walks — walks that stroll across a
+   test edge leak it straight into the similarity counts;
+2. sample negative test pairs (non-edges) honestly, and report the
+   positives-vs-negatives ranking quality — here the **AUC**, the probability that a
+   randomly chosen true edge outscores a randomly chosen non-edge (0.5 = coin-flip,
+   1.0 = perfect ranking; Hits@K when Week 12 does this properly);
+3. never tune on the test AUC.
+
+In Lab 3 you will run the leaky version and
 the clean version side by side: the clean pipeline earns an honest 0.82, while the
 leaky one "achieves" a near-perfect 0.997 — seventeen points of pure fiction you will
 remember whenever you review a paper.
@@ -502,7 +665,8 @@ settling to equilibrium with the labels as fixed-temperature boundary), and it i
 linear solve, no training. That one idea — *labels should vary smoothly across edges,
 and the Laplacian defines smoothly* — resurfaces twice more in this course wearing
 better clothes: as the "Correct & Smooth" post-processing that embarrassed several
-GNNs on leaderboards (a Week 3 optional-reading rabbit hole), and inside the GCN
+GNNs on leaderboards ([Huang et al., 2020](https://arxiv.org/abs/2010.13993) — a
+Week 3 optional-reading rabbit hole), and inside the GCN
 itself, whose propagation step Week 6 will reveal as a learned, feature-aware
 relative of exactly this averaging. When someone asks what graph deep learning
 actually added, one honest answer is: label propagation, but for *features*, with the
@@ -516,13 +680,25 @@ about the *lookup-table encoder*, not about training quality:
    $|\mathcal{V}|$ times. (Statistical inefficiency.)
 2. **Transductive only.** A node that was not in the table at training time *has no
    embedding* — a new user, a new paper, tomorrow's graph. There is nothing to look
-   up. <span class="term" data-def="Transductive: the model only makes predictions for the exact nodes present at training time. Its opposite, inductive, means the model can embed nodes it has never seen — the property the lookup-table encoder structurally cannot have, and GNNs can.">Transductive</span>
-   failure is deployment failure: most production graphs grow every hour.
+   up. Transductive failure is deployment failure: most production graphs grow every
+   hour.
 3. **Feature-blind.** Cora's papers *have text*; molecules have atom types; users have
    profiles. The lookup table cannot ingest any of it — the encoder's input is an id.
    All of Lab 2's attribute information is still on the floor.
 4. **$O(|\mathcal{V}| \cdot d)$ parameters.** A billion nodes at $d = 128$ in float32
    is half a terabyte of *parameters* — before you store the graph.
+
+The second wall is important enough to deserve its formal name — the exam will use
+both words:
+
+::: {#def-w03-transductive .definition name="Transductive vs. inductive"}
+A model is **transductive** when it can make predictions only for the exact objects
+present at training time; a lookup-table encoder is structurally transductive,
+because an unseen node has no row. A model is **inductive** when it can process
+objects it never saw during training — the property Week 6's neural encoders buy by
+*computing* $\mathbf{z}_u$ from features and neighbors instead of storing it. Read
+"transductive" as: the model is a cache of answers, not a function.
+:::
 
 Put faces on the walls before generalizing, because each has a canonical victim.
 No sharing: a citation network of fresh preprints, where most nodes have degree 1–2 —
@@ -571,7 +747,8 @@ recomputation, folding-in heuristics, or an inductive encoder from day one.
 ::: {.callout-warning title="Pitfall 4 · Believing the t-SNE plot" icon="false"}
 t-SNE/UMAP are for *seeing*, not for *concluding*, and knowing one sentence of their
 mechanics tells you which conclusions die: both methods optimize the preservation of
-*local neighborhoods* (who is near whom, within a perplexity-sized bubble) and treat
+*local neighborhoods* (who is near whom, within a perplexity-sized bubble —
+perplexity being t-SNE's neighborhood-size knob) and treat
 everything beyond that bubble as "far, don't care." Consequences: within-blob
 structure is meaningful-ish; blob *sizes* are artifacts of the density equalization;
 distances *between* blobs mean nothing at all; and at some perplexity settings the
@@ -708,6 +885,21 @@ literally nothing; embeddings give them coordinates, but Q4(a) warns those coord
 are unanchored to the labeled region — so both need care, and saying *why* for each is
 the answer.
 </details>
+
+::: {.notions}
+Notions introduced this week
+
+- **Encoder–decoder template** (@def-w03-encdec) — encoder, decoder, similarity, loss: the four slots every embedding method fills.
+- **Walk corpus** (@alg-w03-corpus) — the multiset $\mathcal{D}$ of (center, context) pairs; all the graph the loss will ever see.
+- **Negative sampling** (@def-w03-negsampling) — binary discrimination against $k$ noise draws in place of the full softmax.
+- **SGNS update** (@alg-w03-sgns) — one sigmoid pull, $k$ sigmoid pushes; exactly $k+2$ rows touched per pair.
+- **Shifted PMI / PPMI** (@eq-w03-netmf) — the matrix SGNS secretly factorizes; PPMI clips the negative entries to zero.
+- **node2vec bias $\alpha_{pq}$** (@eq-w03-pq) — the BFS↔DFS dial: $1/p$ back, $1$ sideways, $1/q$ outward.
+- **Frozen linear probe** — logistic regression on frozen vectors; measures the representation, not the classifier.
+- **Transductive vs. inductive** (@def-w03-transductive) — predictions only for training-time nodes vs. for any node.
+- **Label propagation** — majority-vote flooding of known labels along edges; the no-learning baseline.
+- **AUC** — the probability that a random positive outranks a random negative; 0.5 is coin-flipping.
+:::
 
 ## Where this leaves us
 

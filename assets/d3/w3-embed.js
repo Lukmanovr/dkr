@@ -134,10 +134,10 @@
         ? "random initialization — the factions are shuffled together"
         : `${trained.toLocaleString()} pairs trained · nearest-centroid separation: ${sep}/34`);
     g.append("text").attr("x", 350).attr("y", 296).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text("d = 2: this plane IS the embedding space");
     g.append("text").attr("x", 350).attr("y", 312).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text("gold Mr. Hi's · teal the Officer's · rings = boundary members 2, 8");
   }
 

@@ -121,11 +121,16 @@ enc.append(f'''  <g font-family="{MONO}" font-size="13" fill="var(--dkr-text, #1
     <path d="M210,120 L286,120" marker-end="url(#w3eArrow)"/>
     <path d="M550,120 L474,120" marker-end="url(#w3eArrow)"/>
   </g>
+  <g font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #6e6e7a)" text-anchor="middle">
+    <text x="248" y="110">vectors</text>
+    <text x="512" y="110">targets</text>
+    <text x="404" y="206" text-anchor="start">scores</text>
+  </g>
   <defs><marker id="w3eArrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,3.5 L0,7 Z" fill="var(--dkr-muted, #8e8e9a)"/></marker></defs>
   <g font-family="{SANS}">
     <path d="M380,180 L380,222" stroke="var(--dkr-green, #199473)" stroke-width="2.2" marker-end="url(#w3eArrow)" fill="none"/>
-    <rect x="220" y="226" width="320" height="54" rx="14" fill="var(--dkr-green, #199473)" opacity="0.13"/>
-    <rect x="220" y="226" width="320" height="54" rx="14" fill="none" stroke="var(--dkr-green, #199473)" stroke-width="2.2"/>
+    <rect x="30" y="226" width="700" height="54" rx="14" fill="var(--dkr-green, #199473)" opacity="0.13"/>
+    <rect x="30" y="226" width="700" height="54" rx="14" fill="none" stroke="var(--dkr-green, #199473)" stroke-width="2.2"/>
     <text x="380" y="249" text-anchor="middle" font-size="15" font-weight="700" fill="var(--dkr-green, #199473)">LOSS</text>
     <text x="380" y="268" text-anchor="middle" font-size="12" fill="var(--dkr-muted, #6e6e7a)">make the decoder's score match the graph's similarity</text>
   </g>
@@ -162,7 +167,10 @@ def pq_panel(ox, p, q, title, color):
         is_t = k == "t"
         fill = "var(--dkr-accent, #d9603b)" if is_v else ("var(--dkr-yellow, #d9a62e)" if is_t else "var(--dkr-muted, #8e8e9a)")
         g.append(f'      <circle cx="{x}" cy="{y}" r="{17 if is_v else 14}" fill="{fill}" opacity="{1 if (is_v or is_t) else 0.55}"/>')
-        g.append(f'      <text x="{x}" y="{y + 4.5}" text-anchor="middle" font-family="{SANS}" font-size="12.5" font-weight="700" fill="#fff">{k}</text>')
+        # theme text color on the translucent gray nodes: dark-on-light in light
+        # theme, light-on-dark in dark theme (white was borderline in light)
+        tfill = "#fff" if (is_v or is_t) else "var(--dkr-text, #1c1c21)"
+        g.append(f'      <text x="{x}" y="{y + 4.5}" text-anchor="middle" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{tfill}">{k}</text>')
     for k, w in wts.items():
         x, y = POS[k]
         dx, dy = x - POS["v"][0], y - POS["v"][1]
@@ -231,7 +239,13 @@ xs, ys_ = emb[:, 0], emb[:, 1]
 sx = lambda x: 70 + (x - xs.min()) / (xs.max() - xs.min()) * 620
 sy = lambda v: 80 + (v - ys_.min()) / (ys_.max() - ys_.min()) * 240
 parts = [f'  <text x="380" y="26" text-anchor="middle" font-family="{SANS}" font-size="13" fill="var(--dkr-muted, #6e6e7a)">every friendship edge is invisible here — only walk co-occurrence placed these points</text>']
-for i in range(K_N):
+# coordinate-plane frame: claims the empty center-left as embedding space, not
+# an unfinished scatter; axis names say what the two coordinates are
+parts.append('  <rect x="48" y="62" width="664" height="276" rx="6" fill="none" stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.2" opacity="0.4"/>')
+parts.append(f'  <text x="702" y="330" text-anchor="end" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #8e8e9a)">dim 1 →</text>')
+parts.append(f'  <text x="62" y="204" text-anchor="middle" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #8e8e9a)" transform="rotate(-90 62 204)">dim 2 →</text>')
+# ringed boundary members drawn LAST so their rings sit above every fill
+for i in [j for j in range(K_N) if j not in (2, 8)] + [2, 8]:
     x, yv = sx(xs[i]), sy(ys_[i])
     fill = C_HI if i in MR_HI else C_OFF
     ring = ' stroke="#cf4a30" stroke-width="2.6"' if i in (2, 8) else ""
@@ -240,12 +254,12 @@ for i in range(K_N):
 parts.append(f'''  <g font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #8e8e9a)">
     <circle cx="90" cy="50" r="7" fill="{C_HI}"/><text x="103" y="54">Mr. Hi's faction</text>
     <circle cx="230" cy="50" r="7" fill="{C_OFF}"/><text x="243" y="54">the Officer's</text>
-    <text x="690" y="54" text-anchor="end">red ring = Week 2's boundary members (2, 8)</text>
+    <text x="690" y="54" text-anchor="end">red ring = Week 2's boundary members 2 and 8</text>
   </g>
   <g font-family="{SANS}">
-    <rect x="115" y="342" width="530" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
-    <text x="380" y="362" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--dkr-bg, #fff)">2 learned coordinates per member — one straight line separates {acc} of 34</text>
+    <rect x="115" y="350" width="530" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
+    <text x="380" y="370" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--dkr-bg, #fff)">2 learned coordinates per member — one straight line separates {acc} of 34</text>
   </g>''')
 write("fig-w3-embedding", "\n".join(parts),
-      f"The 34 karate club members placed in 2D by factorizing the PPMI matrix of real random-walk co-occurrences; the factions form two separable groups and a straight line classifies {acc} of 34",
-      height=390)
+      f"The 34 karate club members placed in a framed two-dimensional coordinate plane by factorizing the PPMI matrix of real random-walk co-occurrences; the factions form two separable groups and a straight line classifies {acc} of 34",
+      height=396)

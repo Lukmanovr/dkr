@@ -60,9 +60,9 @@
 
   function render() {
     const P = U.pal();
-    const svg = U.svgIn("w3-pq-svg", 760, 300);
+    const svg = U.svgIn("w3-pq-svg", 760, 262);
     svg.attr("font-family", "'Source Sans 3', sans-serif");
-    const g = svg.append("g").attr("transform", "translate(30,40)");
+    const g = svg.append("g").attr("transform", "translate(30,2)");
 
     g.selectAll("line").data(EDGES).join("line")
       .attr("x1", (e) => POS[e[0]][0]).attr("y1", (e) => POS[e[0]][1])

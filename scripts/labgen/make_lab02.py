@@ -29,9 +29,14 @@ CELLS = [
 **Week 2 · [lecture](https://lukmanovr.github.io/dkr/lectures/02-classical-graph-ml.html) · ≈ 25 min of compute (free Colab or CPU — no GPU needed)**
 
 Everything the lecture computed by hand, you now compute at scale — and check against
-the hand results first, real libraries second. The lab ends with the measurement the
-lecture promised: a structure-only classifier on Cora, the baseline number the rest of
-the course has to beat.
+the hand results first, real libraries second. The methods here are the permanent
+baselines of graph ML: PageRank is the fixed point that founded a search engine
+[[Brin & Page, 1998](https://doi.org/10.1016/S0169-7552(98)00110-X)], and the 1968
+Weisfeiler–Leman relabeling became the decade-defining graph kernel
+[[Shervashidze et al., 2011](https://jmlr.org/papers/v12/shervashidze11a.html)] —
+every learned model in this course is measured against them. The lab ends with the
+measurement the lecture promised: a structure-only classifier on Cora, the baseline
+number the rest of the course has to beat.
 
 ### Goals
 1. Implement PageRank power iteration from scratch and match `networkx` to 6 decimals.
@@ -96,6 +101,20 @@ Implement the damped update from the lecture,
 $\\mathbf{r} \\leftarrow \\beta M\\mathbf{r} + (1-\\beta)\\tfrac{1}{n}\\mathbf{1}$,
 directly on an (undirected) `networkx` graph: at each step every node keeps
 $(1-\\beta)/n$ base mass and receives $\\beta \\cdot r_u / d_u$ from each neighbor $u$.
+
+You are coding against a spec — the lecture's Algorithm 1, restated:
+
+> **Algorithm · PageRank by power iteration** ([Brin & Page, 1998](https://doi.org/10.1016/S0169-7552(98)00110-X))
+>
+> **Input:** neighbor lists $N(\\cdot)$ (each undirected edge counts both ways, so $|N(u)| = d_u$); damping $\\beta$; iteration count $K$. **Output:** rank vector $\\mathbf{r}$ with $\\sum_u r_u = 1$.
+>
+> 1. $n \\leftarrow |V|$; &nbsp; $r_u \\leftarrow 1/n$ for every node $u$
+> 2. **for** $k = 1 \\ldots K$ **do**
+> 3. &nbsp;&nbsp;&nbsp;&nbsp;$r'_v \\leftarrow (1-\\beta)/n$ for every node $v$ &nbsp;&nbsp;*(teleport mass)*
+> 4. &nbsp;&nbsp;&nbsp;&nbsp;**for** each node $u$ **do** $s \\leftarrow \\beta \\, r_u / |N(u)|$; add $s$ to $r'_v$ for every $v \\in N(u)$
+> 5. &nbsp;&nbsp;&nbsp;&nbsp;$r \\leftarrow r'$
+> 6. **end for**
+> 7. **return** $r$
 
 The check is unforgiving on purpose: **six decimals against `networkx`**, which runs
 the same iteration. If you are close-but-not-equal, read the assertion messages — each
@@ -372,9 +391,25 @@ Implement one refinement round: every node's new color is determined by
 it assigns a fresh integer id to each signature it has never seen — **shared across
 graphs**, so two graphs processed with the same table get comparable colors.
 
-Then the two verdicts from the lecture, now yours to reproduce: the path–star pair is
-distinguished in one round; the two-triangles–hexagon pair is never distinguished at
-all.
+The spec — the lecture's Algorithm 2, restated
+([Weisfeiler & Leman, 1968](https://www.iti.zcu.cz/wl2018/pdf/wl_paper_translation.pdf)):
+
+> **Algorithm · WL color refinement**
+>
+> **Input:** graph $G$; rounds $h$; signature table $T$ **shared across graphs**. **Output:** histogram of the colors from all rounds — the WL fingerprint.
+>
+> 1. $c(v) \\leftarrow c_0$ for every node (one shared initial color; the code uses $-1$)
+> 2. **for** round $i = 1 \\ldots h$ **do**
+> 3. &nbsp;&nbsp;&nbsp;&nbsp;**for** each node $v$ **do** $sig \\leftarrow (i,\\ c(v),\\ \\text{sorted tuple of neighbor colors})$
+> 4. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**if** $sig \\notin T$ **then** $T[sig] \\leftarrow$ fresh id; &nbsp;then $c'(v) \\leftarrow T[sig]$
+> 5. &nbsp;&nbsp;&nbsp;&nbsp;$c \\leftarrow c'$ &nbsp;&nbsp;*(colors only split, never merge)*
+> 6. **end for**
+> 7. **return** the counter of colors from rounds $0 \\ldots h$
+
+Exercise 5 implements one round (lines 3–4); the provided `wl_histogram` wraps it into
+the full loop. Then the two verdicts from the lecture, now yours to reproduce: the
+path–star pair is distinguished in one round; the two-triangles–hexagon pair is never
+distinguished at all.
 """),
 
     todo("""def wl_refine(G: nx.Graph, colors: dict, table: dict, round_id: int) -> dict:
@@ -602,8 +637,9 @@ print("and Week 6's GCN — which also reads the papers' words — reaches ~81%.
     md("""## 8 · WL features classify real molecules  *(provided — read, run, and note the year)*
 
 Your `wl_histogram` from exercise 5, pointed at PROTEINS: 1,113 real protein graphs,
-task "is this an enzyme?". This is the 2011 state of the art — built from a 1968
-algorithm — and it remains a strong baseline today. (Under CI SMOKE we subsample; the
+task "is this an enzyme?". This is the
+[2011 state of the art](https://jmlr.org/papers/v12/shervashidze11a.html) — built
+from a 1968 algorithm — and it remains a strong baseline today. (Under CI SMOKE we subsample; the
 dataset server is external, so this cell degrades gracefully if it is unreachable.)
 """),
 

@@ -131,11 +131,13 @@
       .attr("stroke", (i) => (i === selected ? P.accentDark : "none"))
       .attr("stroke-width", 3);
     nd.append("text").attr("text-anchor", "middle").attr("dy", 4.5)
-      .attr("font-size", 12).attr("font-weight", 700).attr("fill", "#fff")
+      .attr("font-size", 12.5).attr("font-weight", 700)
+      .attr("fill", (i) => (champs.includes(i) ? "#fff" : P.text))
       .text((i) => NAMES[i][0]);
     nd.append("text")
       .attr("x", (i) => 9 + 13 * ((vals[i] - vmin) / ((vmax - vmin) || 1)) + 5)
-      .attr("dy", 4.5).attr("font-size", 12).attr("fill", P.muted)
+      .attr("dy", 4.5).attr("font-size", 12.5).attr("fill", P.muted)
+      .attr("stroke", P.bg).attr("stroke-width", 3).attr("paint-order", "stroke")
       .text((i) => MEASURES[measure].fmt(vals[i]));
     nd.on("click", (ev, i) => {
       if (selected === null) { selected = i; }
@@ -159,13 +161,33 @@
     const note = selected === null
       ? "click two nodes to add or remove an edge"
       : `selected ${NAMES[selected]} — click another node to toggle their edge`;
-    panel.append("text").attr("y", 84).attr("font-size", 12).attr("fill", selected === null ? P.muted : P.accentDark)
+    panel.append("text").attr("y", 84).attr("font-size", 12.5).attr("fill", selected === null ? P.muted : P.accentDark)
       .text(note);
     if (edges.length !== KITE.length ||
         !edges.every(([a, b]) => KITE.some(([x, y]) => x === a && y === b))) {
-      panel.append("text").attr("y", 108).attr("font-size", 12).attr("fill", P.muted)
+      panel.append("text").attr("y", 108).attr("font-size", 12.5).attr("fill", P.muted)
         .text("(edited graph — press reset to restore the kite)");
     }
+
+    // full ranked score chart — fills the panel and lets the eye compare, not
+    // just crown, the ten scores
+    const order = d3.range(N).slice().sort((a, b) => vals[b] - vals[a]);
+    const chart = panel.append("g").attr("transform", "translate(0,132)");
+    order.forEach((i, k) => {
+      const y = k * 17;
+      const frac = vmax > 0 ? vals[i] / vmax : 0;
+      chart.append("text").attr("x", 0).attr("y", y + 9.5).attr("font-size", 12.5)
+        .attr("fill", champs.includes(i) ? color : P.muted)
+        .attr("font-weight", champs.includes(i) ? 700 : 400)
+        .text(NAMES[i]);
+      chart.append("rect").attr("x", 68).attr("y", y).attr("height", 11).attr("rx", 3)
+        .attr("width", Math.max(2, 130 * frac))
+        .attr("fill", champs.includes(i) ? color : P.muted)
+        .attr("opacity", champs.includes(i) ? 0.95 : 0.4);
+      chart.append("text").attr("x", 68 + Math.max(2, 130 * frac) + 5).attr("y", y + 9.5)
+        .attr("font-size", 12.5).attr("fill", P.muted)
+        .text(MEASURES[measure].fmt(vals[i]));
+    });
   }
 
   document.querySelectorAll("#w2-ce-widget [data-measure]").forEach((b) =>

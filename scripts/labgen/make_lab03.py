@@ -33,6 +33,14 @@ no embedding library anywhere, train it on the karate club and then on Cora, and
 with two honest measurements: does *learned position* beat Lab 2's community one-hots,
 and exactly how many AUC points does the classic link-prediction leak buy?
 
+This is representation learning at its most transparent: instead of designing node
+features, you let an objective *learn* them from random-walk co-occurrence. The recipe
+is DeepWalk's ([Perozzi et al., 2014](https://arxiv.org/abs/1403.6652)) with the
+negative-sampling objective it borrowed from word2vec
+([Mikolov et al., 2013](https://arxiv.org/abs/1310.4546)); node2vec's biased walker
+([Grover & Leskovec, 2016](https://arxiv.org/abs/1607.00653)) waits in the stretch
+goals.
+
 ### Goals
 1. Implement random walks and skip-gram pair extraction, verified against hand counts.
 2. Implement the SGNS loss in PyTorch and train real embeddings (two tables, k negatives).
@@ -64,9 +72,25 @@ print(f"torch {torch.__version__} · networkx {nx.__version__} — environment O
 
     md("""## 1 · Walks  *(exercise 1 — skill: the corpus generator)*
 
-The "sentences". Write the walker exactly as specified — the determinism contract
-(one `random.Random(seed)` driving everything, nodes iterated in sorted order) is part
-of the exercise, because reproducible corpora are what make every later assert possible.
+The "sentences". Exercises 1 and 2 together implement the lecture's Algorithm 1 — code
+against this spec, not a vibe:
+
+> **Algorithm · Walk corpus → skip-gram pairs** (DeepWalk)
+>
+> **Input:** graph $G$; walks per node $\\gamma$; walk length $K$; window $w$; seed $s$.
+> **Output:** list $\\mathcal{D}$ of (center, context) pairs.
+>
+> 1. rng ← Random($s$); $W$ ← empty list; $\\mathcal{D}$ ← empty list
+> 2. **for** round $= 1, \\ldots, \\gamma$: **for** each start node $v$ in **sorted** order:
+> 3. &nbsp;&nbsp;&nbsp;&nbsp;walk ← $(v)$; **while** $|\\text{walk}| < K$ and last(walk) has neighbors: append a neighbor chosen uniformly by rng
+> 4. &nbsp;&nbsp;&nbsp;&nbsp;append walk to $W$
+> 5. **for** each walk in $W$, each position $i$, each $j \\neq i$ with $|i-j| \\le w$: add $(\\text{walk}_i, \\text{walk}_j)$ to $\\mathcal{D}$
+> 6. **return** $\\mathcal{D}$ — exactly $|V| \\cdot \\gamma \\cdot (2wK - w(w{+}1))$ pairs when no walk ends early
+
+Exercise 1 is steps 1–4 ($\\gamma$ = `num_walks`, $K$ = `length`); exercise 2 is step 5.
+The determinism contract (one `random.Random(seed)` driving everything, nodes iterated
+in sorted order) is part of the exercise, because reproducible corpora are what make
+every later assert possible.
 """),
 
     todo("""CAST = nx.Graph([(0, 1), (0, 2), (0, 3), (1, 2), (2, 4), (2, 5), (4, 5)])  # A..F = 0..5
@@ -155,12 +179,12 @@ assert q2 == [(1, 2), (2, 1), (2, 4), (4, 2), (4, 5), (5, 4)], (
     f"Check: BOTH directions of each adjacency in the walk, no self-pairs, no wrap-around."
 )
 n_pairs = len(skipgram_pairs(walks, window=2))
-expected = 24 * (2 * 2 * 8 - 2 * 3)                    # per walk: 2wL − w(w+1)
+expected = 24 * (2 * 2 * 8 - 2 * 3)                    # per walk: 2wK − w(w+1)
 assert n_pairs == expected, (
     f"{n_pairs} pairs from the cast corpus, expected exactly {expected} "
     f"(per length-8 walk with w=2: 2·2·8 − 2·3 = 26). Off-by-one in the window edges?"
 )
-print(f"exercise 2 ✓ — {n_pairs} pairs from 24 walks; the formula 2wL − w(w+1) checks out")""",
+print(f"exercise 2 ✓ — {n_pairs} pairs from 24 walks; the formula 2wK − w(w+1) checks out")""",
          stub="""def skipgram_pairs(walks: list, window: int) -> list:
     \"\"\"All (center, context) pairs with 1 <= |i - j| <= window, walk by walk,
     in reading order (i ascending, then j ascending).\"\"\"
@@ -174,18 +198,34 @@ assert q2 == [(1, 2), (2, 1), (2, 4), (4, 2), (4, 5), (5, 4)], (
     f"Check: BOTH directions of each adjacency in the walk, no self-pairs, no wrap-around."
 )
 n_pairs = len(skipgram_pairs(walks, window=2))
-expected = 24 * (2 * 2 * 8 - 2 * 3)                    # per walk: 2wL − w(w+1)
+expected = 24 * (2 * 2 * 8 - 2 * 3)                    # per walk: 2wK − w(w+1)
 assert n_pairs == expected, (
     f"{n_pairs} pairs from the cast corpus, expected exactly {expected} "
     f"(per length-8 walk with w=2: 2·2·8 − 2·3 = 26). Off-by-one in the window edges?"
 )
-print(f"exercise 2 ✓ — {n_pairs} pairs from 24 walks; the formula 2wL − w(w+1) checks out")"""),
+print(f"exercise 2 ✓ — {n_pairs} pairs from 24 walks; the formula 2wK − w(w+1) checks out")"""),
 
     md("""## 3 · The SGNS loss  *(exercise 3 — skill: the lecture's formula, in torch)*
 
 Two tables (center and context, as word2vec really has), $k$ negatives per pair, and
 the loss you derived:
 $-\\left[\\log\\sigma(\\mathbf{z}_u\\!\\cdot\\!\\mathbf{z}'_v) + \\sum_k \\log\\sigma(-\\mathbf{z}_u\\!\\cdot\\!\\mathbf{z}'_{n_k})\\right]$.
+Your loss plus one optimizer step is the lecture's Algorithm 2 — autograd computes the
+pulls and pushes the spec writes out by hand:
+
+> **Algorithm · One SGNS update** ([Mikolov et al., 2013](https://arxiv.org/abs/1310.4546))
+>
+> **Input:** pair $(u, v) \\in \\mathcal{D}$; center table $\\mathbf{Z}$, context table
+> $\\mathbf{Z}'$; negatives $k$; noise distribution $P_n$ (uniform in this lab);
+> learning rate $\\eta$. **Output:** updated rows of $\\mathbf{Z}$, $\\mathbf{Z}'$.
+>
+> 1. draw fake contexts $n_1, \\ldots, n_k \\sim P_n$
+> 2. $g \\leftarrow 1 - \\sigma(\\mathbf{z}_u \\cdot \\mathbf{z}'_v)$ — pull strength
+> 3. $\\Delta \\leftarrow g\\,\\mathbf{z}'_v$; then $\\mathbf{z}'_v \\leftarrow \\mathbf{z}'_v + \\eta g \\mathbf{z}_u$
+> 4. **for** $i = 1, \\ldots, k$: $h \\leftarrow \\sigma(\\mathbf{z}_u \\cdot \\mathbf{z}'_{n_i})$ — push strength;
+>    $\\Delta \\leftarrow \\Delta - h\\,\\mathbf{z}'_{n_i}$; then $\\mathbf{z}'_{n_i} \\leftarrow \\mathbf{z}'_{n_i} - \\eta h \\mathbf{z}_u$
+> 5. $\\mathbf{z}_u \\leftarrow \\mathbf{z}_u + \\eta \\Delta$ — exactly $k + 2$ rows touched
+
 Use `F.logsigmoid` — the numerically stable form; `torch.log(torch.sigmoid(...))`
 overflows to `-inf` for confident wrong scores, and the assert checks you didn't.
 """),
@@ -334,7 +374,7 @@ print("compare with the lecture's widget: same algorithm, same graph, same geome
 
 No new algorithms — wire YOUR three functions together at Cora scale. The count assert
 is exact because the pair formula is exact: for walks of length 20 with window 5, each
-walk emits $2wL − w(w{+}1) = 170$ pairs.
+walk emits $2wK − w(w{+}1) = 170$ pairs.
 
 **Predict before you run:** Lab 2's best structure-only number was 61.7% (statistics +
 community one-hots). Learned 64-d walk embeddings, same classifier — higher or lower,
@@ -363,7 +403,7 @@ per_walk = 2 * WINDOW * LENGTH - WINDOW * (WINDOW + 1)
 expected = Gc.number_of_nodes() * NUM_WALKS * per_walk
 assert len(pairs_c) == expected, (
     f"{len(pairs_c):,} pairs, expected exactly {expected:,} "
-    f"(= n × num_walks × [2wL − w(w+1)]) — are you using seed=1 and the module-level "
+    f"(= n × num_walks × [2wK − w(w+1)]) — are you using seed=1 and the module-level "
     f"NUM_WALKS/LENGTH/WINDOW? (Cora has no dead-end nodes, so walks never end early.)"
 )
 print(f"corpus: {len(pairs_c):,} pairs — training (a couple of minutes on CPU)...")
@@ -411,7 +451,7 @@ per_walk = 2 * WINDOW * LENGTH - WINDOW * (WINDOW + 1)
 expected = Gc.number_of_nodes() * NUM_WALKS * per_walk
 assert len(pairs_c) == expected, (
     f"{len(pairs_c):,} pairs, expected exactly {expected:,} "
-    f"(= n × num_walks × [2wL − w(w+1)]) — are you using seed=1 and the module-level "
+    f"(= n × num_walks × [2wK − w(w+1)]) — are you using seed=1 and the module-level "
     f"NUM_WALKS/LENGTH/WINDOW? (Cora has no dead-end nodes, so walks never end early.)"
 )
 print(f"corpus: {len(pairs_c):,} pairs — training (a couple of minutes on CPU)...")

@@ -13,8 +13,10 @@ libraries second:
 
 1. **Five importances, one club** — rank the karate club by every centrality and watch
    the champions disagree (predict who wins betweenness before you run).
-2. **PageRank from scratch** (exercise 1): the damped power iteration, matched against
-   `networkx` to six decimals — the assertion messages name the classic bugs.
+2. **PageRank from scratch** (exercise 1): the damped power iteration of
+   [Brin & Page, 1998](https://doi.org/10.1016/S0169-7552(98)00110-X), coded against
+   the lecture's algorithm float and matched against `networkx` to six decimals — the
+   assertion messages name the classic bugs.
 3. **Triangles by matrix power** (exercise 2): clustering coefficients via the diagonal
    of $\mathbf{A}^3$; the factor of 2 is yours to place.
 4. **Modularity from the definition** (exercise 3): reproduce the lecture's exact
@@ -22,7 +24,8 @@ libraries second:
    1977 reality.
 5. **One eigenvector against reality** (exercise 4): spectral bisection of the club —
    the assertion knows the answer is 32/34.
-6. **WL refinement** (exercise 5): implement the 1968 relabeling round and reproduce
+6. **WL refinement** (exercise 5): implement the 1968 relabeling round behind the
+   [WL kernel](https://jmlr.org/papers/v12/shervashidze11a.html) and reproduce
    both verdicts — path–star caught in one round, triangles–hexagon never.
 7. **The measurement** (exercise 6): structural statistics on Cora score ≈19% (that low
    number is the finding); adding Louvain-community position lifts the same classifier

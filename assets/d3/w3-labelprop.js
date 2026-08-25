@@ -105,7 +105,7 @@
       const seed = i === 0 || i === 33;
       g.append("circle").attr("cx", x).attr("cy", y).attr("r", seed ? 13 : 8)
         .attr("fill", l === 0 ? C_HI : l === 1 ? C_OFF : P.paper)
-        .attr("stroke", l === -1 ? P.muted : seed ? P.accentDark : "none")
+        .attr("stroke", l === -1 ? P.muted : seed ? P.purple : "none")
         .attr("stroke-width", seed ? 3 : 1.4)
         .attr("opacity", l === -1 ? 0.9 : 0.92);
     }
@@ -124,7 +124,7 @@
       .attr("font-size", 13.5).attr("font-weight", 700)
       .attr("fill", stable ? P.green : P.text).text(msg);
     g.append("text").attr("x", 380).attr("y", 308).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text("majority vote of labeled neighbors, synchronous; ties keep their state. No vectors, no features, no learning.");
   }
 

@@ -19,7 +19,8 @@ for (const slug of slugs) {
   // read the badge itself — the number the instructor and students see
   const n = await page.evaluate(() =>
     parseInt(document.querySelector(".reading-meta").textContent.match(/([\d,]+) words/)[1].replace(/,/g, ""), 10));
-  const ok = n >= 8000 && n <= 9500 ? "✓" : n < 8000 ? `needs +${8000 - n}` : "over";
+  // Band per instructor 2026-08-25: floor 8,000, ceiling ~10,000 (book pass).
+  const ok = n >= 8000 && n <= 10000 ? "✓" : n < 8000 ? `needs +${8000 - n}` : "over";
   console.log(`${slug}: ${n} visible words  ${ok}`);
 }
 await browser.close();

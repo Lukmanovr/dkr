@@ -19,6 +19,8 @@
   let logD = Math.log10(PRESETS.cora.deg);
 
   const fmt = (v) => {
+    if (v >= 1e18) return (v / 1e18).toFixed(1) + " E";
+    if (v >= 1e15) return (v / 1e15).toFixed(1) + " P";
     if (v >= 1e12) return (v / 1e12).toFixed(1) + " T";
     if (v >= 1e9) return (v / 1e9).toFixed(1) + " B";
     if (v >= 1e6) return (v / 1e6).toFixed(1) + " M";
@@ -27,6 +29,8 @@
   };
   const bytes = (entries) => {
     const b = entries * 4;
+    if (b >= 1e18) return (b / 1e18).toFixed(1) + " EB";
+    if (b >= 1e15) return (b / 1e15).toFixed(1) + " PB";
     if (b >= 1e12) return (b / 1e12).toFixed(1) + " TB";
     if (b >= 1e9) return (b / 1e9).toFixed(1) + " GB";
     if (b >= 1e6) return (b / 1e6).toFixed(1) + " MB";
@@ -34,7 +38,7 @@
     return b.toFixed(0) + " B";
   };
 
-  const W = 760, Hgt = 280;
+  const W = 760, Hgt = 230;
 
   function render() {
     const P = U.pal();
@@ -56,16 +60,22 @@
       g.append("text").attr("x", -12).attr("y", y + 20).attr("text-anchor", "end")
         .attr("font-size", 13.5).attr("font-weight", 700).attr("fill", P.text).text(r.name);
       g.append("text").attr("x", -12).attr("y", y + 37).attr("text-anchor", "end")
-        .attr("font-size", 11.5).attr("fill", P.muted).text(r.note);
+        .attr("font-size", 12.5).attr("fill", P.muted).text(r.note);
+      const bw = Math.max(3, xs(Math.max(1, r.val)));
       g.append("rect").attr("x", 0).attr("y", y).attr("height", 30).attr("rx", 6)
-        .attr("width", Math.max(3, xs(Math.max(1, r.val))))
+        .attr("width", bw)
         .attr("fill", r.color).attr("opacity", 0.85);
-      g.append("text").attr("x", Math.max(3, xs(Math.max(1, r.val))) + 10).attr("y", y + 20)
+      const lbl = `${fmt(r.val)} entries ≈ ${bytes(r.val)}`;
+      const fits = bw + 10 + lbl.length * 7 <= 560;   // keep labels inside the 760 canvas
+      g.append("text")
+        .attr("x", fits ? bw + 10 : bw)
+        .attr("y", fits ? y + 20 : y + 45)
+        .attr("text-anchor", fits ? "start" : "end")
         .attr("font-size", 12.5).attr("fill", P.text)
-        .text(`${fmt(r.val)} entries ≈ ${bytes(r.val)}`);
+        .text(lbl);
     });
     g.append("text").attr("x", 210).attr("y", -14).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 13).attr("fill", P.muted)
       .text(`n = ${fmt(n)} nodes · d̄ ≈ ${deg.toFixed(1)} · m ≈ ${fmt(m)} edges  (log-scale bars)`);
 
     const dense = n * n;

@@ -94,32 +94,32 @@
       .attr("fill", walk.length === LEN ? P.green : P.text)
       .text(walk.length === LEN ? `${tokens}   ✓ pairs added` : tokens);
     g.append("text").attr("x", 245).attr("y", 256).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text(`walks absorbed so far: ${walksDone}`);
     g.append("text").attr("x", 245).attr("y", 274).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text(`each adds its (center, context) pairs, window ±${WIN}`);
 
     // co-occurrence matrix
     const cmax = Math.max(1, ...C.flat());
-    const mg = g.append("g").attr("transform", "translate(510,10)");
+    const mg = g.append("g").attr("transform", "translate(510,48)");
     mg.append("text").attr("x", 91).attr("y", -2).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.text)
       .text("co-occurrence counts C");
     U.drawMatrix(mg, C, {
-      x: 26, y: 10, cell: 26, fontSize: 11.5,
+      x: 26, y: 10, cell: 26, fontSize: 12.5,
       color: (v) => d3.interpolateRgb(P.paper, P.blue)(Math.pow(v / cmax, 0.6) * 0.85),
       textColor: P.text, borderColor: P.border,
       fmt: (v) => (v === 0 ? "·" : String(v)),
     });
     for (let i = 0; i < 6; i++) {
       mg.append("text").attr("x", 16).attr("y", 10 + i * 26 + 17).attr("text-anchor", "middle")
-        .attr("font-size", 11.5).attr("font-weight", 700).attr("fill", COLORS[i]).text(NAMES[i]);
+        .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", COLORS[i]).text(NAMES[i]);
       mg.append("text").attr("x", 26 + i * 26 + 13).attr("y", 182).attr("text-anchor", "middle")
-        .attr("font-size", 11.5).attr("font-weight", 700).attr("fill", COLORS[i]).text(NAMES[i]);
+        .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", COLORS[i]).text(NAMES[i]);
     }
     mg.append("text").attr("x", 91).attr("y", 206).attr("text-anchor", "middle")
-      .attr("font-size", 11.5).attr("fill", P.muted).text("this matrix IS the similarity S");
+      .attr("font-size", 12.5).attr("fill", P.muted).text("this matrix IS the similarity S");
   }
 
   document.getElementById("w3-wk-step").addEventListener("click", () => { step(); render(); });

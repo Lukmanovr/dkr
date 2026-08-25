@@ -59,13 +59,16 @@ WPOS = {"Hub": (200, 180), "N1": (90, 90), "N2": (90, 270), "N3": (330, 90), "N4
 
 body = ['  <defs><marker id="w2hArrow" markerWidth="8" markerHeight="8" refX="22" refY="3" orient="auto">'
         '<path d="M0,0 L7,3 L0,6 Z" fill="var(--dkr-muted, #8e8e9a)"/></marker></defs>']
-body.append('  <g stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.4" opacity="0.65" fill="none">')
+body.append('  <g stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.7" opacity="0.8" fill="none">')
 for u, outs in WEB.items():
     for v in outs:
         (x1, y1), (x2, y2) = WPOS[u], WPOS[v]
         body.append(f'    <line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" marker-end="url(#w2hArrow)"/>')
 body.append("  </g>")
 body.append(f'  <g font-family="{SANS}" text-anchor="middle">')
+# bottom-trio de-crowding: place L1's mass label left, L2's right of the node,
+# clear of the three arrows converging on V (audit W2/A)
+LBL_SIDE = {"L1": "end", "L2": "start"}
 for u in NODES:
     x, y = WPOS[u]
     r = 10 + 90 * PR[u]
@@ -75,10 +78,17 @@ for u in NODES:
     label = {"Q": "Q", "V": "V", "Hub": "hub"}.get(u, "")
     body.append(f'    <circle cx="{x}" cy="{y}" r="{r:.0f}" fill="{fill}" opacity="{opacity}"/>')
     body.append(f'    <text x="{x}" y="{y + 4}" font-size="12" font-weight="700" fill="#fff">{label}</text>')
-    body.append(f'    <text x="{x}" y="{y - r - 6:.0f}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">{PR[u]:.3f}</text>')
+    side = LBL_SIDE.get(u)
+    if side == "end":
+        body.append(f'    <text x="{x - r - 5:.0f}" y="{y + 4}" text-anchor="end" font-size="12" fill="var(--dkr-muted, #6e6e7a)">{PR[u]:.3f}</text>')
+    elif side == "start":
+        body.append(f'    <text x="{x + r + 5:.0f}" y="{y + 4}" text-anchor="start" font-size="12" fill="var(--dkr-muted, #6e6e7a)">{PR[u]:.3f}</text>')
+    else:
+        body.append(f'    <text x="{x}" y="{y - r - 6:.0f}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">{PR[u]:.3f}</text>')
 body.append("  </g>")
 body.append(f'''  <g font-family="{SANS}" font-size="13" font-weight="600">
-    <text x="470" y="120" text-anchor="middle" fill="var(--dkr-accent, #b84a2b)">Q: ONE inlink — from the hub</text>
+    <text x="628" y="96" text-anchor="middle" fill="var(--dkr-accent, #b84a2b)">Q: ONE inlink — from the hub</text>
+    <line x1="600" y1="104" x2="497" y2="159" stroke="var(--dkr-accent, #b84a2b)" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.85"/>
     <text x="600" y="255" text-anchor="middle" fill="#7c5cd6">V: FOUR inlinks — from nobodies</text>
   </g>
   <g font-family="{SANS}">
@@ -151,6 +161,9 @@ CHAMPS = [
     ("betweenness", argmaxes(btw), "#7c5cd6", ["sits on the most", "shortest paths"]),
     ("eigenvector", argmaxes(eig), "#d9a62e", ["connected to the", "well-connected —", "agrees with degree here"]),
 ]
+# panel-heading text color: the gold node color fails AA as 14.5px text on the light
+# cream page, so the eigenvector heading darkens one step (nodes keep the gold)
+HEAD_COLOR = {"eigenvector": "#a87f18"}
 # the kite's teaching point: three measures disagree, eigenvector sides with degree
 assert CHAMPS[0][1] == [3] and CHAMPS[1][1] == [5, 6] and CHAMPS[2][1] == [7], \
     f"kite champions changed: {[(c[0], c[1]) for c in CHAMPS]}"
@@ -185,7 +198,7 @@ for pi, (cname, champs, color, desc) in enumerate(CHAMPS):
         f'    <text x="0" y="{20 + 18 * len(champ_lines) + 17 * li}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">{line}</text>'
         for li, line in enumerate(desc))
     g.append(f'''  <g font-family="{SANS}" transform="translate({ox + 190},{oy + 30})">
-    <text x="0" y="0" font-size="14.5" font-weight="700" fill="{color}">{cname}</text>
+    <text x="0" y="0" font-size="14.5" font-weight="700" fill="{HEAD_COLOR.get(cname, color)}">{cname}</text>
 {lines}
   </g>''')
     panels.append("\n".join(g))
@@ -202,9 +215,12 @@ CPOS = [(120, 105), (215, 48), (280, 118), (68, 172), (224, 185), (368, 172)]
 adjC = {i: sorted({b for a, b in CAST if a == i} | {a for a, b in CAST if b == i}) for i in range(CN)}
 
 # one visual color per WL color id, no wraparound: round 0 uses id 0, round 1 ids
-# 1-4, round 2 ids 5-9 — a color id must keep one visual color across the figure
+# 1-4, round 2 ids 5-9 — a color id must keep one visual color across the figure.
+# The five round-2 colors (ids 5-9) are hue-separated: pink, blue, brown, red, green
+# (the old set had green-vs-olive and pink/red/brown near-collisions).
+# KEEP IN SYNC with WLPAL in assets/d3/w2-wl.js (the widget shares these ids).
 WLPAL = ["#8e8e9a", "#d9603b", "#0f8377", "#7c5cd6", "#d9a62e",
-         "#d1567e", "#199473", "#8a5a33", "#cf4a30", "#5f7a1e"]
+         "#d1567e", "#2e7dd1", "#8a5a33", "#cf4a30", "#199473"]
 
 colors = [0] * CN
 rounds = [list(colors)]
@@ -241,9 +257,12 @@ for ri, cols in enumerate(rounds):
 # relabeling table for round 1→2
 parts.append(f'  <g font-family="{SANS}" transform="translate(70,215)">')
 parts.append('    <text x="0" y="0" font-size="13" font-weight="700" fill="var(--dkr-text, #1c1c21)">the relabeling rule, round 2:  new color = HASH( my color , multiset of neighbor colors )</text>')
+n_rows = (len(tables[1]) + 2) // 3
 for i, ((own, nbrs), new) in enumerate(tables[1]):
-    x = (i % 3) * 210
-    y = 30 + (i // 3) * 26
+    row = i // 3
+    in_row = min(3, len(tables[1]) - 3 * row)
+    x = (i % 3) * 210 + (3 - in_row) * 105          # center a short last row
+    y = 30 + row * 26
     nb = "{" + ",".join(str(c) for c in nbrs) + "}"
     parts.append(f'    <text x="{x}" y="{y}" font-size="12.5" font-family="\'JetBrains Mono\', monospace" fill="var(--dkr-text, #1c1c21)">({own}, {nb})</text>')
     parts.append(f'    <text x="{x + 122}" y="{y}" font-size="12.5" fill="var(--dkr-muted, #6e6e7a)">→</text>')
@@ -270,19 +289,36 @@ flip = (K_N - agree) > agree
 agree = max(agree, K_N - agree)
 wrong = [i for i in range(K_N) if ((i in pred_hi) != (i in MR_HI)) != flip]
 
-parts = ['  <g stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1" opacity="0.4">']
+parts = ['  <g stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.3" opacity="0.5">']
 for a, b in K_EDGES:
     parts.append(f'    <line x1="{P[a][0]}" y1="{P[a][1]}" x2="{P[b][0]}" y2="{P[b][1]}"/>')
 parts.append("  </g>")
+# the ONE message is the two ringed misses: draw the field dimmed, the misses last,
+# larger, with 4.5px rings and dotted leaders from a single label (audit W2/A)
 for i in range(K_N):
+    if i in wrong:
+        continue
     x, y = P[i]
     fill = C_HI if ((i in pred_hi) != flip) else C_OFF
-    ring = ' stroke="#cf4a30" stroke-width="3"' if i in wrong else ""
-    parts.append(f'  <circle cx="{x}" cy="{y}" r="{12 if i in (0, 33) else 8}" fill="{fill}"{ring}/>')
+    parts.append(f'  <circle cx="{x}" cy="{y}" r="{12 if i in (0, 33) else 8}" fill="{fill}" opacity="0.82"/>')
+miss_label_x, miss_label_y = 530, 96
+for i in wrong:
+    x, y = P[i]
+    fill = C_HI if ((i in pred_hi) != flip) else C_OFF
+    dx, dy = miss_label_x - x, miss_label_y - y
+    dist = math.hypot(dx, dy) or 1.0
+    sx, sy = x + dx / dist * 17, y + dy / dist * 17          # start at ring rim
+    ex, ey = miss_label_x - dx / dist * 14, miss_label_y - dy / dist * 14
+    parts.append(f'  <line x1="{sx:.0f}" y1="{sy:.0f}" x2="{ex:.0f}" y2="{ey + 6:.0f}" stroke="#cf4a30" stroke-width="1.3" stroke-dasharray="3,3" opacity="0.85"/>')
+for i in wrong:
+    x, y = P[i]
+    fill = C_HI if ((i in pred_hi) != flip) else C_OFF
+    parts.append(f'  <circle cx="{x}" cy="{y}" r="11" fill="{fill}" stroke="#cf4a30" stroke-width="4.5"/>')
+parts.append(f'  <text x="{miss_label_x}" y="{miss_label_y}" text-anchor="middle" font-family="{SANS}" font-size="13.5" font-weight="700" fill="#cf4a30">the two misses — members {wrong[0]} and {wrong[1]}</text>')
+parts.append(f'  <text x="{miss_label_x}" y="{miss_label_y + 17}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #8e8e9a)">ringed = disagrees with the real 1977 split</text>')
 parts.append(f'''  <g font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #8e8e9a)">
     <circle cx="80" cy="30" r="7" fill="{C_HI}"/><text x="93" y="34">Fiedler says: Mr. Hi's side</text>
     <circle cx="260" cy="30" r="7" fill="{C_OFF}"/><text x="273" y="34">Fiedler says: the Officer's</text>
-    <text x="720" y="34" text-anchor="end">red ring = disagrees with the real 1977 split</text>
   </g>
   <g font-family="{SANS}">
     <rect x="120" y="358" width="520" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
