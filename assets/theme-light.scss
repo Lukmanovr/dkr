@@ -331,3 +331,93 @@ main table td, main table th { font-variant-numeric: tabular-nums; }
   a { text-decoration: none; color: inherit; }
   .dkr-fig svg { max-width: 620px; }
 }
+
+// ── Academic-book components (2026-08-25 quality pass) ─────────────────────
+// Algorithm floats: classic double-rule block, manual "Algorithm N · Name"
+// title line authored as the first <strong> of the block.
+.algorithm {
+  margin: 2.2rem auto;
+  max-width: 660px;
+  border-top: 2.5px solid $dkr-teal-deep;
+  border-bottom: 2.5px solid $dkr-teal-deep;
+  background: $dkr-paper;
+  padding: 0.7rem 1.1rem 0.6rem;
+  font-size: 0.93rem;
+
+  > p:first-child {
+    font-family: "Source Sans 3", sans-serif;
+    border-bottom: 1px solid $border-color;
+    padding-bottom: 0.45rem;
+    margin-bottom: 0.6rem;
+    strong:first-child { color: $dkr-teal-deep; letter-spacing: 0.01em; }
+  }
+  // Input / Output contract line(s)
+  p { margin-bottom: 0.45rem; }
+  ol {
+    margin: 0.2rem 0 0.4rem;
+    padding-left: 1.7rem;
+    li {
+      line-height: 1.5;
+      margin-bottom: 0.12rem;
+      &::marker {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.78rem;
+        color: $dkr-muted;
+      }
+      strong { color: $dkr-accent-dark; }   // control keywords: for/if/return
+    }
+  }
+  .katex { font-size: 1em; }
+}
+
+// Statement environments (Quarto theorem envs): unified quiet-framed look.
+// Definitions carry teal (objects); theorems/propositions carry accent (claims).
+.theorem, .proposition, .lemma, .corollary, .definition {
+  margin: 1.8rem 0;
+  padding: 0.75rem 1.1rem;
+  background: $dkr-paper;
+  border-left: 3px solid $dkr-accent-dark;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.95rem;
+  .theorem-title strong { color: $dkr-accent-dark; }
+  p:last-child { margin-bottom: 0; }
+}
+.definition {
+  border-left-color: $dkr-teal-deep;
+  .theorem-title strong { color: $dkr-teal-deep; }
+}
+
+// End-of-chapter "notions introduced" box
+.notions {
+  margin: 2rem 0;
+  border: 1px solid $border-color;
+  border-radius: 10px;
+  background: $dkr-margin-bg;
+  padding: 0.9rem 1.2rem 0.6rem;
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.9rem;
+  > p:first-child {
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    color: $dkr-teal-deep;
+    margin-bottom: 0.5rem;
+  }
+  ul { margin-bottom: 0.4rem; li { margin-bottom: 0.2rem; } }
+  strong { color: $dkr-text-2; }
+}
+
+@media print {
+  .algorithm { break-inside: avoid; }
+  .theorem, .proposition, .definition, .notions { break-inside: avoid; }
+}
+
+// Algorithms are floats, not statements: cancel the .theorem look they inherit
+// from Quarto's env classes; keep only the double-rule float styling above.
+div.algorithm {
+  border-left: none;
+  border-radius: 0;
+  border-top: 2.5px solid $dkr-teal-deep;
+  border-bottom: 2.5px solid $dkr-teal-deep;
+}
