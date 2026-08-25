@@ -141,7 +141,7 @@
       .attr("fill", hop === 2 && mode === "soft" && st.extraDrug === 2 ? P.green : P.text)
       .text(status);
     g.append("text").attr("x", 380).attr("y", 340).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text(mode === "soft"
         ? "soft mode: stated edges + the strongest unstated candidate per hop, scored by a DistMult trained on this graph"
         : "traversal mode: stated edges only — the mode every database query runs in");

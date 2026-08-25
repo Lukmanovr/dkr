@@ -421,3 +421,15 @@ div.algorithm {
   border-top: 2.5px solid $dkr-teal-deep;
   border-bottom: 2.5px solid $dkr-teal-deep;
 }
+
+// -- Mobile math: display equations scroll inside their own box instead of
+// stretching the page (instructor report 2026-08-25: off-screen on phones).
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding: 0.35rem 0.15rem;  // keeps the scrollbar from clipping descenders
+  -webkit-overflow-scrolling: touch;
+}
+.katex-display::-webkit-scrollbar { height: 5px; }
+div.algorithm { overflow-x: auto; }

@@ -70,63 +70,69 @@
       .text((d) => NAMES[d.id]);
 
     // feature vector readout beside each node (two bars + numbers)
-    const fx = node.append("g").attr("transform", "translate(21,-12)");
+    const fx = node.append("g").attr("transform", "translate(21,-13)");
     [0, 1].forEach((k) => {
       fx.append("rect")
-        .attr("x", 0).attr("y", k * 12)
+        .attr("x", 0).attr("y", k * 14)
         .attr("width", (d) => 3 + 30 * Math.min(1.2, H[d.id][k]))
-        .attr("height", 8)
+        .attr("height", 9)
         .attr("rx", 2)
         .attr("fill", k === 0 ? P.blue : P.green)
         .attr("opacity", 0.85);
       fx.append("text")
         .attr("x", (d) => 7 + 30 * Math.min(1.2, H[d.id][k]))
-        .attr("y", k * 12 + 7.5)
-        .attr("font-size", 9.5).attr("fill", P.muted)
+        .attr("y", k * 14 + 8.5)
+        .attr("font-size", 12.5).attr("fill", P.muted)
         .text((d) => fmt(H[d.id][k]));
     });
 
     gp.append("text").attr("x", 190).attr("y", 372).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 13).attr("fill", P.muted)
       .text(`layer k = ${layer} · h = [dim 1, dim 2]`);
 
     // --- computation tree panel for the selected node ---
     const tp = svg.append("g").attr("transform", "translate(420,10)");
     tp.append("text").attr("x", 160).attr("y", 12).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("font-weight", 700).attr("fill", P.text)
+      .attr("font-size", 13).attr("font-weight", 700).attr("fill", P.text)
       .text(`computation tree of ${NAMES[selected]} (2 layers)`);
 
     const lvl1 = U.neighbors(A, selected);
     const treeNodes = [{ id: selected, x: 160, y: 55, depth: 0 }];
     const span1 = 320 / (lvl1.length + 1);
+    // leaves are laid out on one shared row so they never crowd each other;
+    // leader lines keep each leaf attached to its parent
+    const leaves = [];
     lvl1.forEach((v, i) => {
       const x1 = span1 * (i + 1);
       treeNodes.push({ id: v, x: x1, y: 160, depth: 1, parentX: 160, parentY: 55 });
-      const lvl2 = U.neighbors(A, v);
-      const span2 = span1 / (lvl2.length + 1);
-      lvl2.forEach((w2, j) => {
-        treeNodes.push({ id: w2, x: x1 - span1 / 2 + span2 * (j + 1), y: 265, depth: 2, parentX: x1, parentY: 160 });
-      });
+      U.neighbors(A, v).forEach((w2) => leaves.push({ id: w2, parentX: x1 }));
+    });
+    const span2 = 320 / (leaves.length + 1);
+    leaves.forEach((lf, j) => {
+      treeNodes.push({ id: lf.id, x: span2 * (j + 1), y: 265, depth: 2, parentX: lf.parentX, parentY: 160 });
     });
 
     tp.selectAll("line").data(treeNodes.filter((d) => d.depth > 0)).join("line")
-      .attr("x1", (d) => d.parentX).attr("y1", (d) => d.parentY + 12)
-      .attr("x2", (d) => d.x).attr("y2", (d) => d.y - 12)
+      .attr("x1", (d) => d.parentX).attr("y1", (d) => d.parentY + 13)
+      .attr("x2", (d) => d.x).attr("y2", (d) => d.y - 13)
       .attr("stroke", P.border).attr("stroke-width", 1.2);
 
     const tn = tp.selectAll("g.tn").data(treeNodes).join("g")
       .attr("class", "tn").attr("transform", (d) => `translate(${d.x},${d.y})`);
-    tn.append("circle").attr("r", 12)
+    tn.append("circle").attr("r", 13)
       .attr("fill", (d) => d.depth === 0 ? P.accent : (d.depth === 1 ? P.blue : P.paper))
       .attr("stroke", P.blueDark).attr("stroke-width", 1.2);
-    tn.append("text").attr("text-anchor", "middle").attr("dy", 4)
-      .attr("font-size", 10.5).attr("font-weight", 600)
+    tn.append("text").attr("text-anchor", "middle").attr("dy", 4.5)
+      .attr("font-size", 12.5).attr("font-weight", 600)
       .attr("fill", (d) => d.depth === 2 ? P.text : P.paper)
       .text((d) => NAMES[d.id]);
 
-    tp.append("text").attr("x", 160).attr("y", 310).attr("text-anchor", "middle")
-      .attr("font-size", 10.5).attr("fill", P.muted)
-      .text("leaves supply h(0); each level is one AGGREGATE + UPDATE");
+    tp.append("text").attr("x", 160).attr("y", 302).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted)
+      .text("leaves supply h(0);");
+    tp.append("text").attr("x", 160).attr("y", 319).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted)
+      .text("each level is one AGGREGATE + UPDATE");
 
     document.getElementById("w6-mp-layer").textContent = String(layer);
   }

@@ -97,12 +97,12 @@
         .attr("font-size", 12.5).attr("font-weight", c.w > 0.2 ? 700 : 400)
         .attr("fill", c.isTrue ? "#cf4a30" : P.text).text(ENT[c.e] + (c.isTrue ? " ⚠" : ""));
       g.append("text").attr("x", 190 + Math.max(bw, ww)).attr("y", y + 16)
-        .attr("font-size", 12).attr("fill", P.muted)
+        .attr("font-size", 12.5).attr("fill", P.muted)
         .text(`${(100 * c.w).toFixed(0)}%`);
     });
 
-    g.append("text").attr("x", 560).attr("y", 52).attr("font-size", 12).attr("fill", P.blue).text("teal: model score");
-    g.append("text").attr("x", 560).attr("y", 70).attr("font-size", 12).attr("fill", P.accentDark).text("terracotta: sampling weight");
+    g.append("text").attr("x", 560).attr("y", 52).attr("font-size", 12.5).attr("fill", P.blue).text("teal: model score");
+    g.append("text").attr("x", 560).attr("y", 70).attr("font-size", 12.5).attr("fill", P.accentDark).text("terracotta: sampling weight");
     const top = cands[0];
     const verdict = a === 0
       ? "α = 0: uniform — most of the budget lands on easy absurdities"

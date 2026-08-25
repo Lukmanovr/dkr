@@ -92,13 +92,13 @@
         .attr("opacity", isTruth ? 0.95 : c.known ? 0.85 : 0.4);
       g.append("text").attr("x", 192).attr("y", y + 15.5).attr("text-anchor", "end")
         .attr("font-size", 12.5).attr("font-weight", isTruth || c.known ? 700 : 400)
-        .attr("fill", isTruth ? P.green : c.known ? "#7c5cd6" : P.text)
+        .attr("fill", isTruth ? P.green : c.known ? P.purple : P.text)
         .text(`${i + 1} · ${ENT[c.e]}`);
       g.append("text").attr("x", 208 + bw).attr("y", y + 15.5)
-        .attr("font-size", 12).attr("fill", P.muted).text(c.score.toFixed(2));
+        .attr("font-size", 12.5).attr("fill", P.muted).text(c.score.toFixed(2));
       if (c.known) {
-        g.append("text").attr("x", 208 + bw + 46).attr("y", y + 15.5)
-          .attr("font-size", 12).attr("fill", "#7c5cd6").text("known true (train)");
+        g.append("text").attr("x", 208 + bw + 50).attr("y", y + 15.5)
+          .attr("font-size", 12.5).attr("fill", P.purple).text("known true (train)");
       }
     });
 
@@ -116,7 +116,7 @@
       .text(`both test facts — raw: MRR ${mrr(ranksRaw).toFixed(2)}, Hits@1 ${hits1(ranksRaw).toFixed(2)} · ` +
             `filtered: MRR ${mrr(ranksFilt).toFixed(2)}, Hits@1 ${hits1(ranksFilt).toFixed(2)}`);
     g.append("text").attr("x", 380).attr("y", 342).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text(filt ? "purple competitors removed before ranking — the number papers report"
                  : "tick “filtered” — the purple bars are training facts the raw metric wrongly punishes");
   }

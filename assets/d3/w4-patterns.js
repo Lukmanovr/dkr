@@ -57,7 +57,7 @@
 
   function render() {
     const P = U.pal();
-    const svg = U.svgIn("w4-pt-svg", 760, 250);
+    const svg = U.svgIn("w4-pt-svg", 760, 205);
     svg.attr("font-family", "'Source Sans 3', sans-serif");
     const g = svg.append("g");
 
@@ -88,7 +88,7 @@
       else lines[lines.length - 1] = (lines[lines.length - 1] + " " + w).trim();
     });
     lines.forEach((ln, i) => {
-      g.append("text").attr("x", 380).attr("y", 168 + i * 19).attr("text-anchor", "middle")
+      g.append("text").attr("x", 380).attr("y", 158 + i * 19).attr("text-anchor", "middle")
         .attr("font-size", 12.5).attr("fill", P.text).text(ln);
     });
   }

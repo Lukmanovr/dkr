@@ -28,11 +28,15 @@ CELLS = [
 
 **Week 5 · [lecture](https://lukmanovr.github.io/dkr/lectures/05-kg-reasoning.html) · ≈ 25 min of compute (free Colab or CPU — no GPU needed)**
 
-Two halves, matching the lecture. First you build box embeddings — distance,
+Two halves, matching the lecture. First you build box embeddings after Query2box
+([Ren, Hu & Leskovec, ICLR 2020](https://arxiv.org/abs/2002.05969)) — distance,
 projection, intersection — train them on real FB15k-237 multi-hop queries, and produce
 the **easy/hard answer split** that separates reasoning from lookup. Then you build
-both retrieval pipelines of the GraphRAG bake-off and referee them with the coverage
-metric.
+both retrieval pipelines of the GraphRAG bake-off
+([Edge et al., 2024](https://arxiv.org/abs/2404.16130)) and referee them with the
+coverage metric. Both halves share one economic idea, **amortized reasoning**: spend
+compute up front — training operators, indexing a corpus — so that each multi-hop
+answer later costs one distance computation or one index lookup instead of a search.
 
 ### Goals
 1. Implement the box distance, projection, and intersection operators against hand asserts.
@@ -58,6 +62,32 @@ import torch.nn.functional as F
 SEED = 5
 random.seed(SEED); np.random.seed(SEED); torch.manual_seed(SEED)
 print(f"torch {torch.__version__} — environment OK")"""),
+
+    md("""### The spec for half one
+
+You are coding against a procedure, not a vibe. This is the lecture's Algorithm 1,
+in the "lite" form this lab builds — [Ren, Hu & Leskovec, ICLR 2020](https://arxiv.org/abs/2002.05969):
+
+**Algorithm 1 · Query2box query answering (lite)**
+
+**Input:** query DAG $q$ (anchors, relation edges, meets); entity table $E$; per-relation parameters $(c_r, o_r)$; inside discount $\\alpha$. **Output:** all entities, ranked as answers to $q$.
+
+1. **for** each anchor $a$: $\\text{box}(a) \\leftarrow (E[a],\\, 0)$ — a point is a zero-offset box
+2. **for** each edge of the DAG, in topological order, **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;projection by $r$: $c \\leftarrow c + c_r$; $\\ o \\leftarrow o + o_r$
+4. &nbsp;&nbsp;&nbsp;&nbsp;meet of boxes: $c \\leftarrow \\text{mean}(c_i)$; $\\ o \\leftarrow \\min_i o_i$ *(the paper uses an attention average — this is the honest lite version)*
+5. **end for**
+6. $(c^*, o^*) \\leftarrow$ the final box
+7. **for** each entity $e$ **do**
+8. &nbsp;&nbsp;&nbsp;&nbsp;$\\delta \\leftarrow |E[e] - c^*|$
+9. &nbsp;&nbsp;&nbsp;&nbsp;$d(e) \\leftarrow \\|\\max(\\delta - o^*,\\, 0)\\|_1 + \\alpha\\, \\|\\min(\\delta,\\, o^*)\\|_1$
+10. **end for**
+11. **return** entities sorted by ascending $d$
+
+Exercise 1 implements the distance of lines 8–9; exercise 2 implements the operator
+lines 3–4; exercise 4 composes them into the full listing for 2-hop queries and
+trains it. No intermediate entity is ever enumerated — that is the entire point.
+"""),
 
     md("""## 1 · The box distance  *(exercise 1 — skill: inside vs outside)*
 
@@ -528,6 +558,30 @@ assert hard_h > (3 if SMOKE else 10) * rand_h, (
 )
 print(f"exercise 4 ✓ — the gap is the lecture's §3 in one line: report hard, or you are reporting a database")"""),
 
+    md("""### The spec for half two
+
+The graph retriever you are about to build is the lecture's Algorithm 2 — GraphRAG
+**local search**, distilled from [Edge et al., 2024](https://arxiv.org/abs/2404.16130):
+
+**Algorithm 2 · GraphRAG local search**
+
+**Input:** question $x$; KG with per-triple provenance; entity linker $\\text{link}(\\cdot)$; hop budget $k$. **Output:** evidence bundle (facts and source chunks) for the reader.
+
+1. $F \\leftarrow \\text{link}(x)$ — the question's entities; **if** $F = \\emptyset$: fall back to vector retrieval
+2. facts $\\leftarrow \\emptyset$; frontier $\\leftarrow F$
+3. **for** hop $= 1, \\ldots, k$ **do**
+4. &nbsp;&nbsp;&nbsp;&nbsp;**for** each triple $(h, r, t)$ with $h \\in$ frontier **or** $t \\in$ frontier **do**
+5. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;facts $\\leftarrow$ facts $\\cup \\{(h, r, t)\\}$; frontier $\\leftarrow$ frontier $\\cup \\{h, t\\}$
+6. &nbsp;&nbsp;&nbsp;&nbsp;**end for**
+7. **end for**
+8. chunks $\\leftarrow$ the source spans of facts — provenance travels with every fact
+9. **return** facts $+$ chunks — coverage $= |\\text{gold} \\cap \\text{facts}|\\,/\\,|\\text{gold}|$
+
+Your `graph_facts` in exercise 5 is lines 2–7 verbatim; the linker of line 1 is a
+string match here (breaking it is the stretch goal), and the coverage referee of
+line 9 is provided.
+"""),
+
     md("""## 5 · Mini-GraphRAG  *(exercise 5 — the bake-off, refereed by coverage)*
 
 Six documents, a KG extracted from them (with provenance), three questions with gold
@@ -719,7 +773,8 @@ immunity (see the fuzzy question)?
 
 **R3.** Lab 4's TransE also "generalized" to unseen facts, and today's boxes
 generalize to hard answers. What is the *additional* thing query embedding buys that
-one-hop completion does not — and what did @prp-closure say it still cannot buy?
+one-hop completion does not — and what did the lecture's closure proposition (§2:
+what boxes close over) say it still cannot buy?
 
 *(your answers here)*
 

@@ -105,15 +105,20 @@
       retrievedFacts = facts;
     }
 
+    g.append("rect").attr("x", 30).attr("y", 66).attr("width", 700).attr("height", 112)
+      .attr("rx", 10).attr("fill", P.muted).attr("opacity", 0.06);
+    g.append("rect").attr("x", 30).attr("y", 66).attr("width", 700).attr("height", 112)
+      .attr("rx", 10).attr("fill", "none").attr("stroke", P.muted)
+      .attr("stroke-width", 1).attr("opacity", 0.4);
     g.append("text").attr("x", 40).attr("y", 58).attr("font-size", 12.5)
       .attr("font-weight", 600).attr("fill", P.muted).text(title);
     contextLines.slice(0, 4).forEach((ln, i) => {
-      g.append("text").attr("x", 40).attr("y", 84 + i * 24).attr("font-size", 12)
+      g.append("text").attr("x", 44).attr("y", 90 + i * 24).attr("font-size", 12.5)
         .attr("fill", ln.hot ? P.blue : P.text).text(ln.text.slice(0, 96));
     });
     if (!contextLines.length) {
-      g.append("text").attr("x", 40).attr("y", 84).attr("font-size", 12)
-        .attr("fill", P.muted).text("(empty context)");
+      g.append("text").attr("x", 44).attr("y", 90).attr("font-size", 12.5)
+        .attr("fill", P.muted).text("(empty context — nothing for a reader to work with)");
     }
 
     const covered = Q.gold.filter((fi) => retrievedFacts.includes(fi));
@@ -124,7 +129,7 @@
     Q.gold.forEach((fi, i) => {
       const [h, r, t] = KG[fi];
       const got = covered.includes(fi);
-      g.append("text").attr("x", 40).attr("y", 232 + i * 22).attr("font-size", 12)
+      g.append("text").attr("x", 40).attr("y", 232 + i * 22).attr("font-size", 12.5)
         .attr("fill", got ? P.green : "#cf4a30")
         .text(`${got ? "✓" : "✗"} (${h}, ${r}, ${t})`);
     });
@@ -135,11 +140,11 @@
       .attr("font-size", 13).attr("font-weight", 700).attr("fill", "#fff")
       .text(`coverage: ${covered.length}/${Q.gold.length}`);
     g.append("text").attr("x", 595).attr("y", 262).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", "#fff")
+      .attr("font-size", 12.5).attr("fill", "#fff")
       .text(full ? "an LLM could answer from this" : "no reader can answer from this");
 
     g.append("text").attr("x", 380).attr("y", 316).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text("coverage = are the needed facts inside the retrieved context? (the reader can be any LLM — or you)");
   }
 

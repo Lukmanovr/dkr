@@ -61,16 +61,25 @@ hero.append(f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" f
             f'fill="var(--dkr-text, #1c1c21)">query: which drugs target a protein associated with Inflammation?</text>')
 hero.append(f'  <text x="380" y="43" text-anchor="middle" font-family="{MONO}" font-size="12" '
             f'fill="var(--dkr-muted, #6e6e7a)">?drug ←targets— ?protein ←associated_with— Inflammation</text>')
+# stagger the entry points of the three edges converging on COX-2's left rim
+ENTRY_DY = {("Aspirin", "COX-2"): -11, ("Ibuprofen", "COX-2"): 0}
 for (a, b), rel, color in [(e, "targets", "var(--dkr-blue, #0f8377)") for e in TARGETS] + \
                           [(e, "assoc", "#7c5cd6") for e in ASSOC]:
     (x1, y1), (x2, y2) = POS[a], POS[b]
+    y2 += ENTRY_DY.get((a, b), 0)
     hero.append(f'  <line x1="{x1 + 45}" y1="{y1}" x2="{x2 - 52}" y2="{y2}" stroke="{color}" '
                 f'stroke-width="1.8" opacity="0.6" marker-end="url(#w5hA)"/>')
 (x1, y1), (x2, y2) = POS[MISSING[0]], POS[MISSING[1]]
-hero.append(f'  <line x1="{x1 + 45}" y1="{y1}" x2="{x2 - 52}" y2="{y2}" stroke="var(--dkr-accent, #d9603b)" '
+hero.append(f'  <line x1="{x1 + 45}" y1="{y1}" x2="{x2 - 52}" y2="{y2 + 11}" stroke="var(--dkr-accent, #d9603b)" '
             f'stroke-width="2.4" stroke-dasharray="7,5" opacity="0.9" marker-end="url(#w5hA)"/>')
-hero.append(f'  <text x="{(x1 + x2) / 2}" y="{(y1 + y2) / 2 + 16}" text-anchor="middle" font-family="{SANS}" '
-            f'font-size="12" font-weight="600" fill="var(--dkr-accent, #b84a2b)">true, but never stated</text>')
+hero.append(f'  <text x="234" y="252" text-anchor="middle" font-family="{SANS}" '
+            f'font-size="12.5" font-weight="600" fill="var(--dkr-accent, #b84a2b)" '
+            f'stroke="var(--dkr-paper, #fff)" stroke-width="4" paint-order="stroke">true, but never stated</text>')
+# claim the separation band above the Metformin row: faint divider + side label
+hero.append(f'  <line x1="60" y1="298" x2="700" y2="298" stroke="var(--dkr-muted, #8e8e9a)" '
+            f'stroke-width="1" stroke-dasharray="2,6" opacity="0.55"/>')
+hero.append(f'  <text x="700" y="292" text-anchor="end" font-family="{SANS}" font-size="12.5" '
+            f'font-style="italic" fill="var(--dkr-muted, #6e6e7a)">below: the counterexample — Metformin&#8217;s 2-hop path exits the query</text>')
 for e, (x, y) in POS.items():
     if e in DRUGS:
         in_ans = e in q_drugs
@@ -121,24 +130,33 @@ for d in ["Aspirin", "Ibuprofen", "Naproxen"]:
     assert inside(ENT2D[d], B2_C, B2_O), d
 assert not inside(ENT2D["Metformin"], B2_C, B2_O)
 
-S = 46
-def bx(v): return 60 + v * S
-def by(v): return 355 - v * S
+# non-uniform scale: x stretched so the diagonal chain fills the canvas evenly
+SX, SY = 80, 50
+def bx(v): return 52 + v * SX
+def by(v): return 410 - v * SY
 
 boxes = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" '
          f'fill="var(--dkr-muted, #6e6e7a)">the same query, embedded: each step is a geometric operator; the answer set is “everything inside”</text>']
-for (c, o, color, label, lx, ly) in [
-        (B1_C, B1_O, "#7c5cd6", "① project: assoc⁻¹(Inflammation)", bx(B1_C[0]), by(B1_C[1] - B1_O[1]) + 24),
-        (B2_C, B2_O, "var(--dkr-green, #199473)", "② project again: targets⁻¹(box)", bx(B2_C[0] + B2_O[0]) + 118, 56)]:
+# how-to-read note claims the top-left corner
+boxes.append(f'  <g font-family="{SANS}" font-size="12.5" fill="var(--dkr-muted, #6e6e7a)">'
+             f'<text x="60" y="66">each dot: an entity&#8217;s embedding</text>'
+             f'<text x="60" y="86">each box: a query region — answers are inside</text></g>')
+for (c, o, color) in [(B1_C, B1_O, "#7c5cd6"),
+                      (B2_C, B2_O, "var(--dkr-green, #199473)")]:
     x0, y0 = bx(c[0] - o[0]), by(c[1] + o[1])
-    w, h = 2 * o[0] * S, 2 * o[1] * S
+    w, h = 2 * o[0] * SX, 2 * o[1] * SY
     boxes.append(f'  <rect x="{x0:.0f}" y="{y0:.0f}" width="{w:.0f}" height="{h:.0f}" rx="8" '
                  f'fill="{color}" opacity="0.12"/>')
     boxes.append(f'  <rect x="{x0:.0f}" y="{y0:.0f}" width="{w:.0f}" height="{h:.0f}" rx="8" '
                  f'fill="none" stroke="{color}" stroke-width="2.2"/>')
-    boxes.append(f'  <text x="{lx:.0f}" y="{ly:.0f}" text-anchor="middle" font-family="{SANS}" '
-                 f'font-size="12.5" font-weight="700" fill="{color}">{label}</text>')
-boxes.append(f'  <path d="M{bx(2.6):.0f},{by(1.0) - 12:.0f} L{bx(3.6):.0f},{by(2.4):.0f}" stroke="#7c5cd6" '
+# step ①: label in the right-hand void, leader line to the purple box's edge
+boxes.append(f'  <text x="452" y="270" text-anchor="start" font-family="{SANS}" '
+             f'font-size="12.5" font-weight="700" fill="#7c5cd6">① project: assoc⁻¹(Inflammation)</text>')
+boxes.append(f'  <line x1="448" y1="266" x2="438" y2="262" stroke="#7c5cd6" stroke-width="1.4" opacity="0.7"/>')
+# step ②: label just left of the box→box arrow it describes
+boxes.append(f'  <text x="412" y="212" text-anchor="end" font-family="{SANS}" '
+             f'font-size="12.5" font-weight="700" fill="var(--dkr-green, #199473)">② project again: targets⁻¹(box)</text>')
+boxes.append(f'  <path d="M{bx(2.6):.0f},{by(1.0) - 14:.0f} L{bx(3.55):.0f},{by(2.05):.0f}" stroke="#7c5cd6" '
              f'stroke-width="2" fill="none" marker-end="url(#w5bA)"/>')
 boxes.append(f'  <path d="M{bx(4.6):.0f},{by(3.6):.0f} L{bx(5.3):.0f},{by(4.6):.0f}" stroke="var(--dkr-green, #199473)" '
              f'stroke-width="2" fill="none" marker-end="url(#w5bA)"/>')
@@ -153,16 +171,20 @@ for e, p in ENT2D.items():
             else "#7c5cd6" if is_mid else "var(--dkr-muted, #8e8e9a)")
     boxes.append(f'  <circle cx="{x:.0f}" cy="{y:.0f}" r="{8 if (is_ans or is_anchor or is_mid) else 6}" '
                  f'fill="{fill}" opacity="{0.95 if (is_ans or is_anchor or is_mid) else 0.5}"/>')
-    dy = -13 if e not in ("COX-2", "Inflammation", "Metformin") else 24
+    if e == "Inflammation":   # label to the right: keeps it clear of Metformin's
+        boxes.append(f'  <text x="{x + 14:.0f}" y="{y + 4:.0f}" text-anchor="start" font-family="{SANS}" '
+                     f'font-size="12" font-weight="600" fill="var(--dkr-text, #1c1c21)">{e} (anchor: a point)</text>')
+        continue
+    dy = -13 if e not in ("COX-2", "Metformin") else 24
     boxes.append(f'  <text x="{x:.0f}" y="{y + dy:.0f}" text-anchor="middle" font-family="{SANS}" '
                  f'font-size="12" font-weight="600" fill="var(--dkr-text, #1c1c21)">{e}</text>')
 boxes.append(f'''  <g font-family="{SANS}">
-    <rect x="45" y="382" width="670" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
-    <text x="380" y="402" text-anchor="middle" font-size="13" font-weight="700" fill="var(--dkr-bg, #fff)">all three true drugs fall inside — never-stated Naproxen included. Regions generalize.</text>
+    <rect x="45" y="396" width="670" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
+    <text x="380" y="416" text-anchor="middle" font-size="13" font-weight="700" fill="var(--dkr-bg, #fff)">all three true drugs fall inside — never-stated Naproxen included. Regions generalize.</text>
   </g>''')
 write("fig-w5-boxes", "\n".join(boxes),
       "The two-hop query embedded as Query2box operations in two dimensions: the anchor projects to a purple box containing COX-2, a second projection yields a green box containing all three true drugs including unstated Naproxen",
-      height=424)
+      height=440)
 
 
 # ═════════════════════════════ GraphRAG schematic ══════════════════════════
@@ -174,12 +196,14 @@ def panel(ox, title, color, steps, verdict, good):
     p = [f'  <g font-family="{SANS}">'
          f'<text x="{ox + 175}" y="76" text-anchor="middle" font-size="14.5" font-weight="700" fill="{color}">{title}</text>']
     y = 96
-    for txt, sub in steps:
+    for si, (txt, sub) in enumerate(steps):
         p.append(f'<rect x="{ox + 15}" y="{y}" width="320" height="44" rx="10" fill="{color}" opacity="0.1"/>')
         p.append(f'<rect x="{ox + 15}" y="{y}" width="320" height="44" rx="10" fill="none" stroke="{color}" stroke-width="1.6"/>')
         p.append(f'<text x="{ox + 175}" y="{y + 19}" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--dkr-text, #1c1c21)">{txt}</text>')
         p.append(f'<text x="{ox + 175}" y="{y + 36}" text-anchor="middle" font-size="11.8" fill="var(--dkr-muted, #6e6e7a)">{sub}</text>')
         y += 58
+        p.append(f'<text x="{ox + 175}" y="{y - 3}" text-anchor="middle" font-size="12.5" '
+                 f'font-weight="700" fill="{color}" opacity="0.85">↓</text>')
     vcol = "var(--dkr-green, #199473)" if good else "#cf4a30"
     p.append(f'<rect x="{ox + 15}" y="{y + 2}" width="320" height="30" rx="15" fill="{vcol}"/>')
     p.append(f'<text x="{ox + 175}" y="{y + 22}" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">{verdict}</text>')
@@ -196,10 +220,13 @@ gr.append(panel(400, "GraphRAG", "var(--dkr-blue, #0f8377)", [
     ("retrieve the neighborhood subgraph", "IU →located_in→ Innopolis →located_in→ Tatarstan"),
     ("LLM reads facts, with provenance", "each triple cites its source document"),
 ], "answer: “Tatarstan” — the path was the point", True))
-gr.append(f'''  <text x="380" y="378" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="var(--dkr-muted, #6e6e7a)">similarity retrieves what LOOKS like the question; structure retrieves what CONNECTS to it</text>''')
+gr.append(f'''  <g font-family="{SANS}">
+    <rect x="55" y="322" width="650" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
+    <text x="380" y="342" text-anchor="middle" font-size="13" font-weight="700" fill="var(--dkr-bg, #fff)">similarity retrieves what LOOKS like the question; structure retrieves what CONNECTS to it</text>
+  </g>''')
 write("fig-w5-graphrag", "\n".join(gr),
       "Schematic comparison of vector RAG and GraphRAG on a two-hop question: chunk similarity retrieves lookalike documents and misses the second hop, while entity-linked subgraph retrieval walks the path to the answer",
-      height=392)
+      height=366)
 
 
 # ═══════════════════════ LLM-assisted construction ═════════════════════════
@@ -210,17 +237,23 @@ con.append(f'''  <g font-family="{MONO}" font-size="12">
     <text x="45" y="86" fill="var(--dkr-text, #1c1c21)">short, was founded in 2012 in the Republic of Tatarstan, on the Volga.”</text>
   </g>''')
 rows = [
-    ("(Innopolis University, located_in, Innopolis)", "ok", "var(--dkr-green, #199473)", "✓ clean extraction"),
-    ("(IU, located_in, Republic of Tatarstan)", "dup", "#cf4a30", "✗ failure 1 — canonicalization: “IU” and two spellings of Tatarstan become NEW entities"),
-    ("(Innopolis University, founded_in, 2012)", "ok", "var(--dkr-green, #199473)", "✓ clean — if the schema has founded_in: org → year"),
-    ("(Volga, located_in, Innopolis)", "hall", "#cf4a30", "✗ failure 2 — precision: fluent, confident, and false (nothing in the text says this)"),
-    ("(IU, founded_in, Tatarstan)", "type", "#cf4a30", "✗ failure 3 — schema: founded_in expects a year; type-checking catches what eyeballs miss"),
+    ("(Innopolis University, located_in, Innopolis)", "ok", "var(--dkr-green, #199473)", "clean extraction"),
+    ("(IU, located_in, Republic of Tatarstan)", "dup", "#cf4a30", "failure 1 — canonicalization: “IU” and two spellings of Tatarstan become NEW entities"),
+    ("(Innopolis University, founded_in, 2012)", "ok", "var(--dkr-green, #199473)", "clean — if the schema has founded_in: org → year"),
+    ("(Volga, located_in, Innopolis)", "hall", "#cf4a30", "failure 2 — precision: fluent, confident, and false (nothing in the text says this)"),
+    ("(IU, founded_in, Tatarstan)", "type", "#cf4a30", "failure 3 — schema: founded_in expects a year; type-checking catches what eyeballs miss"),
 ]
-y = 126
+y = 130
 for triple, kind, color, note in rows:
-    con.append(f'  <text x="45" y="{y}" font-family="{MONO}" font-size="12" fill="{color}">{triple}</text>')
-    con.append(f'  <text x="45" y="{y + 17}" font-family="{SANS}" font-size="11.8" fill="var(--dkr-muted, #6e6e7a)">{note}</text>')
-    y += 45
+    good = kind == "ok"
+    con.append(f'  <rect x="30" y="{y - 17}" width="700" height="41" rx="8" fill="{color}" opacity="0.07"/>')
+    con.append(f'  <rect x="30" y="{y - 17}" width="5" height="41" fill="{color}"/>')
+    con.append(f'  <rect x="46" y="{y - 13}" width="26" height="22" rx="11" fill="{color}"/>')
+    con.append(f'  <text x="59" y="{y + 3}" text-anchor="middle" font-family="{SANS}" font-size="12.5" '
+               f'font-weight="700" fill="#fff">{"✓" if good else "✗"}</text>')
+    con.append(f'  <text x="84" y="{y}" font-family="{MONO}" font-size="12" fill="{color}">{triple}</text>')
+    con.append(f'  <text x="84" y="{y + 18}" font-family="{SANS}" font-size="11.8" fill="var(--dkr-muted, #6e6e7a)">{note}</text>')
+    y += 47
 con.append(f'''  <g font-family="{SANS}">
     <rect x="55" y="{y + 2}" width="650" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
     <text x="380" y="{y + 22}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--dkr-bg, #fff)">extraction is cheap; canonicalization, verification, and provenance are the actual engineering</text>

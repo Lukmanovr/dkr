@@ -10,7 +10,7 @@ This lab implements everything from the [Week 6 lecture](../lectures/06-gcn.qmd)
 
 1. **Build $\hat{\mathbf{A}}$** from a raw edge list — and *verify it by hand* on a
    3-node path before trusting it with Cora (exercise 1).
-2. **Reproduce the lecture's hand-simulation** (Example 1) numerically — the same
+2. **Reproduce the lecture's hand-simulation example** numerically — the same
    computation you will do on paper in the midterm.
 3. **Implement the GCN layer** (exercise 2) and train the two-layer model on Cora.
 4. **Beat the baseline honestly** (exercise 3): the structure-blind MLP next to the GCN —

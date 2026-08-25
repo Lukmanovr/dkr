@@ -28,11 +28,19 @@ CELLS = [
 
 **Week 4 · [lecture](https://lukmanovr.github.io/dkr/lectures/04-knowledge-graphs.html) · ≈ 25 min of compute (free Colab or CPU — no GPU needed)**
 
-You implement two knowledge-graph embedding models from scratch (~100 lines each),
-train them on the honest benchmark, evaluate with the filtered protocol you can now
-compute by hand — and close with the lecture's signature experiment: catching
-@prp-transe-sym red-handed on a synthetic symmetric relation while RotatE parks its
-phases at π.
+Knowledge-graph embedding turns facts into geometry: entities become vectors, a
+relation becomes a geometric operation, and the truth of an unstated fact becomes a
+score you can rank. It is the workhorse of KG completion — the only approach that
+scales to the structured missingness of real knowledge graphs. In this lab you
+implement the two bookend models of the modern family from scratch (~100 lines
+each): **TransE**, the translation model that started the field
+([Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html)),
+and **RotatE**, its strongest direct descendant
+([Sun et al., 2019](https://arxiv.org/abs/1902.10197)). You train them on the honest
+benchmark, evaluate with the filtered protocol you can now compute by hand — and
+close with the lecture's signature experiment: catching
+[the TransE-symmetry proposition from the lecture](https://lukmanovr.github.io/dkr/lectures/04-knowledge-graphs.html#prp-transe-sym)
+red-handed on a synthetic symmetric relation while RotatE parks its phases at π.
 
 ### Goals
 1. Implement the TransE score, corruption sampling, and the margin loss — each against hand-checkable asserts.
@@ -60,7 +68,8 @@ print(f"torch {torch.__version__} — environment OK")"""),
     md("""## 1 · The honest benchmark  *(provided — read the printout like a datasheet)*
 
 FB15k-237: Freebase facts, with the leaky inverse relations already removed
-(Toutanova & Chen — this week's optional reading, and Pitfall 3). The download is a
+([Toutanova & Chen, 2015](https://doi.org/10.18653/v1/W15-4007) — this week's
+optional reading, and Pitfall 3). The download is a
 few tens of MB from an external host; if it fails transiently, re-run the cell.
 """),
 
@@ -127,6 +136,26 @@ print("exercise 1 ✓ — the translation decoder, hand-verified")"""),
 Two pieces: the corruption sampler (replace head **or** tail, uniformly), and the
 margin ranking loss
 $\\mathcal{L} = \\text{mean}\\,\\max(0, \\gamma - f_{\\text{pos}} + f_{\\text{neg}})$.
+
+You are coding against a spec — the lecture's training-epoch algorithm
+([Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html)):
+
+> **Algorithm · TransE training epoch**
+>
+> **Input:** triples T, entity table E, relation table R, scorer f, margin γ, learning rate η. **Output:** updated E, R.
+>
+> 1. **e** ← **e** / ‖**e**‖ for every entity row of E  *(project to the unit sphere — before any gradient step)*
+> 2. **for** each minibatch B ⊂ T (shuffled) **do**
+> 3. &nbsp;&nbsp;&nbsp;&nbsp;**for** each (h, r, t) ∈ B **do**
+> 4. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(h′, r, t′) ← replace h **or** t (coin flip) by a uniform random entity
+> 5. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ℓ ← max(0, γ − f(h,r,t) + f(h′,r,t′))
+> 6. &nbsp;&nbsp;&nbsp;&nbsp;**end for**
+> 7. &nbsp;&nbsp;&nbsp;&nbsp;one SGD/Adam step on the mean of ℓ over B
+> 8. **end for**
+> 9. **return** E, R
+
+Your `corrupt` is line 4 and your `margin_loss` is line 5; the provided
+`train_transe` below wires them into the full loop, renormalization order included.
 """),
 
     todo("""def corrupt(triples: torch.Tensor, n_ent: int, g: torch.Generator) -> torch.Tensor:
@@ -233,9 +262,28 @@ print("done")"""),
 
     md("""## 4 · Filtered evaluation  *(exercise 3 — skill: the protocol, exactly)*
 
-Implement the single-query filtered rank. The toy assert is the lecture's Q5: raw
-rank 4 with two known-true competitors above → filtered rank 2. Then the real thing:
-MRR and Hits@10 over a held-out sample, both directions, filtered.
+The spec, mirroring the lecture's evaluation algorithm (the protocol of
+[Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html)):
+
+> **Algorithm · Filtered ranking evaluation**
+>
+> **Input:** test triples S, scorer f, known-true indexes K(h,r)→{t} and K′(r,t)→{h} built from train ∪ valid ∪ test. **Output:** filtered MRR, Hits@K.
+>
+> 1. ranks ← ()
+> 2. **for** each (h, r, t) ∈ S **do**
+> 3. &nbsp;&nbsp;&nbsp;&nbsp;s_e ← f(h, r, e) for every entity e  *(tail vacancy)*
+> 4. &nbsp;&nbsp;&nbsp;&nbsp;s_e ← −∞ for e ∈ K(h,r) \\\\ {t}  *(filter known truths — never the target)*
+> 5. &nbsp;&nbsp;&nbsp;&nbsp;append 1 + #{e : s_e > s_t} to ranks
+> 6. &nbsp;&nbsp;&nbsp;&nbsp;repeat lines 3–5 for the head vacancy, using K′
+> 7. **end for**
+> 8. MRR ← mean(1/ranks);  Hits@K ← mean[rank ≤ K]
+> 9. **return** MRR, Hits@K
+
+Implement the single-query filtered rank — lines 4–5. The toy assert is the
+lecture's Q5: raw rank 4 with two known-true competitors above → filtered rank 2.
+Then the real thing (provided plumbing runs lines 2–9 around your function): MRR and
+Hits@10 over a held-out sample, both directions, filtered. Note line 5 counts
+*strictly greater* scores — ties are never resolved in the model's favor.
 """),
 
     todo("""def filtered_rank(scores: torch.Tensor, target: int, known: set) -> int:
@@ -390,7 +438,9 @@ print("exercise 4 ✓ — the rotation decoder, hand-verified on the lecture's q
 
 A synthetic KG with two relations on 12 entities: **married** (four symmetric pairs,
 both directions stated) and **manages** (a strict chain — antisymmetric). We train
-TransE and RotatE side by side (provided). @prp-transe-sym predicts TransE must drive
+TransE and RotatE side by side (provided).
+[The TransE-symmetry proposition from the lecture](https://lukmanovr.github.io/dkr/lectures/04-knowledge-graphs.html#prp-transe-sym)
+predicts TransE must drive
 $\\|\\mathbf{r}_{married}\\|$ toward zero while keeping $\\|\\mathbf{r}_{manages}\\|$
 healthy; RotatE's Table-1 fix predicts the *married* phases park near 0 or π. Your
 part: extract the evidence.

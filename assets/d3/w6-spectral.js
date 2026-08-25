@@ -77,14 +77,15 @@
     const n = g.n;
 
     // node values for current mode
+    const sub = (i) => String(i).replace(/\d/g, (c) => "₀₁₂₃₄₅₆₇₈₉"[+c]);
     let vals, title;
     if (mode === "eig") {
       vals = E.vectors[Math.min(k, n - 1)];
-      title = `u_${Math.min(k, n - 1)} · λ = ${E.values[Math.min(k, n - 1)].toFixed(2)}`;
+      title = `u${sub(Math.min(k, n - 1))} · λ = ${E.values[Math.min(k, n - 1)].toFixed(2)}`;
     } else {
       const x = Array(n).fill(0); x[Math.min(delta, n - 1)] = 1;
       vals = applyFilter(cur, x);
-      title = `y = p(L)·δ_${Math.min(delta, n - 1)}`;
+      title = `y = p(L)·δ${sub(Math.min(delta, n - 1))}`;
     }
     const vmax = Math.max(1e-9, d3.max(vals, (v) => Math.abs(v)));
 
@@ -103,16 +104,16 @@
       .on("keydown", (ev, d) => {
         if (mode === "filter" && (ev.key === "Enter" || ev.key === " ")) { delta = d.id; render(); ev.preventDefault(); }
       });
-    node.append("circle").attr("r", 12)
+    node.append("circle").attr("r", 14)
       .attr("fill", (d) => U.signedColor(vals[d.id], vmax, P))
       .attr("stroke", (d) => (mode === "filter" && d.id === delta) ? P.accentDark : P.muted)
       .attr("stroke-width", (d) => (mode === "filter" && d.id === delta) ? 2.5 : 1);
     node.append("circle").attr("r", 19).attr("fill", "transparent");
-    node.append("text").attr("text-anchor", "middle").attr("dy", 3.5)
-      .attr("font-size", 8.5).attr("fill", P.text)
+    node.append("text").attr("text-anchor", "middle").attr("dy", 4)
+      .attr("font-size", 12.5).attr("fill", P.text)
       .text((d) => vals[d.id].toFixed(1).replace("-0.0", "0.0"));
     gp.append("text").attr("x", 150).attr("y", 315).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted).text(title);
+      .attr("font-size", 13).attr("fill", P.muted).text(title);
 
     // --- spectrum / response panel ---
     const sp = svg.append("g").attr("transform", "translate(360,20)");
@@ -126,8 +127,10 @@
 
     sp.append("line").attr("x1", 0).attr("x2", 360).attr("y1", ys(0)).attr("y2", ys(0))
       .attr("stroke", P.border);
-    sp.append("text").attr("x", 180).attr("y", 285).attr("text-anchor", "middle")
-      .attr("font-size", 11).attr("fill", P.muted)
+    // keep the axis caption attached to the axis in eigenvector mode (the response
+    // curve fills the panel in filter mode, so the caption drops to the bottom there)
+    sp.append("text").attr("x", 180).attr("y", respOn ? 285 : ys(0) + 32).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text(respOn ? "frequency response p(λ) over the spectrum" : "the spectrum of L (each dot one eigenvalue)");
 
     if (respOn) {
@@ -142,7 +145,9 @@
       .attr("r", 4)
       .attr("fill", (l, i) => (mode === "eig" && i === Math.min(k, n - 1)) ? P.accent : P.blue)
       .attr("opacity", 0.85);
-    sp.append("text").attr("x", 0).attr("y", -6).attr("font-size", 11).attr("fill", P.muted)
+    sp.append("text").attr("x", respOn ? 0 : 180).attr("y", respOn ? -6 : ys(0) - 22)
+      .attr("text-anchor", respOn ? "start" : "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text(respOn ? `p(λ) = ${w[0].toFixed(1)} + ${w[1].toFixed(1)}·λ + ${w[2].toFixed(1)}·λ²` : "λ = 0 (constant) → large λ (oscillatory)");
 
     // slider visibility

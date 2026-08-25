@@ -49,7 +49,7 @@
   function render() {
     const P = U.pal();
     const { triples, kept, ents } = pipeline(box("w5-ex-canon"), box("w5-ex-schema"), box("w5-ex-prov"));
-    const svg = U.svgIn("w5-ex-svg", 760, 300);
+    const svg = U.svgIn("w5-ex-svg", 760, 264);
     svg.attr("font-family", "'JetBrains Mono', monospace");
     const g = svg.append("g");
 
@@ -64,7 +64,7 @@
         .text(`(${tr.h}, ${tr.r}, ${tr.t})`);
       if (dead) {
         g.append("text").attr("x", 40).attr("y", y + 17)
-          .attr("font-family", "'Source Sans 3', sans-serif").attr("font-size", 11.8)
+          .attr("font-family", "'Source Sans 3', sans-serif").attr("font-size", 12.5)
           .attr("fill", "#cf4a30").text("✗ " + tr.dropped);
       }
     });
@@ -88,12 +88,12 @@
           .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", clean || falseKept ? "#fff" : "#5c4508")
           .text(clean ? "clean: 3 facts, 5 entities" : falseKept ? "a FALSE fact is in your KG" : "cleaner — keep going");
         p.append("text").attr("x", 560).attr("y", 157).attr("text-anchor", "middle")
-          .attr("font-size", 11.8).attr("fill", clean || falseKept ? "#fff" : "#5c4508")
+          .attr("font-size", 12.5).attr("fill", clean || falseKept ? "#fff" : "#5c4508")
           .text(clean ? "ready for GraphRAG duty" : falseKept ? "and GraphRAG will cite it proudly" : "");
       });
 
-    g.append("text").attr("x", 380).attr("y", 286).attr("text-anchor", "middle")
-      .attr("font-family", "'Source Sans 3', sans-serif").attr("font-size", 12).attr("fill", P.muted)
+    g.append("text").attr("x", 380).attr("y", 250).attr("text-anchor", "middle")
+      .attr("font-family", "'Source Sans 3', sans-serif").attr("font-size", 12.5).attr("fill", P.muted)
       .text(`raw extraction: ${RAW.length} triples, ${raw_ents} "entities" — flip the three repairs on and watch both numbers tell the truth`);
   }
 

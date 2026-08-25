@@ -1,10 +1,10 @@
 // Screenshot a rendered site page in light and dark themes.
-// Usage: node shot_page.mjs <path-under-_site> <outprefix>
+// Usage: node shot_page.mjs <path-under-_site> <outprefix> [viewport-width]
 import puppeteer from "puppeteer-core";
 import { existsSync } from "node:fs";
 
 const ROOT = "e:/DKR_course_materials/dkr";
-const [, , rel, prefix] = process.argv;
+const [, , rel, prefix, widthArg] = process.argv;
 
 const CHROME = [
   "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -14,7 +14,7 @@ const CHROME = [
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new" });
 const page = await browser.newPage();
-await page.setViewport({ width: 900, height: 1400, deviceScaleFactor: 1 });
+await page.setViewport({ width: Number(widthArg) || 900, height: 1400, deviceScaleFactor: 1 });
 const url = "file:///" + ROOT + "/_site/" + rel;
 await page.goto(url, { waitUntil: "networkidle0", timeout: 60000 });
 await new Promise((r) => setTimeout(r, 1200)); // KaTeX
@@ -29,5 +29,7 @@ const toggled = await page.evaluate(() => {
 });
 await new Promise((r) => setTimeout(r, 800));
 await page.screenshot({ path: out + "-dark.png", fullPage: true });
-console.log("shot", prefix, "toggled:", toggled);
+const overflow = await page.evaluate(() =>
+  document.documentElement.scrollWidth - document.documentElement.clientWidth);
+console.log("shot", prefix, "toggled:", toggled, "· horiz overflow px:", overflow);
 await browser.close();

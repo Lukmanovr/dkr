@@ -40,11 +40,15 @@ operator $\\hat{\\mathbf{A}} = \\tilde{\\mathbf{D}}^{-1/2}\\tilde{\\mathbf{A}}\\
 from a raw edge list, implement the GCN layer as ten lines of dense PyTorch, verify the
 lecture's hand-simulation numerically, train a two-layer GCN on **Cora** against the
 structure-blind MLP baseline, and finish by proving your layer computes exactly what
-PyG's `GCNConv` computes.
+PyG's `GCNConv` computes. The method is the graph convolutional network of
+[Kipf & Welling, 2017](https://arxiv.org/abs/1609.02907) — semi-supervised node
+classification by learned, normalized neighborhood averaging — and the ablation you run
+in §8 is SGC ([Wu et al., 2019](https://arxiv.org/abs/1902.07153)), which asks how much
+of the GCN's win survives with the "neural network" deleted.
 
 ### Goals
 1. Build and *verify* $\\hat{\\mathbf{A}}$ — assertions before training, always.
-2. Implement the GCN layer from the lecture's Definition 3 and check it on paper-sized examples.
+2. Implement the GCN layer from the lecture's GCN-layer definition and check it on paper-sized examples.
 3. Reproduce the two numbers from lecture: GCN ≈ 0.80, MLP ≈ 0.60 test accuracy on Cora — and *watch* the hidden representations organize while training.
 4. Implement sparse propagation and **measure** the lecture's §2 cost claims (dense vs sparse).
 5. Run the SGC ablation: how much of the GCN's win is the fixed low-pass filter?
@@ -181,7 +185,7 @@ print("exercise 1 ✓ — A_hat matches the hand computation")"""),
     md("""## 3 · Verify the lecture's hand-simulation
 
 Before trusting code with 2,708 nodes, make it reproduce the 4-node example you can
-check with a pencil (lecture, Example 1): mean-aggregate neighbors, add your own value,
+check with a pencil (the lecture's hand-simulation example): mean-aggregate neighbors, add your own value,
 ReLU. Expected result: $(3,\\; 1,\\; 3.5,\\; 0)$ — including node D getting clipped to zero.
 """),
 
@@ -198,8 +202,25 @@ print("matches the lecture table ✓ (note D: erased by the ReLU)")"""),
 
     md("""## 4 · The GCN layer and model  *(exercise 2)*
 
-Definition 3 from lecture, as code: a layer is `A_hat @ (X @ W)` — propagation is fixed,
-only the channel mix $\\mathbf{W}$ is learned. Fill in the `forward`.
+The lecture's GCN-layer definition, as code: a layer is `A_hat @ (X @ W)` — propagation
+is fixed, only the channel mix $\\mathbf{W}$ is learned. Fill in the `forward`.
+"""),
+
+    md("""**Algorithm · Two-layer GCN forward pass** — the spec you are about to code
+against (it mirrors the lecture's algorithm float exactly):
+
+**Input:** features $\\mathbf{X} \\in \\mathbb{R}^{n \\times d}$; sparse
+$\\hat{\\mathbf{A}}$; weights $\\mathbf{W}_1$, $\\mathbf{W}_2$; dropout rate $p$.
+**Output:** logits $\\mathbf{Z} \\in \\mathbb{R}^{n \\times C}$.
+
+1. $\\mathbf{H} \\leftarrow \\mathbf{X}\\mathbf{W}_1$ — mix channels first (cheaper)
+2. $\\mathbf{H} \\leftarrow \\hat{\\mathbf{A}}\\,\\mathbf{H}$ — propagate one hop
+3. $\\mathbf{H} \\leftarrow \\mathrm{ReLU}(\\mathbf{H})$
+4. $\\mathbf{H} \\leftarrow \\mathrm{Dropout}(\\mathbf{H}, p)$ — training only
+5. $\\mathbf{Z} \\leftarrow \\hat{\\mathbf{A}}\\,(\\mathbf{H}\\mathbf{W}_2)$ — second layer
+6. **return** $\\mathbf{Z}$ — softmax lives inside the loss
+
+Steps 1–2 are `GCNLayer.forward` (one call); steps 1–6 are `GCN.forward`.
 """),
 
     todo("""class GCNLayer(nn.Module):
@@ -266,7 +287,7 @@ probe = torch.randn(3, 3)
 assert torch.allclose(layer(probe, A_hat_path), A_hat_path @ probe, atol=1e-6)
 print("exercise 2 ✓ — layer computes A_hat @ X W")"""),
 
-    md("""## 5 · Train on Cora — and earn the right to the GNN by beating it with nothing  *(exercise 3)*
+    md("""## 5 · Train on Cora — and measure what nothing-but-features buys first  *(exercise 3)*
 
 Two models, one protocol. The MLP sees only the bag-of-words matrix; the GCN sees the
 same features **plus** propagation. Fill in `accuracy` (masked), then run both.
@@ -463,9 +484,25 @@ print("On Cora both are fast — the point is the SCALING: n² vs m. Re-read lec
 The lecture's honest remark: on homophilous benchmarks, the fixed low-pass filter does
 most of the GCN's work. **Predict before running:** within how many accuracy points of
 your GCN will plain logistic regression on the precomputed features land — 15? 5? 1?
-Commit to a number. Then test it. SGC (Wu et al., 2019) deletes every nonlinearity, so a
+Commit to a number. Then test it. SGC ([Wu et al., 2019](https://arxiv.org/abs/1902.07153))
+deletes every nonlinearity, so a
 2-layer GCN collapses into logistic regression on the *precomputed* features
 $\\hat{\\mathbf{A}}^2\\mathbf{X}$ — no message passing at training time at all.
+
+**Algorithm · SGC precompute-then-fit** (mirrors the lecture's float; here $K = 2$):
+
+**Input:** $\\mathbf{X}$; sparse $\\hat{\\mathbf{A}}$; depth $K$; labeled set
+$\\mathcal{V}_{\\text{train}}$. **Output:** predictions for all nodes.
+
+1. $\\bar{\\mathbf{X}} \\leftarrow \\mathbf{X}$
+2. **for** $k = 1, \\dots, K$ **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;$\\bar{\\mathbf{X}} \\leftarrow \\hat{\\mathbf{A}}\\,\\bar{\\mathbf{X}}$ — sparse multiply, once, offline
+4. **end for**
+5. fit logistic regression $\\boldsymbol{\\Theta}$ on the labeled rows of $\\bar{\\mathbf{X}}$
+6. **return** $\\mathrm{softmax}(\\bar{\\mathbf{X}}\\boldsymbol{\\Theta})$
+
+The code below is exactly this: line 1 of the cell is steps 1–4 ($K = 2$ unrolled), and
+the `nn.Linear` trained with cross-entropy *is* step 5 — multinomial logistic regression.
 """),
 
     code("""X_sgc = A_hat_sparse @ (A_hat_sparse @ X)         # precompute once — this IS the "GNN"

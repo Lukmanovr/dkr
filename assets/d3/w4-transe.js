@@ -90,7 +90,9 @@
       g.append("circle").attr("cx", x).attr("cy", y).attr("r", isType ? 6 : 8)
         .attr("fill", isType ? P.muted : P.yellow).attr("opacity", 0.9);
       g.append("text").attr("x", x).attr("y", y - 11).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("font-weight", 600)
+        .attr("font-size", 12.5).attr("font-weight", 600)
+        .attr("paint-order", "stroke").attr("stroke", P.paper).attr("stroke-width", 3)
+        .attr("stroke-linejoin", "round")
         .attr("fill", isType ? P.muted : P.text).text(name);
     });
 
@@ -107,11 +109,11 @@
     ];
     rows.forEach(([txt, color], i) => {
       g.append("text").attr("x", 380).attr("y", 300 + i * 19).attr("text-anchor", "middle")
-        .attr("font-size", i === 0 ? 13.5 : 12).attr("font-weight", i === 0 ? 700 : 400)
+        .attr("font-size", i === 0 ? 13.5 : 12.5).attr("font-weight", i === 0 ? 700 : 400)
         .attr("fill", color).text(txt);
     });
     g.append("text").attr("x", 380).attr("y", 300 + 3 * 19).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text("solid = h + r · dashed red = the miss · smaller numbers = truer, per TransE");
   }
 

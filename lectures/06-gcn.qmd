@@ -65,7 +65,7 @@ instructive ways:
 
 The object of this week is the model that ends this dilemma by **learning how to
 propagate features**: the graph neural network, and its most famous instance, the **graph
-convolutional network** (GCN) of Kipf & Welling (2017), which reaches about **82%** on
+convolutional network** (GCN) of [Kipf & Welling, 2017](https://arxiv.org/abs/1609.02907), which reaches about **82%** on
 the same task with roughly 23,000 parameters. The twenty-two point jump over the MLP is
 the measured value of structure; you will reproduce both numbers yourself in
 [Lab 6](../labs/lab06.qmd).
@@ -73,11 +73,13 @@ the measured value of structure; you will reproduce both numbers yourself in
 A word on where this model came from, because the history *is* the structure of this
 lecture. Neural networks on graphs were first proposed by Scarselli et al. around 2009 —
 a recurrent scheme, iterated to a fixed point, largely ignored for a decade. The modern
-line re-entered through **signal processing**: Bruna et al. (2014) defined convolution on
-graphs through the Laplacian's eigenbasis, Defferrard et al. (2016) made it cheap with
-polynomial filters, and Kipf & Welling (2017) truncated the polynomial to first order —
+line re-entered through **signal processing**: [Bruna et al., 2014](https://arxiv.org/abs/1312.6203) defined convolution on
+graphs through the Laplacian's eigenbasis, [Defferrard et al., 2016](https://arxiv.org/abs/1606.09375) made it cheap with
+polynomial filters, and [Kipf & Welling, 2017](https://arxiv.org/abs/1609.02907) truncated the polynomial to first order —
 at which point the "spectral" model collapsed into a **spatial** rule so simple it reads
-as "average your neighbors, then apply a shared linear map". Gilmer et al. (2017)
+as "average your neighbors, then apply a shared linear map".
+
+[Gilmer et al., 2017](https://arxiv.org/abs/1704.01212)
 then showed that this rule, GraphSAGE, GAT, and a zoo of chemistry models are all
 instances of one template: **neural message passing**. That template is the single
 framework behind essentially every architecture in the rest of this course — GraphSAGE,
@@ -96,7 +98,8 @@ write the code and count its costs.
 
 ::: {.callout-note title="Recap — what this lecture assumes" collapse="true"}
 - **Adjacency matrix, degree matrix, Laplacian** ([Week 1](../syllabus.qmd)): $\mathbf{A}$,
-  $\mathbf{D}$, $\mathbf{L} = \mathbf{D} - \mathbf{A}$, and the quadratic form
+  $\mathbf{D}$, $\mathbf{L} = \mathbf{D} - \mathbf{A}$ for a graph with $n = |\mathcal{V}|$
+  nodes and $m = |\mathcal{E}|$ edges, and the quadratic form
   $\mathbf{x}^\top \mathbf{L}\mathbf{x} = \sum_{(u,v) \in \mathcal{E}} (x_u - x_v)^2$
   measuring how much a signal varies across edges.
 - **Eigendecomposition of symmetric matrices** (linear algebra): real eigenvalues,
@@ -112,7 +115,7 @@ write the code and count its costs.
   neighbors". Today's first section is precisely "label propagation, but learnable".
 - **Homophily** (Week 1): connected nodes tend to share labels/attributes — the assumption
   that makes neighborhood averaging informative at all.
-- From your ML course: MLPs, softmax + cross-entropy, backprop, weight sharing in CNNs.
+- From your ML course: MLPs, softmax + cross-entropy, backprop, dropout, weight sharing in CNNs.
 :::
 
 ## 1. From propagation to message passing
@@ -135,9 +138,11 @@ A **message-passing layer** computes, for every node $u \in \mathcal{V}$ simulta
 $$
 \mathbf{h}_u^{(k+1)} \;=\; \text{UPDATE}^{(k)}\!\Big(\mathbf{h}_u^{(k)},\;
 \underbrace{\text{AGGREGATE}^{(k)}\big(\{\!\{\, \mathbf{h}_v^{(k)} : v \in \mathcal{N}(u) \,\}\!\}\big)}_{\textstyle =\; \mathbf{m}_{\mathcal{N}(u)}^{(k)}}\Big),
-$$
+$$ {#eq-w06-mp}
 
-where $\mathbf{h}_u^{(0)} = \mathbf{x}_u$ (the input features), $\{\!\{\cdot\}\!\}$ is a
+where — $\mathbf{h}_u^{(k)} \in \mathbb{R}^{d_k}$ is node $u$'s embedding after $k$
+layers, $\mathbf{h}_u^{(0)} = \mathbf{x}_u$ (the input features);
+$\mathcal{N}(u) = \{v : (u,v) \in \mathcal{E}\}$ is $u$'s neighborhood; $\{\!\{\cdot\}\!\}$ is a
 <span class="term" data-def="Multiset: a collection where order is meaningless but repetition counts — {{a, a, b}} differs from {{a, b}} but not from {{b, a, a}}. Exactly the structure of 'my neighbors' vectors'.">*multiset*</span> (neighbors can contribute equal vectors, and there is no order), AGGREGATE is a
 permutation-invariant function of that multiset, and UPDATE is any differentiable
 function. After $K$ layers we take $\mathbf{z}_u = \mathbf{h}_u^{(K)}$.
@@ -162,22 +167,43 @@ Three consequences are worth pausing on, because each becomes a theorem or a des
 later in the course.
 
 **First: information travels one hop per layer.** After $k$ layers,
-$\mathbf{h}_u^{(k)}$ is a function of exactly the nodes within $k$ hops of $u$ — the
-$k$-hop neighborhood, unrolled as a *computation tree* rooted at $u$: the root is $u$,
-its children are $\mathcal{N}(u)$, their children are *their* neighbors (including $u$
-itself — messages echo back), and the leaves carry the input features. Everything a
-$K$-layer GNN can ever know about a node is a function of this tree. This single
-observation carries a lot of weight: it defines the model's <span class="term" data-def="Receptive field: the set of input nodes that can influence a given output — for a K-layer message-passing GNN, exactly the K-hop neighborhood. Borrowed from CNNs, where it is the input pixel window a unit sees.">**receptive field**</span>, it will
-give us the equivariance proof in §4, the expressiveness *ceiling* in §6 and Week 9 (two
-nodes with identical computation trees are indistinguishable, full stop), and the
-scalability crisis in Week 11 (the tree's size grows exponentially with $K$).
+$\mathbf{h}_u^{(k)}$ is a function of exactly the nodes within $k$ hops of $u$. The
+object that makes this precise deserves a formal name:
+
+::: {#def-w06-comp-tree .definition name="Computation tree"}
+The **computation tree** of node $u$ for a $K$-layer message-passing model is the
+depth-$K$ tree rooted at $u$: the root is $u$, its children are $\mathcal{N}(u)$, their
+children are *their* neighbors (including $u$ itself — messages echo back), and the
+leaves carry the input features. Read it as a completeness claim: everything a
+$K$-layer GNN can ever know about $u$ is a function of this tree.
+:::
+
+::: {#def-w06-receptive .definition name="Receptive field"}
+The **receptive field** of node $u$ in a $K$-layer message-passing GNN is the set of
+input nodes that can influence $\mathbf{h}_u^{(K)}$ — exactly the $K$-hop neighborhood
+of $u$, the node set of its computation tree. The word is borrowed from CNNs, where it
+names the window of input pixels a unit sees; on a graph it grows one hop per layer.
+:::
+
+This pair of definitions will give us the equivariance proof in §4, the expressiveness
+*ceiling* in §6 and Week 9 (two nodes with identical computation trees are
+indistinguishable, full stop), and the scalability crisis in Week 11 (the tree's size
+grows exponentially with $K$).
 
 **Second: influence dilutes as it spreads.** How much does the input at node $v$ affect
-the output at node $u$, $k$ layers later? For GCN-style models the answer has a clean
-closed form — the influence
-$I_K(u,v) = \mathbf{1}^\top \big(\partial \mathbf{h}_u^{(K)} / \partial \mathbf{h}_v^{(0)}\big) \mathbf{1}$
+the output at node $u$, $K$ layers later? For GCN-style models the answer has a clean
+closed form — define the influence score
+
+$$
+I_K(u,v) \;=\; \mathbf{1}^\top \Big(\, \partial \mathbf{h}_u^{(K)} \big/ \partial \mathbf{h}_v^{(0)} \Big)\, \mathbf{1},
+$$ {#eq-w06-influence}
+
+where — $\partial \mathbf{h}_u^{(K)} / \partial \mathbf{h}_v^{(0)}$ is the Jacobian
+matrix of $u$'s final embedding with respect to $v$'s input features, and
+$\mathbf{1}$ is the all-ones vector, so the expression sums the Jacobian's entries to
+one number. This score
 is proportional, in expectation, to the probability that a length-$K$ random walk from
-$u$ ends at $v$ (Hamilton, *GRL*, Theorem 3). Distant nodes are heard from, but at
+$u$ ends at $v$ ([Hamilton, *GRL*](https://www.cs.mcgill.ca/~wlh/grl_book/), Theorem 3). Distant nodes are heard from, but at
 random-walk volume — a fact that quantifies the "slow mixing" you can feel in Figure 1
 and returns as oversmoothing in §3.
 
@@ -210,15 +236,25 @@ The simplest concrete instance turns @def-mp into linear algebra:
 ::: {#def-basic .definition name="The basic GNN layer"}
 $$
 \mathbf{h}_u^{(k+1)} = \sigma\!\Big( \mathbf{W}_{\text{self}}^{(k)} \mathbf{h}_u^{(k)} + \mathbf{W}_{\text{neigh}}^{(k)} \!\!\sum_{v \in \mathcal{N}(u)}\! \mathbf{h}_v^{(k)} + \mathbf{b}^{(k)} \Big),
-$$
+$$ {#eq-w06-basic}
 
-with an elementwise nonlinearity $\sigma$ (e.g. ReLU) and, in matrix form over all nodes,
-$\mathbf{H}^{(k+1)} = \sigma\big(\mathbf{H}^{(k)}\mathbf{W}_{\text{self}}^{\top} + \mathbf{A}\mathbf{H}^{(k)}\mathbf{W}_{\text{neigh}}^{\top} + \mathbf{b}\big)$.
+or, the same statement for all nodes at once,
+
+$$
+\mathbf{H}^{(k+1)} = \sigma\big(\mathbf{H}^{(k)}\mathbf{W}_{\text{self}}^{\top} + \mathbf{A}\mathbf{H}^{(k)}\mathbf{W}_{\text{neigh}}^{\top} + \mathbf{b}\big).
+$$ {#eq-w06-basic-matrix}
+
+where — $\mathbf{W}_{\text{self}}^{(k)}, \mathbf{W}_{\text{neigh}}^{(k)}$ are the two
+learned weight matrices (transform yourself; transform your aggregated neighbors);
+$\mathbf{b}^{(k)}$ is a learned bias vector (absorbed into the weights and dropped from
+the prose hereafter); $\sigma$ is an elementwise nonlinearity (e.g. ReLU); and
+$\mathbf{H}^{(k)} \in \mathbb{R}^{n \times d_k}$ stacks the embeddings as rows — the
+convention throughout.
 :::
 
 ::: {.math-note}
 AGGREGATE = sum, UPDATE = a one-layer perceptron on [own state; aggregated neighbors].
-The whole layer is two weight matrices. $\mathbf{A}\mathbf{H}$ is where the graph enters:
+The whole layer is two weight matrices (plus a bias). $\mathbf{A}\mathbf{H}$ is where the graph enters:
 row $u$ of $\mathbf{A}\mathbf{H}$ is exactly $\sum_{v \in \mathcal{N}(u)} \mathbf{h}_v$.
 :::
 
@@ -259,7 +295,8 @@ $\tilde{\mathbf{A}} = \mathbf{A} + \mathbf{I}$, $\tilde{\mathbf{D}} = \mathbf{D}
 any test vector. Take $\mathbf{x} = \mathbf{1}$:
 $R(\mathbf{1}) = \mathbf{1}^\top \tilde{\mathbf{A}} \mathbf{1} / \mathbf{1}^\top \mathbf{1} = (2m + n)/n = \bar{d} + 1$,
 so $\lambda_{\max} \ge 1 + \bar{d}$. For a generic $\mathbf{h}$ (nonzero component along
-the top eigenvector, which Perron–Frobenius guarantees is positive and hence not
+the top eigenvector, which Perron–Frobenius — *a nonnegative irreducible matrix has a
+simple top eigenvalue with a strictly positive eigenvector* — guarantees is positive and hence not
 orthogonal to generic nonnegative data), $\|\tilde{\mathbf{A}}^k \mathbf{h}\| = \Theta(\lambda_{\max}^k)$.
 
 **(2)** $\tilde{\mathbf{D}}^{-1}\tilde{\mathbf{A}}$ is row-stochastic (nonnegative, rows
@@ -293,10 +330,29 @@ to $(-1, 1]$, so powers of the operator contract everywhere except along one ben
 direction, instead of oscillating.
 :::
 
-With the spectra in hand, the design choice reads itself off. Two bounded options:
+With the spectra in hand, the design choice reads itself off. Two bounded options.
+**Mean (random-walk) normalization** — every node averages its inbox:
 
-- **Mean (random-walk) normalization:** $\mathbf{m}_{\mathcal{N}(u)} = \frac{1}{|\mathcal{N}(u)|}\sum_{v \in \mathcal{N}(u)} \mathbf{h}_v$ — every node averages its inbox. Bounded, simple, and exactly label propagation's operator.
-- **Symmetric normalization:** divide the message on edge $(u,v)$ by $\sqrt{|\mathcal{N}(u)| \, |\mathcal{N}(v)|}$. Now a message is discounted both when the *receiver* is popular and when the *sender* is: a citation from a 10,000-citation survey says less about your topic than one from a focused 8-citation paper. On citation-like graphs this hub-damping is consistently worth a couple of accuracy points, and — unlike the mean operator — the symmetric operator is a similarity transform of a symmetric matrix, which keeps its eigenvectors orthogonal and the spectral analysis of §3 clean.
+$$
+\mathbf{m}_{\mathcal{N}(u)} \;=\; \frac{1}{|\mathcal{N}(u)|}\sum_{v \in \mathcal{N}(u)} \mathbf{h}_v,
+$$ {#eq-w06-mean}
+
+and **symmetric normalization**, which discounts each edge's message by the geometric
+mean of the two endpoint degrees:
+
+$$
+\mathbf{m}_{\mathcal{N}(u)} \;=\; \sum_{v \in \mathcal{N}(u)} \frac{\mathbf{h}_v}{\sqrt{|\mathcal{N}(u)| \, |\mathcal{N}(v)|}}.
+$$ {#eq-w06-sym}
+
+where — $\mathbf{m}_{\mathcal{N}(u)}$ is the aggregated message of @eq-w06-mp,
+$\mathbf{h}_v$ the neighbor's current embedding, and $|\mathcal{N}(u)|, |\mathcal{N}(v)|$
+the receiver's and sender's degrees. @eq-w06-mean is bounded, simple, and exactly label
+propagation's operator. In @eq-w06-sym a message is discounted both when the *receiver*
+is popular and when the *sender* is: a citation from a 10,000-citation survey says less
+about your topic than one from a focused 8-citation paper. On citation-like graphs this
+hub-damping is consistently worth a couple of accuracy points, and — unlike the mean
+operator — the symmetric operator is a similarity transform of a symmetric matrix, which
+keeps its eigenvectors orthogonal and the spectral analysis of §3 clean.
 
 Here is the mean-normalized layer with every term wired to the dataflow it denotes — the
 anatomy to internalize before we compress it into matrix notation:
@@ -309,20 +365,36 @@ Symmetric normalization plus self-loops is the whole recipe:
 $$
 \mathbf{H}^{(k+1)} \;=\; \sigma\!\big( \tilde{\mathbf{D}}^{-1/2} \tilde{\mathbf{A}} \tilde{\mathbf{D}}^{-1/2} \, \mathbf{H}^{(k)} \, \mathbf{W}^{(k)} \big),
 \qquad \tilde{\mathbf{A}} = \mathbf{A} + \mathbf{I}, \quad \tilde{\mathbf{D}} = \mathbf{D} + \mathbf{I}.
-$$
+$$ {#eq-w06-gcn}
+
+where — $\mathbf{H}^{(k)}$ stacks the node embeddings as rows; $\mathbf{W}^{(k)}$ is the
+layer's one learned matrix; $\tilde{\mathbf{A}}$ is the adjacency with self-loops added;
+$\tilde{\mathbf{D}}$ its diagonal degree matrix; $\sigma$ an elementwise nonlinearity.
 :::
 
 ::: {.math-note}
-One learned matrix $\mathbf{W}^{(k)}$ per layer; everything to its left is fixed by the
-graph and computed once. Per node:
-$\mathbf{h}_u^{(k+1)} = \sigma\big(\mathbf{W}^{(k)}{}^\top \sum_{v \in \mathcal{N}(u) \cup \{u\}} \mathbf{h}_v^{(k)} / \sqrt{\tilde{d}_u \tilde{d}_v}\big)$.
+Everything left of $\mathbf{W}^{(k)}$ is fixed by the graph and computed once. Per
+node — the exact equation Lab 6 implements and the exam simulates:
+
+$$
+\mathbf{h}_u^{(k+1)} \;=\; \sigma\Big(\mathbf{W}^{(k)\top} \!\!\sum_{v \in \mathcal{N}(u) \cup \{u\}} \frac{\mathbf{h}_v^{(k)}}{\sqrt{\tilde{d}_u \tilde{d}_v}}\Big),
+$$ {#eq-w06-gcn-node}
+
+where — $\tilde{d}_u = |\mathcal{N}(u)| + 1$ is $u$'s self-looped degree (the diagonal
+entry of $\tilde{\mathbf{D}}$), and the sum runs over the neighbors *plus $u$ itself*
+(the self-loop).
 :::
 
 ::: {#exm-hand .example name="Hand-simulation — the exam skill"}
 Take the 4-node graph with edges $\{(A,B), (A,C), (B,C), (B,D)\}$, scalar features
 $x_A = 2$, $x_B = -1$, $x_C = 3$, $x_D = 1$, and the mean-aggregation layer
-$h_v^{(1)} = \mathrm{ReLU}\big( W \cdot \mathrm{mean}_{u \in \mathcal{N}(v)} h_u^{(0)} + B \cdot h_v^{(0)} \big)$
-with $W = B = 1$ (no self-loop in the mean). Then:
+
+$$
+h_v^{(1)} \;=\; \mathrm{ReLU}\big( W \cdot \mathrm{mean}_{u \in \mathcal{N}(v)} h_u^{(0)} + B \cdot h_v^{(0)} \big),
+$$ {#eq-w06-handrule}
+
+where — $W$ weighs the neighborhood mean and $B$ weighs the node's own value (both
+scalars here, matrices in general); take $W = B = 1$ (no self-loop in the mean). Then:
 
 | node | neighbors | mean of neighbors | + own | ReLU |
 |:---:|:---:|:---:|:---:|:---:|
@@ -360,7 +432,8 @@ $\mathbf{h}^{(1)}$ back in: $\mathbf{h}^{(2)} = \mathrm{ReLU}(\mathbf{P}\mathbf{
 
 {{< include ../assets/figures/fig-matrix-pipeline.html >}}
 
-Every GCN layer is two matrix products, and their costs are not symmetric:
+Every GCN layer is two matrix products, and their costs are not symmetric — write $d$
+for the layer's input width and $d'$ for its output width:
 
 - $\mathbf{H}\mathbf{W}$ — mixing channels: $O(n \, d \, d')$ time, dense but small.
 - $\hat{\mathbf{A}} \cdot (\mathbf{H}\mathbf{W})$ — propagating: $O(m \, d')$ time if
@@ -390,8 +463,16 @@ symmetry. Graphs have no translations — but they have the Laplacian, the Lapla
 symmetric, and symmetric matrices have orthonormal eigenbases. That eigenbasis will play
 the role of the Fourier basis, and the justification is more than an analogy: on a ring
 graph (the discretized circle) the Laplacian eigenvectors *are* the discrete sines and
-cosines, $u_k(j) \propto \cos(2\pi k j / n)$, with eigenvalues $2 - 2\cos(2\pi k / n)$ —
-classical Fourier analysis is literally the special case where the graph is a cycle. Try
+cosines,
+
+$$
+u_k(j) \;\propto\; \cos\!\big(2\pi k j / n\big),
+\qquad \lambda_k = 2 - 2\cos\!\big(2\pi k / n\big),
+$$ {#eq-w06-ring}
+
+where — $u_k(j)$ is the $k$-th eigenvector's value at node $j$, $n$ the ring's node
+count, $\lambda_k$ the matching eigenvalue — classical Fourier
+analysis is literally the special case where the graph is a cycle. Try
 the `ring` option in Figure 2 and watch the sinusoids appear.
 
 ::: {#def-gft .definition name="Graph Fourier transform"}
@@ -412,10 +493,17 @@ Laplacian's eigenbasis is ordered by smoothness, which is what "frequency" means
 :::
 
 ::: {#prp-freq .proposition name="Eigenvalues are frequencies"}
-For a unit-norm signal $\mathbf{x}$, the Laplacian quadratic form measures total
+For a signal $\mathbf{x}$, the Laplacian quadratic form measures total
 variation across edges:
-$\mathbf{x}^\top \mathbf{L} \mathbf{x} = \sum_{(u,v) \in \mathcal{E}} (x_u - x_v)^2$.
-By Courant–Fischer,
+
+$$
+\mathbf{x}^\top \mathbf{L} \mathbf{x} \;=\; \sum_{(u,v) \in \mathcal{E}} (x_u - x_v)^2,
+$$ {#eq-w06-tv}
+
+where — $x_u$ is the signal's value at node $u$ and the sum runs over the edge set
+$\mathcal{E}$: smooth signals score low. By Courant–Fischer (the min–max characterization of a symmetric matrix's
+eigenvalues: the $k$-th smallest is the minimum of the quadratic form over unit vectors
+orthogonal to the first $k-1$ eigenvectors),
 
 $$
 \lambda_k \;=\; \min_{\substack{\mathbf{x} \perp \mathbf{u}_1, \dots, \mathbf{u}_{k-1} \\ \|\mathbf{x}\| = 1}} \; \mathbf{x}^\top \mathbf{L} \mathbf{x},
@@ -445,7 +533,11 @@ frequency component by a response $g(\lambda)$,
 $$
 \mathbf{f} \;\mapsto\; \mathbf{U} \, g(\boldsymbol{\Lambda}) \, \mathbf{U}^\top \mathbf{f},
 \qquad g(\boldsymbol{\Lambda}) = \mathrm{diag}\big(g(\lambda_1), \dots, g(\lambda_n)\big).
-$$
+$$ {#eq-w06-filter}
+
+where — $\mathbf{f}$ is a graph signal, $\mathbf{U}$ the Laplacian's eigenvector matrix
+(@def-gft), and $g : \lambda \mapsto g(\lambda)$ the **frequency response**, applied to
+each eigenvalue separately.
 
 Learning an arbitrary response value per eigenvalue (Bruna et al., 2014) is the most
 expressive version of this idea, and it fails on all three engineering axes at once: it
@@ -456,8 +548,13 @@ guaranteed to be spatially localized on its own graph. All three problems disapp
 restrict $g$ to a **polynomial**:
 
 ::: {#prp-poly .proposition name="Polynomial filters are local and cheap"}
-If $g_w(\lambda) = \sum_{i=0}^{K} w_i \lambda^i$, then
-$\mathbf{U} g_w(\boldsymbol{\Lambda}) \mathbf{U}^\top = g_w(\mathbf{L}) = \sum_{i=0}^K w_i \mathbf{L}^i$:
+If $g_w(\lambda) = \sum_{i=0}^{K} w_i \lambda^i$ with learned coefficients
+$w_0, \dots, w_K$, then
+
+$$
+\mathbf{U} \, g_w(\boldsymbol{\Lambda}) \, \mathbf{U}^\top \;=\; g_w(\mathbf{L}) \;=\; \sum_{i=0}^K w_i \mathbf{L}^i:
+$$ {#eq-w06-poly}
+
 no eigendecomposition is needed, each application costs $K$ sparse multiplies
 ($O(K \cdot m)$), the parameter count is $K + 1$ regardless of the graph's size, and the
 filtered value at node $u$ depends only on nodes within $K$ hops of $u$.
@@ -475,7 +572,12 @@ so the $K$-th order filter reads at most the $K$-hop neighborhood. $\square$
 ChebNet (Defferrard et al., 2016) is this idea made numerically sound: instead of raw
 monomials $\lambda^i$ (whose values explode across $[0, \lambda_{\max}]$ and produce
 badly conditioned optimization), expand in **Chebyshev polynomials**
-$T_0(x) = 1$, $T_1(x) = x$, $T_{i}(x) = 2x\,T_{i-1}(x) - T_{i-2}(x)$ on the rescaled
+
+$$
+T_0(x) = 1, \qquad T_1(x) = x, \qquad T_{i}(x) = 2x\,T_{i-1}(x) - T_{i-2}(x),
+$$ {#eq-w06-cheb}
+
+where — $T_i$ is the degree-$i$ Chebyshev polynomial and $x$ ranges over the rescaled
 spectrum $\tilde{\lambda} \in [-1, 1]$ — an orthogonal basis, bounded by $1$ in absolute
 value, computable by the same sparse recurrence. The GCN is one more, far more
 aggressive, simplification away:
@@ -499,12 +601,20 @@ the GCN layer of @def-gcn, applied featurewise with a learned mixing matrix $\ma
 <details><summary>Derivation (complete)</summary>
 Start from the order-1 Chebyshev expansion on the rescaled Laplacian
 $\tilde{\mathbf{L}} = \tfrac{2}{\lambda_{\max}}\mathbf{L}_{\text{sym}} - \mathbf{I}$:
-$g(\tilde{\mathbf{L}}) \approx w_0 T_0(\tilde{\mathbf{L}}) + w_1 T_1(\tilde{\mathbf{L}}) = w_0 \mathbf{I} + w_1 \tilde{\mathbf{L}}$.
+
+$$
+g(\tilde{\mathbf{L}}) \;\approx\; w_0 T_0(\tilde{\mathbf{L}}) + w_1 T_1(\tilde{\mathbf{L}}) \;=\; w_0 \mathbf{I} + w_1 \tilde{\mathbf{L}}.
+$$
+
 With $\lambda_{\max} \approx 2$ (exactly $2$ iff the graph is bipartite; near $2$ for
 many real graphs; an approximation the learned weights absorb),
 $\tilde{\mathbf{L}} \approx \mathbf{L}_{\text{sym}} - \mathbf{I} = -\mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2}$,
 using $\mathbf{L}_{\text{sym}} = \mathbf{I} - \mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2}$. So
-$g(\mathbf{L}_{\text{sym}}) \approx w_0 \mathbf{I} - w_1 \mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2}$.
+
+$$
+g(\mathbf{L}_{\text{sym}}) \;\approx\; w_0 \mathbf{I} - w_1 \mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2}.
+$$
+
 Setting $w = w_0 = -w_1$ (one parameter per filter instead of two — fewer parameters,
 less overfitting, and empirically no loss): $g \approx w(\mathbf{I} + \mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2})$.
 That operator's spectrum lies in $[0, 2]$; stacking $k$ layers powers it $k$ times, so
@@ -518,10 +628,18 @@ learned $\mathbf{W} \in \mathbb{R}^{d \times d'}$, add $\sigma$, and @def-gcn ap
 
 ### What the spectral view buys: the GCN is a low-pass filter
 
-After @thm-gcn, the GCN's fixed propagation is one specific filter response:
-$g(\lambda) = 1 - \tilde{\lambda}$ over the self-looped normalized spectrum — large at
-low frequencies, small or sign-flipping at high ones. Repeated application sharpens that
-preference into a theorem:
+After @thm-gcn, the GCN's fixed propagation is one specific filter response — the
+"low-pass" claim itself, in one line:
+
+$$
+g(\tilde{\lambda}) \;=\; 1 - \tilde{\lambda},
+$$ {#eq-w06-response}
+
+where — $\tilde{\lambda} \in [0, 2)$ is an eigenvalue of the *self-looped* normalized
+Laplacian $\tilde{\mathbf{L}}_{\text{sym}} = \mathbf{I} - \hat{\mathbf{A}}$, so
+$1 - \tilde{\lambda}$ is the matching eigenvalue of $\hat{\mathbf{A}}$ — the response is
+large at low frequencies, small or sign-flipping at high ones. Repeated application
+sharpens that preference into a theorem:
 
 ::: {#prp-lowpass .proposition name="Repeated propagation is low-pass — oversmoothing, quantitatively"}
 Let $\hat{\mathbf{A}} = \sum_i \mu_i \mathbf{v}_i \mathbf{v}_i^\top$ be the
@@ -534,9 +652,11 @@ $$
 \hat{\mathbf{A}}^k \mathbf{x} \;=\; \sum_i \mu_i^k \langle \mathbf{v}_i, \mathbf{x} \rangle\, \mathbf{v}_i
 \;\xrightarrow{\;k \to \infty\;}\; \langle \mathbf{v}_1, \mathbf{x} \rangle\, \mathbf{v}_1,
 \qquad \mathbf{v}_1 \propto \tilde{\mathbf{D}}^{1/2}\mathbf{1},
-$$
+$$ {#eq-w06-lowpass}
 
-with error shrinking as $|\mu_2|^k$. Propagation without learning converges to a
+where — $\mu_i, \mathbf{v}_i$ are the eigenpairs named above,
+$\langle \cdot, \cdot \rangle$ is the Euclidean inner product, and the error shrinks as
+$|\mu_2|^k$. Propagation without learning converges to a
 *degree-scaled constant*: every node's representation becomes the same number times
 $\sqrt{\tilde{d}_u}$ — all feature information gone, only degrees left.
 :::
@@ -566,11 +686,30 @@ able to say out loud in an interview.
 *First*, after this section the GCN is best understood as a **fixed low-pass filter plus
 a learned channel mix**: it smooths features over neighborhoods, which is precisely
 right under homophily — and precisely wrong without it. Don't take our word for it. SGC
-(in the optional reading) makes the point brutally: delete every nonlinearity,
-precompute $\hat{\mathbf{A}}^K \mathbf{X}$ once, fit logistic regression, and match the
-GCN on Cora. The low-pass filter, not the "neural network", is doing most of the work on
-these benchmarks — you will run this experiment yourself in Lab 6 and decide how you
-feel about it.
+([Wu et al., 2019](https://arxiv.org/abs/1902.07153); in the optional reading) makes the
+point brutally: delete every nonlinearity, precompute $\hat{\mathbf{A}}^K \mathbf{X}$
+once, fit logistic regression, and match the GCN on Cora — @alg-w06-sgc is the whole
+method.
+
+::: {#alg-w06-sgc .algorithm name="SGC: precompute, then logistic regression"}
+Computes GCN-quality node predictions with no message passing at training time.
+
+**Input:** features $\mathbf{X}$; sparse $\hat{\mathbf{A}}$; depth $K$; labeled set $\mathcal{V}_{\text{train}}$ with labels $y$. **Output:** class predictions for all $n$ nodes.
+
+1. $\bar{\mathbf{X}} \leftarrow \mathbf{X}$
+2. **for** $k = 1, \dots, K$ **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;$\bar{\mathbf{X}} \leftarrow \hat{\mathbf{A}}\, \bar{\mathbf{X}}$
+4. **end for**
+5. fit logistic regression $\boldsymbol{\Theta}$ on $\{(\bar{\mathbf{x}}_u, y_u) : u \in \mathcal{V}_{\text{train}}\}$
+6. **return** $\mathrm{softmax}(\bar{\mathbf{X}} \boldsymbol{\Theta})$
+:::
+
+Steps 2–4 are the entire "GNN": $K$ sparse multiplies costing $O(K m d)$ in total, run
+*once, offline*, before any training. Step 5 is a plain linear classifier — in Lab 6, a
+single linear layer trained with cross-entropy: exactly multinomial logistic regression.
+The low-pass filter, not the "neural network", is doing most of the work on these
+benchmarks — you will run this experiment yourself in Lab 6 and decide how you feel
+about it.
 
 *Second*, general spectral architectures lost to spatial message passing not because the
 mathematics fails but because the engineering does: eigenbases do not transfer across
@@ -605,7 +744,8 @@ $f(\mathbf{P}_\pi \mathbf{A} \mathbf{P}_\pi^\top,\, \mathbf{P}_\pi \mathbf{X}) =
 ::: {#thm-equiv .theorem name="GCN layers are permutation equivariant"}
 The GCN layer $f(\mathbf{A}, \mathbf{H}) = \sigma\big(\hat{\mathbf{A}}\,\mathbf{H}\mathbf{W}\big)$
 is permutation equivariant. Consequently a stack of GCN layers is equivariant, and
-composing it with a sum readout $\mathbf{z}_{\mathcal{G}} = \sum_u \mathbf{h}^{(K)}_u$
+composing it with a sum readout $\mathbf{z}_{\mathcal{G}} = \sum_u \mathbf{h}^{(K)}_u$ —
+the sum of all final-layer node embeddings —
 yields a permutation-invariant graph-level model.
 :::
 
@@ -647,7 +787,9 @@ Why insist? Because node ordering in an adjacency matrix is *storage*, not *info
 the same 5-node graph has up to $5! = 120$ different adjacency matrices. A model whose
 output changes under reordering — say, an MLP fed the flattened matrix — is fitting
 storage artifacts; and since the orderings are combinatorially many, no amount of data
-augmentation truly fixes it. Equivariance is also a *statistical* statement: it is the
+augmentation truly fixes it.
+
+Equivariance is also a *statistical* statement: it is the
 inductive bias that shrinks the hypothesis space to functions of the graph itself, the
 exact analogue of a CNN's translation weight-sharing — and, as with CNNs, it is why the
 parameter count does not grow with the input size.
@@ -674,8 +816,26 @@ Architectures = symmetries. We pull that thread properly in Week 13.
 
 ## 5. The GCN in code, trained honestly
 
-The entire model for Cora, in PyTorch, sparse and honest — Lab 6 walks you through
-building this from nothing:
+The entire model for Cora is two GCN layers ([Kipf & Welling, 2017](https://arxiv.org/abs/1609.02907)) — spec first, then code.
+Lab 6 builds it from nothing; @alg-w06-gcn-forward is exactly its `GCN.forward`:
+
+::: {#alg-w06-gcn-forward .algorithm name="Two-layer GCN forward pass"}
+Computes class logits for every node from the features and the fixed propagation
+operator.
+
+**Input:** features $\mathbf{X} \in \mathbb{R}^{n \times d}$; sparse $\hat{\mathbf{A}} = \tilde{\mathbf{D}}^{-1/2}\tilde{\mathbf{A}}\tilde{\mathbf{D}}^{-1/2}$; weights $\mathbf{W}_1 \in \mathbb{R}^{d \times d'}$, $\mathbf{W}_2 \in \mathbb{R}^{d' \times C}$ ($C$ classes); dropout rate $p$. **Output:** logits $\mathbf{Z} \in \mathbb{R}^{n \times C}$.
+
+1. $\mathbf{H} \leftarrow \mathbf{X}\mathbf{W}_1$
+2. $\mathbf{H} \leftarrow \hat{\mathbf{A}}\,\mathbf{H}$
+3. $\mathbf{H} \leftarrow \mathrm{ReLU}(\mathbf{H})$
+4. $\mathbf{H} \leftarrow \mathrm{Dropout}(\mathbf{H}, p)$ — training only
+5. $\mathbf{Z} \leftarrow \hat{\mathbf{A}}\,(\mathbf{H}\mathbf{W}_2)$
+6. **return** $\mathbf{Z}$ — softmax lives inside the loss
+:::
+
+Steps 1–2 are one GCN layer of @eq-w06-gcn in the cheap order: mix channels first
+($O(n\,d\,d')$, dense), then propagate one hop ($O(m\,d')$, sparse). Step 4 is the main
+regularizer; step 5 repeats the pair for the output layer. In code:
 
 ```python
 class GCN(torch.nn.Module):
@@ -699,7 +859,10 @@ the logits,
 
 $$
 \mathcal{L} \;=\; - \sum_{u \in \mathcal{V}_{\text{train}}} \log \frac{\exp(Z_{u, y_u})}{\sum_c \exp(Z_{u, c})},
-$$
+$$ {#eq-w06-loss}
+
+where — $y_u$ is node $u$'s ground-truth label, $c$ ranges over the 7 topic classes, and
+$Z_{u,c}$ is the logit for class $c$ at node $u$.
 
 ::: {.math-note}
 The sum runs over 140 nodes, but the forward pass runs over all 2,708: every unlabeled
@@ -726,7 +889,7 @@ embedding table row count, and *independent of $n$* by weight sharing (§4).
 
 ::: {.margin-note}
 **Where this exact pattern earns money.** Neighborhood aggregation with shared weights is
-the core of PinSage (Pinterest's 3-billion-node recommender), of Google Maps' ETA model
+the core of [PinSage](https://arxiv.org/abs/1806.01973) (Pinterest's 3-billion-node recommender), of [Google Maps' ETA model](https://arxiv.org/abs/2108.11482)
 (road segments aggregating traffic from neighbors), and of the fraud-detection GNNs at
 every major payments company. When you implement Lab 6 you are writing the same ten
 lines those systems scale up. The differences — sampling, serving, feature stores — are
@@ -849,23 +1012,23 @@ equivariance-as-inductive-bias worldview.
 
 ## Check your understanding
 
-<details><summary>Q1 · Conceptual — Definition 1 requires AGGREGATE to be permutation invariant. What concretely breaks if it is not? Give a function that violates it.</summary>
+<details><summary>Q1 · Conceptual — The message-passing definition requires AGGREGATE to be permutation invariant. What concretely breaks if it is not? Give a function that violates it.</summary>
 If AGGREGATE depends on neighbor order (e.g. an LSTM over the neighbor list, or "take the
 first neighbor's vector"), the same graph stored with a different node ordering produces
 different embeddings — the model's predictions become a function of storage layout, and
-Theorem 2's equivariance proof fails at the step where the multiset is assumed orderless.
+the equivariance proof of @thm-equiv fails at the step where the multiset is assumed orderless.
 (GraphSAGE's LSTM aggregator really has this flaw; its authors shuffle neighbors to make
 the model *learn* approximate invariance — Week 7.)
 </details>
 
-<details><summary>Q2 · Hand-simulation — In Example 1's graph, run a second layer with the same rule and weights, starting from h⁽¹⁾ = (3, 1, 3.5, 0). What is h_D⁽²⁾, and what happened to it?</summary>
+<details><summary>Q2 · Hand-simulation — In the hand-simulation example's graph, run a second layer with the same rule and weights, starting from h⁽¹⁾ = (3, 1, 3.5, 0). What is h_D⁽²⁾, and what happened to it?</summary>
 $h_D^{(2)} = \mathrm{ReLU}(\mathrm{mean}(h_B^{(1)}) + h_D^{(1)}) = \mathrm{ReLU}(1 + 0) = 1$.
 $D$'s value was erased by the first layer's ReLU, and in the second layer it is entirely
 reconstructed from its neighbor: after two rounds $D$'s representation carries no trace of
 $x_D$ — a tiny preview of how information about the self can wash out.
 </details>
 
-<details><summary>Q3 · Derivation — Prove part 2 of Proposition 1 yourself: every eigenvalue of a row-stochastic matrix lies in [−1, 1]. Where did you use nonnegativity?</summary>
+<details><summary>Q3 · Derivation — Prove part 2 of the spectra proposition yourself: every eigenvalue of a row-stochastic matrix lies in [−1, 1]. Where did you use nonnegativity?</summary>
 For any eigenpair $(\lambda, \mathbf{v})$, pick the index $u$ with the largest $|v_u|$;
 then $|\lambda||v_u| = |\sum_v P_{uv} v_v| \le \sum_v P_{uv} |v_v| \le |v_u| \sum_v P_{uv} = |v_u|$,
 so $|\lambda| \le 1$. Nonnegativity is used in the first inequality (triangle inequality
@@ -874,20 +1037,20 @@ argument that made PageRank's power iteration converge in Week 2.
 </details>
 
 <details><summary>Q4 · Conceptual — Your friend says: "GCN needs the Laplacian eigendecomposition, so it can't scale." What exactly is wrong?</summary>
-The eigendecomposition appears only in the *derivation* (Theorem 1); the runtime layer is
+The eigendecomposition appears only in the *derivation* (@thm-gcn); the runtime layer is
 $\sigma(\hat{\mathbf{A}}\mathbf{H}\mathbf{W})$ with sparse $\hat{\mathbf{A}}$ — cost
 $O(m d' + n d d')$ per layer by the §2 accounting, no spectra computed ever. The valid
 scaling concern is different: full-batch propagation touches the whole graph each step
 (Week 11).
 </details>
 
-<details><summary>Q5 · Derivation — Where exactly does the proof of Theorem 2 use that σ is applied elementwise? Exhibit a σ for which equivariance fails.</summary>
+<details><summary>Q5 · Derivation — Where exactly does the equivariance theorem's proof use that σ is applied elementwise? Exhibit a σ for which equivariance fails.</summary>
 The step $\sigma(\mathbf{P}_\pi \mathbf{M}) = \mathbf{P}_\pi \sigma(\mathbf{M})$: an
 elementwise function commutes with any rearrangement of entries. A counterexample must
 address positions: e.g. $\sigma(\mathbf{M}) = \mathbf{M}$ with row 1 zeroed ("mute the
 first-stored node"). Which node is muted then depends on storage order, breaking
 equivariance. The lesson: any operation that singles out node *indices* (not node
-*values*) is illegal — the same rule the margin note after Theorem 2 states.
+*values*) is illegal — the same rule the note after @thm-equiv states.
 </details>
 
 <details><summary>Q6 · Spectra — Compute the frequency response of the two-layer (linear) GCN, i.e. of Â², in terms of the eigenvalues μᵢ. Which components survive two layers best, and at what rate does a component with μ = 0.9 vs μ = 0.3 decay after k layers?</summary>
@@ -916,6 +1079,22 @@ previewed later: separate self/neighbor weights (GraphSAGE, Week 7), attention t
 down-weight neighbors (GAT, Week 7), or filters that pass high frequencies (the
 $w_1 > 0$ region in Figure 2's filter mode — spectral methods, Week 13).
 </details>
+
+::: {.notions}
+**Notions introduced this week**
+
+- **Neural message passing** (@def-mp, @eq-w06-mp) — message → aggregate → update over a neighborhood multiset.
+- **Computation tree** (@def-w06-comp-tree) — the $k$-hop neighborhood unrolled.
+- **Receptive field** (@def-w06-receptive) — the input nodes that can influence an output.
+- **Basic GNN layer** (@def-basic) — separate self/neighbor weights; spectrum explodes unnormalized (@prp-spectra).
+- **Normalization** (@eq-w06-mean, @eq-w06-sym) — mean vs symmetric degree-discounting.
+- **GCN layer** (@def-gcn, @eq-w06-gcn) — symmetric normalization plus self-loops, one learned matrix per layer (@alg-w06-gcn-forward).
+- **Graph Fourier transform** (@def-gft) — signals in the Laplacian's eigenbasis (@prp-freq, @eq-w06-tv).
+- **Spectral / polynomial filter** (@eq-w06-filter, @prp-poly) — rescale frequency components; polynomial ⇒ local and cheap.
+- **Renormalization trick** (@thm-gcn) — self-loops *before* normalizing; spectrum $(-1, 1]$ instead of $[0, 2]$.
+- **Low-pass filtering / oversmoothing** (@eq-w06-response, @prp-lowpass) — the GCN's bias, collapsing at rate $|\mu_2|^k$; SGC (@alg-w06-sgc) deletes the network.
+- **Permutation invariance / equivariance** (@def-perm, @thm-equiv) — storage order is not information.
+:::
 
 :::
 

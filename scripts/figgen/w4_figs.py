@@ -38,7 +38,15 @@ EPOS = {
     "university": (105, 176), "city": (280, 176), "region": (465, 62),
 }
 RCOLOR = {"located_in": "var(--dkr-blue, #0f8377)", "instance_of": "var(--dkr-muted, #8e8e9a)",
-          "capital_of": "#7c5cd6", "part_of": "var(--dkr-green, #199473)", "flows_through": "#d1567e"}
+          "capital_of": "var(--dkr-purple, #7c5cd6)", "part_of": "var(--dkr-green, #199473)",
+          "flows_through": "#d1567e"}
+# label ink: identity-pink is too low-contrast for text on either ground, so the
+# label (not the edge) borrows a little of the theme's text color each way
+LABEL_INK = {"flows_through":
+             "color-mix(in srgb, #d1567e 76%, var(--dkr-text, #1c1c21) 24%)"}
+# halo behind every floating label so edges never cut through the lettering
+HALO = ('paint-order="stroke" stroke="var(--dkr-bg, #fbfbfa)" stroke-width="4" '
+        'stroke-linejoin="round"')
 ETYPE = {"university", "city", "region"}
 
 # the inferred fact: located_in(IU, Innopolis) ∘ located_in(Innopolis, Tatarstan)
@@ -74,13 +82,25 @@ for h, r, t in TRIPLES:
 (x1, y1), (x2, y2) = EPOS[MISSING[0]], EPOS[MISSING[2]]
 hero.append(f'  <line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="var(--dkr-accent, #d9603b)" '
             f'stroke-width="2.6" stroke-dasharray="7,5" opacity="0.9" marker-end="url(#w4hB)"/>')
+# hand-tuned label anchors where the automatic midpoint sits on a crossing:
+# capital_of above its own straight edge (the located_in curve bows the other
+# way), flows_through below its edge, clear of the part_of/Russia cluster
+LABEL_POS = {"capital_of": (348, 200), "flows_through": (552, 232),
+             "part_of": (582, 150)}
 seen_r = set()
 for mx, my, r, c in lab_pts:
     if r in seen_r:
         continue
     seen_r.add(r)
+    mx, my = LABEL_POS.get(r, (mx, my))
+    ink = LABEL_INK.get(r)
+    fill = f'style="fill:{ink}"' if ink else f'fill="{c}"'
     hero.append(f'  <text x="{mx:.0f}" y="{my:.0f}" text-anchor="middle" font-family="{MONO}" '
-                f'font-size="12" fill="{c}">{r}</text>')
+                f'font-size="12" {HALO} {fill}>{r}</text>')
+# the instance_of edges are the fragment's type system — label one representative
+# so every relation in a "typed, labeled, directed" figure is in fact labeled
+hero.append(f'  <text x="472" y="125" text-anchor="start" font-family="{MONO}" font-size="12" '
+            f'font-style="italic" {HALO} fill="var(--dkr-muted, #6e6e7a)">instance_of</text>')
 for e, (x, y) in EPOS.items():
     is_type = e in ETYPE
     fill = "var(--dkr-paper, #fff)" if is_type else "var(--dkr-yellow, #d9a62e)"
@@ -135,7 +155,7 @@ panels = []
 def frame(ox, oy, title, formula, color):
     return (f'  <g font-family="{SANS}">'
             f'<text x="{ox + 92}" y="{oy + 16}" text-anchor="middle" font-size="14.5" font-weight="700" fill="{color}">{title}</text>'
-            f'<text x="{ox + 92}" y="{oy + 34}" text-anchor="middle" font-family="{MONO}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">{formula}</text></g>')
+            f'<text x="{ox + 92}" y="{oy + 34}" text-anchor="middle" font-family="{MONO}" font-size="12.5" fill="var(--dkr-muted, #6e6e7a)">{formula}</text></g>')
 
 # — TransE panel (0,0)
 ox, oy = 12, 8
@@ -151,32 +171,55 @@ p.append(f'  <g font-family="{SANS}" font-size="12" font-weight="600">'
          f'<text x="{(hx + sx_) / 2}" y="{(hy + sy_) / 2 - 8}" fill="var(--dkr-accent, #b84a2b)">+r</text>'
          f'<text x="{tx + 12}" y="{ty - 6}" fill="var(--dkr-green, #199473)">t ✓ score 0</text>'
          f'<text x="{dx + 11}" y="{dy + 12}" fill="var(--dkr-muted, #6e6e7a)">t′: −1</text></g>')
-p.append(f'  <text x="{ox + 92}" y="{oy + 182}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">relation = a translation</text>')
+p.append(f'  <text x="{ox + 92}" y="{oy + 198}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">relation = a translation</text>')
 panels.append("\n".join(p))
 
 # — DistMult panel (1,0)
 ox = 202
-p = [frame(ox, oy, "DistMult", "Σ hᵢ rᵢ tᵢ", "#7c5cd6")]
-rows = [("h", dh, "var(--dkr-yellow, #d9a62e)"), ("r", dr, "#7c5cd6"), ("t", dt, "var(--dkr-green, #199473)")]
+p = [frame(ox, oy, "DistMult", "Σ hᵢ rᵢ tᵢ", "var(--dkr-purple, #7c5cd6)")]
+rows = [("h", dh, "var(--dkr-yellow, #d9a62e)"), ("r", dr, "var(--dkr-purple, #7c5cd6)"), ("t", dt, "var(--dkr-green, #199473)")]
 for k, (nm, vec, color) in enumerate(rows):
     yy = oy + 58 + k * 34
     p.append(f'  <text x="{ox + 26}" y="{yy + 17}" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{color}">{nm}</text>')
     for j, v in enumerate(vec):
         p.append(f'  <rect x="{ox + 40 + j * 34}" y="{yy}" width="30" height="24" rx="5" fill="{color}" opacity="0.2"/>')
         p.append(f'  <text x="{ox + 55 + j * 34}" y="{yy + 16.5}" text-anchor="middle" font-family="{MONO}" font-size="12.5" fill="var(--dkr-text, #1c1c21)">{v}</text>')
-p.append(f'  <text x="{ox + 92}" y="{oy + 172}" text-anchor="middle" font-family="{MONO}" font-size="12" fill="var(--dkr-text, #1c1c21)">2·1·1 + 1·3·2 = {dm}</text>')
-p.append(f'  <text x="{ox + 92}" y="{oy + 190}" text-anchor="middle" font-family="{SANS}" font-size="12" font-weight="600" fill="#cf4a30">swap h↔t: still {dm_swap} — always</text>')
+p.append(f'  <text x="{ox + 92}" y="{oy + 180}" text-anchor="middle" font-family="{MONO}" font-size="12" fill="var(--dkr-text, #1c1c21)">2·1·1 + 1·3·2 = {dm}</text>')
+p.append(f'  <text x="{ox + 92}" y="{oy + 198}" text-anchor="middle" font-family="{SANS}" font-size="12" font-weight="600" fill="var(--dkr-red, #cf4a30)">swap h↔t: still {dm_swap} — always</text>')
 panels.append("\n".join(p))
 
-# — ComplEx panel (2,0)
+# — ComplEx panel (2,0): the same one-drawing grammar as its siblings — a unit
+# circle showing h, t, and the conjugate flip t̄ that breaks the swap symmetry
 ox = 392
 p = [frame(ox, oy, "ComplEx", "Re⟨h, r, t̄⟩", "var(--dkr-blue, #0f8377)")]
-p.append(f'  <g font-family="{MONO}" font-size="12" fill="var(--dkr-text, #1c1c21)" text-anchor="middle">'
-         f'<text x="{ox + 92}" y="{oy + 66}">h = 1+i</text>'
-         f'<text x="{ox + 92}" y="{oy + 88}">r = i · t = −1+i</text>'
-         f'<text x="{ox + 92}" y="{oy + 122}">Re(h·r·t̄) = {cx:+.0f}</text>'
-         f'<text x="{ox + 92}" y="{oy + 148}">Re(t·r·h̄) = {cx_swap:+.0f}</text></g>')
-p.append(f'  <text x="{ox + 92}" y="{oy + 182}" text-anchor="middle" font-family="{SANS}" font-size="12" font-weight="600" fill="var(--dkr-green, #199473)">swap flips the score:</text>')
+p.append(f'  <text x="{ox + 92}" y="{oy + 54}" text-anchor="middle" font-family="{MONO}" font-size="12" '
+         f'fill="var(--dkr-text, #1c1c21)">h = 1+i · r = i · t = −1+i</text>')
+ccx2, ccy2, R2 = ox + 92, oy + 114, 27
+p.append(f'  <circle cx="{ccx2}" cy="{ccy2}" r="{R2}" fill="none" stroke="var(--dkr-border, #e8e7e3)" stroke-width="1.6"/>')
+p.append(f'  <line x1="{ccx2 - R2 - 12}" y1="{ccy2}" x2="{ccx2 + R2 + 12}" y2="{ccy2}" '
+         f'stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1" stroke-dasharray="2,3" opacity="0.7"/>')
+for ang, nm, colr, open_dot, lx, ly, anc in [
+        (45, "h", "var(--dkr-yellow, #d9a62e)", False, 10, -6, "start"),
+        (135, "t", "var(--dkr-green, #199473)", False, -10, -6, "end"),
+        (225, "t̄", "var(--dkr-green, #199473)", True, -10, 14, "end")]:
+    px2 = ccx2 + R2 * math.cos(math.radians(ang))
+    py2 = ccy2 - R2 * math.sin(math.radians(ang))
+    if open_dot:
+        p.append(f'  <circle cx="{px2:.1f}" cy="{py2:.1f}" r="5.5" fill="none" stroke="{colr}" stroke-width="1.8"/>')
+    else:
+        p.append(f'  <circle cx="{px2:.1f}" cy="{py2:.1f}" r="6" fill="{colr}"/>')
+    p.append(f'  <text x="{px2 + lx:.1f}" y="{py2 + ly:.1f}" text-anchor="{anc}" font-family="{SANS}" '
+             f'font-size="12" font-weight="600" fill="{colr}">{nm}</text>')
+# the conjugate flip: t mirrors across the real axis to t̄
+fa0, fa1 = math.radians(135), math.radians(225)
+Rf = R2 + 9
+p.append(f'  <path d="M {ccx2 + Rf * math.cos(fa0):.1f},{ccy2 - Rf * math.sin(fa0):.1f} '
+         f'A {Rf},{Rf} 0 0 0 {ccx2 + Rf * math.cos(fa1):.1f},{ccy2 - Rf * math.sin(fa1):.1f}" '
+         f'fill="none" stroke="var(--dkr-accent, #d9603b)" stroke-width="1.8" '
+         f'stroke-dasharray="4,3" marker-end="url(#w4sA)"/>')
+p.append(f'  <text x="{ox + 92}" y="{oy + 162}" text-anchor="middle" font-family="{MONO}" font-size="12" '
+         f'fill="var(--dkr-text, #1c1c21)">Re(h·r·t̄) = {cx:+.0f} · swap {cx_swap:+.0f}</text>')
+p.append(f'  <text x="{ox + 92}" y="{oy + 180}" text-anchor="middle" font-family="{SANS}" font-size="12" font-weight="600" fill="var(--dkr-green, #199473)">swap flips the score:</text>')
 p.append(f'  <text x="{ox + 92}" y="{oy + 198}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">direction is back — for free</text>')
 panels.append("\n".join(p))
 
@@ -190,12 +233,13 @@ for z, nm, color, ddx in [(rh, "h", "var(--dkr-yellow, #d9a62e)", 12), (rt, "t =
     p.append(f'  <circle cx="{px:.1f}" cy="{py:.1f}" r="7" fill="{color}"/>')
     anchor = "start" if ddx > 0 else "end"
     p.append(f'  <text x="{px + ddx:.1f}" y="{py - 10:.1f}" text-anchor="{anchor}" font-family="{SANS}" font-size="12" font-weight="600" fill="{color}">{nm}</text>')
-# 90° arc from h to t
+# 90° arc from h to t; its label sits in the (empty) circle center, clear of
+# both the arc above and the formula line in the frame
 a0, a1 = math.pi / 4, 3 * math.pi / 4
 p.append(f'  <path d="M {ccx + (R + 14) * math.cos(a0):.1f},{ccy - (R + 14) * math.sin(a0):.1f} '
          f'A {R + 14},{R + 14} 0 0 0 {ccx + (R + 14) * math.cos(a1):.1f},{ccy - (R + 14) * math.sin(a1):.1f}" '
          f'fill="none" stroke="var(--dkr-accent, #d9603b)" stroke-width="2.2" marker-end="url(#w4sA)"/>')
-p.append(f'  <text x="{ccx}" y="{ccy - R - 22}" text-anchor="middle" font-family="{SANS}" font-size="12" font-weight="600" fill="var(--dkr-accent, #b84a2b)">r = rotate 90°</text>')
+p.append(f'  <text x="{ccx}" y="{ccy + 4}" text-anchor="middle" font-family="{SANS}" font-size="12" font-weight="600" fill="var(--dkr-accent, #b84a2b)">r = rotate 90°</text>')
 p.append(f'  <text x="{ox + 92}" y="{oy + 198}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">relation = a rotation, per dim</text>')
 panels.append("\n".join(p))
 
@@ -235,14 +279,14 @@ for i, (pname, pdef, cells) in enumerate(PATTERNS):
     if i % 2 == 0:
         pat.append(f'  <rect x="20" y="{yy}" width="720" height="{RH}" fill="var(--dkr-muted, #8e8e9a)" opacity="0.07"/>')
     pat.append(f'  <text x="30" y="{yy + 24}" font-family="{SANS}" font-size="13" font-weight="700" fill="var(--dkr-text, #1c1c21)">{pname}</text>')
-    pat.append(f'  <text x="30" y="{yy + 41}" font-family="{MONO}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">{pdef}</text>')
+    pat.append(f'  <text x="30" y="{yy + 41}" font-family="{MONO}" font-size="12.5" fill="var(--dkr-muted, #6e6e7a)">{pdef}</text>')
     for j, (mark, why) in enumerate(cells):
         cx = X0 + CW * j + CW / 2
         good = mark == "✓"
-        color = "var(--dkr-green, #199473)" if good else "#cf4a30"
+        color = "var(--dkr-green, #199473)" if good else "var(--dkr-red, #cf4a30)"
         pat.append(f'  <text x="{cx}" y="{yy + 25}" text-anchor="middle" font-family="{SANS}" font-size="16" font-weight="800" fill="{color}">{mark}</text>')
         if why:
-            pat.append(f'  <text x="{cx}" y="{yy + 42}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">{why}</text>')
+            pat.append(f'  <text x="{cx}" y="{yy + 42}" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="var(--dkr-muted, #6e6e7a)">{why}</text>')
 n_yes = sum(1 for _, _, cells in PATTERNS for m, _ in cells if m == "✓")
 pat.append(f'''  <g font-family="{SANS}">
     <rect x="75" y="{Y0 + 30 + 5 * RH + 14}" width="610" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
@@ -282,13 +326,17 @@ for col, (items, note_t) in enumerate([(ranked, "raw"), (filt_ranked, "filt")]):
         ghost = note_t == "filt" and is_known
         fill = ("var(--dkr-green, #199473)" if is_true else
                 "#7c5cd6" if is_known else "var(--dkr-muted, #8e8e9a)")
-        op = 0.18 if ghost else (0.9 if (is_true or is_known) else 0.45)
+        op = 0.16 if ghost else (0.9 if (is_true or is_known) else 0.45)
         rk = (filt_ranked.index(t) + 1) if (note_t == "filt" and not ghost) else (ranked.index(t) + 1)
         p_rank = "—" if ghost else str(rk)
+        # the removed row must read "struck out", not "rendering bug": faint band,
+        # but solid struck-through text in the competitor's own purple
+        strike = ' text-decoration="line-through"' if ghost else ""
+        tfill = "var(--dkr-purple, #7c5cd6)" if ghost else "#fff"
         ev.append(f'  <rect x="{ox}" y="{yy}" width="250" height="27" rx="8" fill="{fill}" opacity="{op}"/>')
-        ev.append(f'  <text x="{ox + 12}" y="{yy + 18.5}" font-family="{SANS}" font-size="12.5" font-weight="700" fill="#fff" opacity="{0.4 if ghost else 1}">{p_rank}</text>')
-        ev.append(f'  <text x="{ox + 36}" y="{yy + 18.5}" font-family="{SANS}" font-size="12.5" fill="#fff" opacity="{0.4 if ghost else 1}">{t}</text>')
-        ev.append(f'  <text x="{ox + 242}" y="{yy + 18.5}" text-anchor="end" font-family="{MONO}" font-size="12" fill="#fff" opacity="{0.4 if ghost else 1}">{scores[t]:+.1f}</text>')
+        ev.append(f'  <text x="{ox + 12}" y="{yy + 18.5}" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{tfill}">{p_rank}</text>')
+        ev.append(f'  <text x="{ox + 36}" y="{yy + 18.5}" font-family="{SANS}" font-size="12.5" fill="{tfill}"{strike}>{t}</text>')
+        ev.append(f'  <text x="{ox + 242}" y="{yy + 18.5}" text-anchor="end" font-family="{MONO}" font-size="12" fill="{tfill}"{strike}>{scores[t]:+.1f}</text>')
         k += 1
 ev.append(f'  <text x="205" y="262" text-anchor="middle" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">Russia outranks the answer — but (Volga, flows_through, Russia)</text>')
 ev.append(f'  <text x="205" y="278" text-anchor="middle" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">is a TRAINING fact: the model is right, the metric was wrong</text>')

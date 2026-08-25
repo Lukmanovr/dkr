@@ -22,7 +22,7 @@
   const OPS = {
     sum: { M: At, label: "sum · (A+I)h", color: "red" },
     mean: { M: At.map((row, i) => row.map((v) => v / dt[i])), label: "mean · D̃⁻¹Ãh", color: "yellow" },
-    gcn: { M: At.map((row, i) => row.map((v, j) => v / Math.sqrt(dt[i] * dt[j]))), label: "GCN · D̃^-½ÃD̃^-½h", color: "green" },
+    gcn: { M: At.map((row, i) => row.map((v, j) => v / Math.sqrt(dt[i] * dt[j]))), label: "GCN · D̃⁻½ÃD̃⁻½h", color: "green" },
   };
 
   let state = { sum: x0.slice(), mean: x0.slice(), gcn: x0.slice() };
@@ -32,7 +32,7 @@
   function norm(v) { return Math.sqrt(v.reduce((a, b) => a + b * b, 0)); }
   function apply(M, v) { return M.map((row) => row.reduce((a, m, j) => a + m * v[j], 0)); }
 
-  const W = 760, Hgt = 350;
+  const W = 760, Hgt = 290;
   // three copies of the same layout
   const lay = g.nodes.map((d, i) => {
     if (i === 0) return { x: 0, y: 0 };
@@ -50,20 +50,20 @@
       .attr("stroke", P.border).attr("stroke-width", 1.3);
     const nd = p.selectAll("g").data(g.nodes).join("g")
       .attr("transform", (d) => `translate(${lay[d.id].x},${lay[d.id].y})`);
-    nd.append("circle").attr("r", 15)
+    nd.append("circle").attr("r", 16)
       .attr("fill", (d) => U.signedColor(vals[d.id], vmax, P))
       .attr("stroke", P.muted).attr("stroke-width", 1);
-    nd.append("text").attr("text-anchor", "middle").attr("dy", 3.5)
-      .attr("font-size", 9).attr("fill", P.text)
+    nd.append("text").attr("text-anchor", "middle").attr("dy", 4.5)
+      .attr("font-size", 12.5).attr("fill", P.text)
       .text((d) => {
         const v = vals[d.id];
         return Math.abs(v) >= 100 ? v.toExponential(0) : v.toFixed(Math.abs(v) >= 10 ? 0 : 1);
       });
     p.append("text").attr("x", 0).attr("y", -82).attr("text-anchor", "middle")
-      .attr("font-size", 11.5).attr("font-weight", 700).attr("fill", P[OPS[key].color])
+      .attr("font-size", 13).attr("font-weight", 700).attr("fill", P[OPS[key].color])
       .text(OPS[key].label);
-    p.append("text").attr("x", 0).attr("y", 92).attr("text-anchor", "middle")
-      .attr("font-size", 10.5).attr("fill", P.muted)
+    p.append("text").attr("x", 0).attr("y", 94).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text(`‖h‖ = ${norms[key][step] >= 1000 ? norms[key][step].toExponential(1) : norms[key][step].toFixed(2)}`);
   }
 
@@ -79,7 +79,7 @@
     const maxStep = Math.max(6, step);
     const xs = d3.scaleLinear().domain([0, maxStep]).range([0, 85]);
     const ymaxLog = Math.max(1, Math.log10(d3.max(norms.sum) || 1));
-    const ys = d3.scaleLinear().domain([-1, ymaxLog]).range([180, 0]);
+    const ys = d3.scaleLinear().domain([-1, ymaxLog]).range([170, 0]);
     ch.append("line").attr("x1", 0).attr("x2", 85).attr("y1", ys(0)).attr("y2", ys(0))
       .attr("stroke", P.border).attr("stroke-dasharray", "3,3");
     Object.keys(OPS).forEach((key) => {
@@ -87,8 +87,8 @@
       ch.append("path").attr("d", line(norms[key]))
         .attr("fill", "none").attr("stroke", P[OPS[key].color]).attr("stroke-width", 2);
     });
-    ch.append("text").attr("x", 42).attr("y", 205).attr("text-anchor", "middle")
-      .attr("font-size", 10).attr("fill", P.muted).text("log₁₀‖h‖ vs step");
+    ch.append("text").attr("x", 40).attr("y", 195).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted).text("log₁₀‖h‖ vs step");
 
     document.getElementById("w6-nm-step-label").textContent = String(step);
   }

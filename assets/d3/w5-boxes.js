@@ -85,7 +85,7 @@
       g.append("circle").attr("cx", bx(q[0])).attr("cy", by(q[1])).attr("r", 7)
         .attr("fill", "#d9603b");
       g.append("text").attr("x", bx(q[0])).attr("y", by(q[1]) - 12).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("font-weight", 700).attr("fill", P.accentDark).text("q (a point)");
+        .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.accentDark).text("q (a point)");
       if (step >= 2) {
         ["Aspirin", "Ibuprofen", "Naproxen"].forEach((d) => {
           g.append("line").attr("x1", bx(q[0])).attr("y1", by(q[1]))
@@ -101,12 +101,22 @@
       const isDrug = DRUGS.includes(name);
       const inAns = active && isDrug && inside(p, active);
       const anchor = name === "Inflammation";
-      g.append("circle").attr("cx", x).attr("cy", y).attr("r", inAns || anchor ? 8 : 6)
+      if (anchor) {   // the query starts here: keep the anchor visibly special
+        g.append("circle").attr("cx", x).attr("cy", y).attr("r", 13)
+          .attr("fill", "none").attr("stroke", P.yellow).attr("stroke-width", 1.6)
+          .attr("stroke-dasharray", "3,3").attr("opacity", 0.9);
+      }
+      g.append("circle").attr("cx", x).attr("cy", y).attr("r", inAns || anchor ? 9 : 7)
         .attr("fill", inAns ? P.green : anchor ? P.yellow : P.muted)
-        .attr("opacity", inAns || anchor ? 0.95 : 0.5);
-      const dy = ["COX-2", "Inflammation", "Metformin", "COX-1"].includes(name) ? 22 : -12;
+        .attr("opacity", inAns || anchor ? 0.95 : 0.6);
+      const dy = anchor ? 30 : ["COX-2", "COX-1"].includes(name) ? 24 : -13;
       g.append("text").attr("x", x).attr("y", y + dy).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("font-weight", 600).attr("fill", P.text).text(name);
+        .attr("font-size", 12.5).attr("font-weight", 600).attr("fill", P.text).text(name);
+      if (anchor && step === 0) {
+        g.append("text").attr("x", x).attr("y", y + 48).attr("text-anchor", "middle")
+          .attr("font-size", 12.5).attr("font-weight", 600).attr("fill", P.yellow)
+          .text("anchor — the query starts here");
+      }
     });
 
     if (active && scene !== "points") {
@@ -122,6 +132,12 @@
         g.append("text").attr("x", 620).attr("y", 62).attr("text-anchor", "middle")
           .attr("font-size", 12.5).attr("fill", P.muted).text("—");
       }
+    } else if (scene !== "points") {
+      g.append("text").attr("x", 620).attr("y", 40).attr("text-anchor", "middle")
+        .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.muted)
+        .text("drugs inside the box:");
+      g.append("text").attr("x", 620).attr("y", 62).attr("text-anchor", "middle")
+        .attr("font-size", 12.5).attr("fill", P.muted).text("— none yet: no box —");
     }
 
     g.append("text").attr("x", 380).attr("y", 328).attr("text-anchor", "middle")

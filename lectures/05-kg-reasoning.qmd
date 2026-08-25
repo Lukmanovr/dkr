@@ -88,21 +88,41 @@ Plus: the **course project launches today**.
 ## 1. Queries, formalized — and the two ways chaining dies
 
 The queries above are
-<span class="term" data-def="Conjunctive query: an existentially quantified conjunction of triple patterns, e.g. q(D) = ∃P: assoc(P, Inflammation) ∧ targets(D, P). The bread and butter of database query languages — and of this lecture.">**conjunctive queries**</span>:
-existential variables, triple patterns, one free variable whose bindings are the
-answers. Write the hero query as
+<span class="term" data-def="Conjunctive query: an existentially quantified conjunction of triple patterns, e.g. q(D) = ∃P: assoc(P, Inflammation) ∧ targets(D, P). The bread and butter of database query languages — and of this lecture.">**conjunctive queries**</span>.
+The hero query, written formally, is
+
 $$
-q(D) \;=\; \exists P:\; \textit{assoc}(P, \text{Inflammation}) \,\wedge\, \textit{targets}(D, P),
-$$
-and read it aloud once, because the notation earns its keep only if it stays
+q(D) \;=\; \exists P:\; \textit{assoc}(P, \text{Inflammation}) \,\wedge\, \textit{targets}(D, P)
+$$ {#eq-w05-query}
+
+where —
+
+- $D$ is the **free variable**: its bindings (here, drugs) are the answers the query returns;
+- $P$ is an **existential variable**: some protein must exist, but the query never names it;
+- $\textit{assoc}$ and $\textit{targets}$ are relations, each forming one **triple pattern** that constrains its arguments;
+- $q(D)$ denotes the answer set — every $D$ for which the conjunction can be satisfied.
+
+Read @eq-w05-query aloud once, because the notation earns its keep only if it stays
 attached to meaning: "the answers are the drugs $D$ for which *there exists* some
 protein $P$ — we do not care which — that is associated with Inflammation and
 targeted by $D$." The existential is the crux: the query never asks you to *name*
 the intermediate protein, only to be confident one exists, and that is exactly the
-looseness that lets embedding methods skip enumerating it. Draw the query as a
-**computation DAG**: anchor → relation edge → variable → relation edge → answer
-variable. Intersections appear when two branches constrain the same variable; unions
-and negation extend the language (and will stress our geometry). Databases have
+looseness that lets embedding methods skip enumerating it.
+
+::: {#def-w05-cq .definition name="Conjunctive query"}
+A **conjunctive query** is an existentially quantified conjunction of triple
+patterns, $q(A) = \exists V_1, \ldots, V_m : p_1 \wedge \cdots \wedge p_n$, with one
+free variable $A$ whose satisfying bindings are the answers. Read every conjunctive
+query as a **computation DAG**: anchor entities at the leaves, one edge per relation
+application, variables at the internal nodes, the answer variable at the root — the
+shape of the DAG is the shape of the reasoning.
+:::
+
+Draw the hero query as its DAG: anchor → relation edge → variable → relation edge →
+answer variable. Intersections appear when two branches constrain the same variable;
+unions and negation extend the language (and will stress our geometry).
+
+Databases have
 answered such queries for fifty years — SPARQL would dispatch the hero query in
 milliseconds — so be precise about what is *new* here: the database's contract is
 "answers entailed by stored facts", flawless and complete relative to the store,
@@ -122,7 +142,18 @@ all of Week 4 was this shape), `2p`, `3p` (longer chains, our hero is a `2p`); t
 answer: "proteins associated with Inflammation AND targeted by Aspirin"); the
 **mixed shapes** — `ip` (intersect, then project onward: "drugs targeting [the
 proteins in both pathways]") and `pi` (project along one branch, intersect with
-another); and the **union shapes** `2u`, `up`. Training conventionally sees only
+another); and the **union shapes** `2u`, `up`.
+
+| family | shapes | read as |
+|:--|:--|:------|
+| path | `1p` `2p` `3p` | one anchor, a chain of 1–3 hops (`1p` is Week 4; the hero is a `2p`) |
+| intersection | `2i` `3i` | two or three one-hop branches meeting at the answer |
+| mixed | `ip` `pi` | intersect then project onward · project then intersect |
+| union | `2u` `up` | either-or branches · a union projected one hop further |
+
+: The nine benchmark query shapes, named by their computation DAGs. {#tbl-w05-shapes}
+
+Training conventionally sees only
 five shapes (`1p 2p 3p 2i 3i`); the rest are evaluated zero-shot, because the entire
 bet of query embedding is that *operators*, not query shapes, are what gets learned
 — learn projection and intersection well, and `ip` compiles out of parts the model
@@ -133,8 +164,16 @@ Unions deserve their promised one paragraph now rather than a footnote later,
 because the trick is used verbatim in production systems. Any EPFO query can be
 rewritten into **disjunctive normal form** — a union of purely conjunctive queries —
 by the distributive law, so a system that handles conjunctive shapes handles unions
-by embedding each branch separately and scoring an entity by its *best* branch
-(minimum distance over branches). Worked micro-example: "drugs for Inflammation
+by embedding each branch separately and scoring an entity by its *best* branch:
+
+$$
+\operatorname{score}(e) \;=\; \min_{b = 1, \ldots, B} \; d\bigl(e;\ \text{box}_b\bigr)
+$$ {#eq-w05-dnf}
+
+where — $e$ is a candidate entity; $b$ indexes the $B$ conjunctive branches of the
+DNF rewrite; $\text{box}_b$ is the region branch $b$ embeds to; and $d$ is the box
+distance that §2 defines (@eq-w05-boxdist) — an entity is exactly as good as its
+best branch. Worked micro-example: "drugs for Inflammation
 **or** Diabetes" becomes two `2p` branches — one anchored at each disease — and
 Metformin, hopeless in the Inflammation branch, enters the answer set through the
 Diabetes branch's box. The costs are honest: DNF can blow up exponentially for
@@ -176,6 +215,38 @@ is consumed, the answers are simply *the entities near the final representation*
 intermediate entities are ever enumerated — depth costs a matrix op, not a
 combinatorial frontier.
 
+That sketch, made concrete with boxes as the representations, is **Query2box**
+[Ren et al., 2020](https://arxiv.org/abs/2002.05969). @alg-w05-query2box states the
+whole method end to end; the rest of this section derives it line by line, and Lab 5
+has you implement it piece by piece (exercises 1, 2, and 4).
+
+::: {#alg-w05-query2box .algorithm name="Query2box Query Answering"}
+Embeds a conjunctive query as a box and ranks every entity as an answer, without enumerating intermediates.
+
+**Input:** query DAG $q$ (anchors, relation edges, meets); entity table $\mathbf{E}$; per-relation parameters $(\mathbf{c}_r, \mathbf{o}_r)$; inside discount $\alpha$. **Output:** all entities, ranked as answers to $q$.
+
+1. **for** each anchor $a$: $\text{box}(a) \leftarrow (\mathbf{E}[a], \mathbf{0})$ — a point is a zero-offset box
+2. **for** each edge of the DAG, in topological order, **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;projection by $r$: $\mathbf{c} \leftarrow \mathbf{c} + \mathbf{c}_r$; $\ \mathbf{o} \leftarrow \mathbf{o} + \mathbf{o}_r$
+4. &nbsp;&nbsp;&nbsp;&nbsp;meet of $(\mathbf{c}_1, \mathbf{o}_1) \ldots (\mathbf{c}_k, \mathbf{o}_k)$: $\mathbf{c} \leftarrow \text{attention-avg}(\mathbf{c}_i)$; $\ \mathbf{o} \leftarrow \min_i \mathbf{o}_i$
+5. **end for**
+6. $(\mathbf{c}^{*}, \mathbf{o}^{*}) \leftarrow$ the final box
+7. **for** each entity $e$ **do**
+8. &nbsp;&nbsp;&nbsp;&nbsp;$\boldsymbol{\delta} \leftarrow |\mathbf{E}[e] - \mathbf{c}^{*}|$
+9. &nbsp;&nbsp;&nbsp;&nbsp;$d(e) \leftarrow \|\max(\boldsymbol{\delta} - \mathbf{o}^{*}, 0)\|_1 + \alpha \|\min(\boldsymbol{\delta}, \mathbf{o}^{*})\|_1$
+10. **end for**
+11. **return** entities sorted by ascending $d$
+:::
+
+Read the listing's economics before its geometry: lines 1–6 cost one vector
+operation per DAG edge — no frontier, no enumeration — and lines 7–9 are a single
+broadcast distance against the entity table, so a `3p` query is barely more
+expensive than a `1p`. Every symbol gets its formal treatment below
+(@eq-w05-project, @eq-w05-intersect, @eq-w05-boxdist). Lab 5 builds exactly this
+listing in its honest "lite" form — line 4's attention-average becomes a plain
+mean — and pretrains each relation's operator on 1-hop queries before any path
+fine-tuning, for a reason the lab war story at the end of this lecture explains.
+
 Pause on how strange and how disciplined this is. Strange: the object being embedded
 is not a thing in the world but a *sentence about* the world — a logical formula gets
 coordinates, and its geometric neighborhood *is* its answer set. Disciplined: it is
@@ -186,7 +257,9 @@ to the query's region. Similarity: query–answer pairs sampled from the graph. 
 the same margin-vs-corruption shape as Week 4, with corrupted *answers* as
 negatives. Every skill you have — negative-sampling hygiene, filtered ranking,
 leakage paranoia — transfers without modification, which is exactly why the course
-built the cabinet before building this. And note what trained operators buy that
+built the cabinet before building this.
+
+And note what trained operators buy that
 Week 4's per-fact scores cannot: the *composition* of two projections is computed
 inside the space, so the error of hop two conditions on the *soft* output of hop
 one rather than on a hard, possibly-wrong intermediate decision — the arithmetic
@@ -195,26 +268,52 @@ reason the $0.9^3$ compounding from the predict block does not apply.
 One design question remains: what *kind* of object should a query's representation be?
 A point fails for a reason you can state precisely: a query with many answers needs a
 representation that many entities can be simultaneously close to — and a point picks
-favorites. Query2box (2020) answers: an axis-aligned **box** — center $\mathbf{c}$,
-offset $\mathbf{o}$, containing everything within $\mathbf{o}$ of $\mathbf{c}$
-coordinatewise:
+favorites. Query2box's answer:
 
-- **Projection** (apply relation $r$): $\mathbf{c} \mathrel{+}= \mathbf{c}_r$,
-  $\mathbf{o} \mathrel{+}= \mathbf{o}_r$ — the box *translates* (Week 4's TransE
-  instinct) and *grows* (following a relation can only widen the answer set: a
-  disease has some associated proteins, those proteins have *more* targeting drugs —
-  monotone growth is a logical fact about existential queries, and the operator
-  hard-codes it);
-- **Intersection** (two branches meet): the new center is an attention-weighted
-  average, the new offset shrinks below each input's — answer sets can only narrow.
-  Why attention rather than the plain mean? Branches are not equally informative — a
-  tight box ("proteins in this rare pathway") should pull the meet toward itself
-  against a loose one ("things associated with Inflammation") — so the weights are
-  computed from the branch representations, the first self-attention this course has
-  met, one week before it becomes a habit;
-- **Score**: distance from an entity to the box — zero-ish inside, growing outside,
-  with the inside term down-weighted so the box interior is genuinely "in" (the
-  worked numbers below make both regimes concrete).
+::: {#def-w05-box .definition name="Query box"}
+A **query box** in $\mathbb{R}^d$ is an axis-aligned region with center
+$\mathbf{c} \in \mathbb{R}^d$ and nonnegative offset $\mathbf{o} \in \mathbb{R}^d$,
+containing every point within $\mathbf{o}$ of $\mathbf{c}$ coordinatewise:
+$\{\mathbf{v} : |\mathbf{v} - \mathbf{c}| \le \mathbf{o}\}$. Read a box as an answer
+set made geometric — membership is containment — and the query's operators act
+directly on the pair $(\mathbf{c}, \mathbf{o})$.
+:::
+
+Each step of the computation DAG is now an operation on boxes — lines 3, 4, and 9 of
+@alg-w05-query2box, taken in turn. **Projection** applies relation $r$:
+
+$$
+\operatorname{Proj}_r(\mathbf{c}, \mathbf{o}) \;=\; \bigl(\mathbf{c} + \mathbf{c}_r,\;\; \mathbf{o} + \mathbf{o}_r\bigr)
+$$ {#eq-w05-project}
+
+where — $(\mathbf{c}, \mathbf{o})$ is the incoming box; $\mathbf{c}_r \in \mathbb{R}^d$
+is relation $r$'s learned translation (Week 4's TransE instinct); and
+$\mathbf{o}_r \ge \mathbf{0}$ is its learned growth. The box *translates* and
+*grows*, and the growth is not a stylistic choice but hard-coded logic: following a
+relation can only widen an existential query's answer set — a disease has some
+associated proteins, those proteins have *more* targeting drugs — and the operator
+bakes that monotonicity in.
+
+**Intersection** merges the $k$ branches meeting at a variable:
+
+$$
+\mathbf{c} \;=\; \sum_{i=1}^{k} a_i\, \mathbf{c}_i, \qquad \mathbf{o} \;=\; \min_{i = 1, \ldots, k} \mathbf{o}_i
+$$ {#eq-w05-intersect}
+
+where — $(\mathbf{c}_i, \mathbf{o}_i)$ are the input boxes; the weights $a_i$
+(nonnegative, summing to one) are computed from the branch representations by a
+small **attention** network — a learned weighted average, which Week 6 formalizes;
+and the coordinatewise $\min$ shrinks the offset below every input's, because answer
+sets can only *narrow* at a meet. Why attention rather than a plain mean? Branches
+are not equally informative — a tight box ("proteins in this rare pathway") should
+pull the meet toward itself against a loose one ("things associated with
+Inflammation"). This is the first self-attention this course has met, one week
+before it becomes a habit; Lab 5's honest "lite" version sets $a_i = 1/k$ — a plain
+mean, which works — and flags the deviation from the paper in its own markdown.
+
+**Scoring** is the distance from an entity to the final box — zero-ish inside,
+growing outside, with the inside term down-weighted so the box interior is genuinely
+"in". It gets its display and its worked numbers just below (@eq-w05-boxdist).
 
 Training mirrors Week 4 so closely you could write it from memory: sample queries
 from the training graph by instantiating the shape templates, take their
@@ -232,18 +331,36 @@ though its edge was never stated. Training placed Naproxen near the other COX dr
 (their stated edges overlap), and the region swallowed it. The box did not *look up*
 the answer — it *generalized* to it, which is precisely what §1 demanded.
 
-Run the scoring arithmetic once on the figure's actual coordinates, because "distance
-to a box" hides two regimes worth feeling in your fingers. The distance is
-$d(\mathbf{v}) = \|\max(|\mathbf{v}-\mathbf{c}| - \mathbf{o},\, 0)\|_1 + \alpha\,\|\min(|\mathbf{v}-\mathbf{c}|,\, \mathbf{o})\|_1$
-— an *outside* term that only fires beyond the walls, plus a discounted *inside*
-term that gently ranks the interior. Take the answer box at center
-$\mathbf{c} = (5.7, 5.6)$ with offsets $\mathbf{o} = (1.3, 1.4)$, and $\alpha = 0.2$.
-Ibuprofen at $(6.1, 4.9)$: deviations $(0.4, 0.7)$, both under the offsets — outside
-term $0$, inside term $0.2 \times 1.1 = 0.22$. Metformin at $(1.5, 1.6)$: deviations
-$(4.2, 4.0)$, exceeding the offsets by $(2.9, 2.6)$ — outside term $5.5$, plus the
-saturated inside term $0.2 \times 2.7 = 0.54$, total $6.04$. A twenty-seven-fold
-score separation between an inside answer and an outside non-answer, produced by a
-formula you can differentiate — and the reason $\alpha < 1$ exists is now visible:
+"Distance to a box" hides two regimes worth feeling in your fingers, so we now state
+the score exactly and run it once on the figure's actual coordinates. The **box
+distance** — the single most load-bearing formula of the week, and the spec for the
+lab's first exercise — is
+
+$$
+d(\mathbf{v}) \;=\; \bigl\|\max\bigl(|\mathbf{v}-\mathbf{c}| - \mathbf{o},\, 0\bigr)\bigr\|_1 \;+\; \alpha\, \bigl\|\min\bigl(|\mathbf{v}-\mathbf{c}|,\, \mathbf{o}\bigr)\bigr\|_1
+$$ {#eq-w05-boxdist}
+
+where —
+
+- $\mathbf{v}$ is the entity's embedding, scored against the query's final box;
+- $\mathbf{c}$ and $\mathbf{o}$ are that box's center and offset;
+- $\alpha \in (0, 1)$ is the **inside discount** (the lab fixes $\alpha = 0.2$);
+- $\max$, $\min$, and $|\cdot|$ act coordinatewise, and $\|\cdot\|_1$ sums the coordinates;
+- the first term is the *outside* part — it fires only beyond the walls — and the
+  second gently ranks the interior.
+
+::: {#exm-w05-boxdist .example name="The box distance, run by hand"}
+Take the figure's answer box: center $\mathbf{c} = (5.7, 5.6)$, offsets
+$\mathbf{o} = (1.3, 1.4)$, and $\alpha = 0.2$. Ibuprofen at $(6.1, 4.9)$: deviations
+$(0.4, 0.7)$, both under the offsets — outside term $0$, inside term
+$0.2 \times 1.1 = 0.22$. Metformin at $(1.5, 1.6)$: deviations $(4.2, 4.0)$,
+exceeding the offsets by $(2.9, 2.6)$ — outside term $5.5$, plus the saturated
+inside term $0.2 \times 2.7 = 0.54$, total $6.04$. A twenty-seven-fold score
+separation between an inside answer and an outside non-answer, produced by a formula
+you can differentiate.
+:::
+
+The reason $\alpha < 1$ exists is now visible:
 with $\alpha = 0$ every interior point ties at zero and training gets no signal to
 center the box on its answers; with $\alpha = 1$ the walls stop mattering and the
 box degenerates back into a point scorer. The lab's first exercise makes you compute
@@ -258,12 +375,15 @@ and negation leave the representation class.
 
 <details><summary>Proof (one line each, plus what the field did about it)</summary>
 Intersection: per coordinate, the meet of two intervals is an interval —
-$[\max(l_1, l_2), \min(h_1, h_2)]$ — and a product of intervals is a box. Union: two
+$[\max(l_1, l_2), \min(h_1, h_2)]$, where $l_i, h_i$ are the two intervals' low and
+high endpoints in that coordinate — and a product of intervals is a box. Union: two
 disjoint boxes' union is disconnected; boxes are connected. Complement: unbounded,
 boxes are bounded. Workarounds: Query2box handles unions by rewriting queries into
 **disjunctive normal form** — a union of purely conjunctive branches, each embedded as
-its own box, scored by the minimum distance over branches. Negation needed a new
-geometry: **BetaE** replaces boxes with Beta distributions per coordinate, where
+its own box, scored by the minimum distance over branches (@eq-w05-dnf). Negation
+needed a new geometry: **BetaE**
+[Ren & Leskovec, 2020](https://arxiv.org/abs/2010.11465) replaces boxes with Beta
+distributions per coordinate, where
 complement is the parameter swap $(\alpha, \beta) \to (\beta, \alpha)$ — a
 representation *chosen because* the logical operator becomes cheap. The design lesson
 outlives both papers: pick the geometry after you list the operators. $\square$
@@ -274,8 +394,11 @@ outlives both papers: pick the geometry after you list the operators. $\square$
 Two postscripts complete the query-embedding picture — one geometric, one
 contrarian. The geometric one: BetaE's move deserves a concrete image beyond
 "parameter swap". Each coordinate of a query becomes a **Beta distribution** on
-$[0, 1]$ — a bump whose shape two parameters $(\alpha, \beta)$ control — and an
-entity is scored by how well its own per-coordinate bumps align (KL divergence).
+$[0, 1]$ — a bump whose shape two parameters $(\alpha, \beta)$ control (a different
+$\alpha$: these are the Beta's shape parameters, unrelated to @eq-w05-boxdist's
+inside discount) — and an entity is scored by how well its own per-coordinate bumps
+align, measured by KL divergence (a standard asymmetric measure of how much one
+distribution diverges from another).
 Negation flips $(\alpha, \beta)$ to $(\beta, \alpha)$, which literally mirrors the
 bump: mass near 0 becomes mass near 1 — "definitely has this property" becomes
 "definitely lacks it" — and, unlike the complement of a box, the mirror of a Beta
@@ -287,11 +410,14 @@ slogan has cashed out: *list your operators, then buy the geometry that closes o
 them.*
 
 The contrarian postscript: query embedding is not the only survivor of §1's
-massacre, and the strongest alternative — **CQD** (continuous query decomposition) —
+massacre, and the strongest alternative — **CQD** (continuous query decomposition,
+[Arakelyan et al., 2021](https://arxiv.org/abs/2011.03459)) —
 is philosophically its opposite. CQD keeps Week 4's plain one-hop scorer and answers
 multi-hop queries at *inference time* by treating the query as a fuzzy-logic
-optimization: find intermediate entities maximizing a t-norm combination (soft AND)
-of the one-hop scores, via beam search over top-$k$ candidates per hop. No query
+optimization: find intermediate entities maximizing a t-norm combination of the
+one-hop scores (a **t-norm** is a fuzzy AND — $\min$ or product are the usual
+choices), via beam search over top-$k$ candidates per hop (keep only the $k$
+best partial answers alive at each hop). No query
 training at all — and on many benchmarks it *beats* trained query embeddings, at the
 price of the beam's exponential appetite for deep queries. The design tension is a
 useful permanent lens: Query2box amortizes reasoning into geometry (train hard,
@@ -302,28 +428,37 @@ ML systems, usually with worse names.
 ## 3. Grading a reasoner without grading its memory
 
 Multi-hop evaluation has a failure mode beyond Week 4's, and most published numbers
-have stepped in it at least once. For a test query, split its true answers:
+have stepped in it at least once. For a test query, split its true answers in two:
 
-- **easy answers** — reachable by pure traversal of the *training* graph. A system
-  can find these with zero inference: they are lookups wearing a costume;
-- **hard answers** — requiring at least one edge held out of training. Only these
-  measure generalization.
+::: {#def-w05-easyhard .definition name="Easy and hard answers"}
+For a test query, an answer is **easy** if it is reachable by pure traversal of the
+*training* graph, and **hard** if every path to it uses at least one edge held out of
+training. Easy answers a system can find with zero inference — they are lookups
+wearing a costume; only hard answers measure generalization. The label is a property
+of the *answer*, not the query: one query routinely has both kinds (ours does —
+Aspirin and Ibuprofen are easy, Naproxen is hard).
+:::
 
 Report metrics on **hard answers only** (this is the Query2box protocol), and
 filtered, as always — where filtering for queries means masking *all other known
-answers* (easy and hard alike) when ranking each one. Work one query through the full
-protocol, because the bookkeeping is exactly where implementations go wrong. Suppose
-a `2p` test query has easy answers $\{e_1, e_2\}$ and hard answers $\{h_1, h_2\}$, and
-the model's ranking of all entities places them at raw positions
-$e_1{=}1,\, e_2{=}3,\, h_1{=}4,\, h_2{=}9$. Scoring $h_1$: mask $e_1, e_2, h_2$ —
-three known answers sit at positions above or below — leaving $h_1$ at filtered rank
-$2$ (only the position-2 non-answer outranks it). Scoring $h_2$: mask the other
-three, filtered rank $6$. Hard-answer MRR: $\tfrac12(\tfrac12 + \tfrac16) = \tfrac13$;
+answers* (easy and hard alike) when ranking each one.
+
+Work one query through the full protocol, because the bookkeeping is exactly where
+implementations go wrong. Suppose a `2p` test query has easy answers
+$\{e_1, e_2\}$ and hard answers $\{h_1, h_2\}$, and the model's ranking of all
+entities places them at raw positions $e_1{=}1,\, e_2{=}3,\, h_1{=}4,\, h_2{=}9$:
+
+| answer scored | raw rank | masked out | filtered rank | reciprocal |
+|:--:|:--:|:--:|:--:|:--:|
+| $h_1$ | 4 | $e_1, e_2, h_2$ | 2 | $1/2$ |
+| $h_2$ | 9 | $e_1, e_2, h_1$ | 6 | $1/6$ |
+
+: Filtered ranking of the hard answers: masking removes the three *other* known answers from each ranking, so only genuine non-answers can outrank the one being scored. {#tbl-w05-filtered}
+
+Hard-answer MRR: $\tfrac12(\tfrac12 + \tfrac16) = \tfrac13$;
 the easy answers contribute *nothing* to the headline — they are graded separately,
-as the sanity channel. Two conventions to notice: every hard answer is scored (not
-just the best one — a query with many hard answers is many test items), and the
-easy/hard label is a property of the *answer*, not the query, since one query
-routinely has both kinds (ours did).
+as the sanity channel. One convention to notice: every hard answer is scored, not
+just the best one — a query with many hard answers is many test items.
 
 The literature's vocabulary for the two channels is worth adopting:
 **entailment** — retrieving answers the training graph logically contains (easy) —
@@ -342,7 +477,9 @@ large, and to permanently change how you read reasoning leaderboards.
 Language models made knowledge graphs front-page infrastructure, through a
 back door: **retrieval**. An LLM answering from your documents needs the right context
 in its window; vanilla RAG retrieves the top-$k$ chunks whose embeddings resemble the
-question. For single-fact questions that works. For the questions this lecture is
+question's — resemblance measured by **cosine similarity**, the dot product of
+length-normalized vectors: near $1$ for parallel, near $0$ for unrelated (the lab
+implements it from scratch). For single-fact questions that works. For the questions this lecture is
 about, it fails structurally — resemblance is not connection:
 
 {{< include ../assets/figures/fig-w5-graphrag.html >}}
@@ -355,9 +492,11 @@ scores mediocre similarity, while some single chunk that superficially resembles
 full question (same entities, same register, wrong facts) outscores both. The
 failure is architectural, not a matter of better embeddings: one query point cannot
 be simultaneously near two texts that are not near each other — the exact geometry
-lesson as "why not points" in §2, replayed at the document level. (You could retrieve
-more chunks and hope; $k$ large enough to catch hop two also drowns the context in
-lookalikes, and the model's attention becomes your retrieval system — expensively.)
+lesson as "why not points" in §2, replayed at the document level.
+
+You could retrieve
+more chunks and hope; but $k$ large enough to catch hop two also drowns the context in
+lookalikes, and the model's attention becomes your retrieval system — expensively.
 Decomposing the question into sub-queries helps and is widely done; but sub-query
 decomposition over text is just multi-hop traversal with extra steps and no
 guarantees — at which point one asks for the structure explicitly.
@@ -369,11 +508,24 @@ paths between linked entities), and hand the LLM **facts with provenance** inste
 lookalike paragraphs. Everything you learned this fortnight slots into that sentence:
 the subgraph retrieval is Week 5 §1's traversal (with completion optionally
 sweetening it), the KG's quality is Week 4's whole curriculum, and the linker is the
-new component whose failure modes get their own pitfall below. Microsoft's GraphRAG — this week's required reading — goes
+new component whose failure modes get their own pitfall below.
+
+::: {#def-w05-linking .definition name="Entity linking"}
+**Entity linking** maps a mention in text ("IU", "the university", "the Kazan-based
+university") to the KG node it denotes. It is the entry point of every GraphRAG
+query — nothing downstream can retrieve what the linker failed to anchor — so its
+precision and recall bound the whole system; Pitfall 4 below is its own.
+:::
+
+Microsoft's GraphRAG
+[Edge et al., 2024](https://arxiv.org/abs/2404.16130) — this week's required reading — goes
 further for corpus-level "sensemaking" questions: an LLM extracts an entity graph
-from the whole corpus, **Leiden community detection** (Week 2, taking a bow in
+from the whole corpus, **Leiden community detection**
+[Traag et al., 2019](https://arxiv.org/abs/1810.08473) (Week 2, taking a bow in
 production) partitions it hierarchically, communities get pre-computed summaries, and
-a global question is answered map-reduce over community summaries. "What are the main
+a global question is answered **map-reduce** over community summaries — *map*: put
+the question to each relevant summary independently; *reduce*: synthesize the
+partial answers. "What are the main
 themes of this corpus?" is unanswerable by any top-$k$ chunk retrieval — no chunk
 contains the corpus — and becomes tractable when the corpus has been given a
 structure to summarize along.
@@ -402,7 +554,36 @@ each relevant summary (map), synthesize the partial answers (reduce). It is slow
 and costs several model calls, which is fine, because the questions it serves were
 previously *impossible* rather than slow. The routing rule from the bake-off now has
 three branches: entity-anchored → local; corpus-global → global; neither → plain
-vector retrieval. And a fourth, quietly load-bearing capability falls out of the
+vector retrieval.
+
+The local mode is simple enough to state exactly, and worth stating because Lab 5
+has you build it verbatim — @alg-w05-graphrag is the retrieve-then-ground loop of
+local search, distilled from [Edge et al., 2024](https://arxiv.org/abs/2404.16130):
+
+::: {#alg-w05-graphrag .algorithm name="GraphRAG Local Search"}
+Assembles an evidence bundle — facts plus their source chunks — for a reader LLM, by $k$-hop expansion from the question's linked entities.
+
+**Input:** question $x$; KG with per-triple provenance; entity linker $\text{link}(\cdot)$; hop budget $k$. **Output:** evidence bundle (facts and source chunks) for the reader.
+
+1. $F \leftarrow \text{link}(x)$ — the question's entities; **if** $F = \emptyset$: fall back to vector retrieval
+2. facts $\leftarrow \emptyset$; frontier $\leftarrow F$
+3. **for** hop $= 1, \ldots, k$ **do**
+4. &nbsp;&nbsp;&nbsp;&nbsp;**for** each triple $(h, r, t)$ with $h \in$ frontier **or** $t \in$ frontier **do**
+5. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;facts $\leftarrow$ facts $\cup \{(h, r, t)\}$; frontier $\leftarrow$ frontier $\cup \{h, t\}$
+6. &nbsp;&nbsp;&nbsp;&nbsp;**end for**
+7. **end for**
+8. chunks $\leftarrow$ the source spans of facts — provenance travels with every fact
+9. **return** facts $+$ chunks — the bundle the reader answers from
+:::
+
+Each hop is an index lookup, so the loop costs the size of the retrieved subgraph,
+not the corpus. Line 1's fallback is the routing rule made explicit: no linkable
+entity, no graph retrieval (Pitfall 4 lives there). And the referee metric you will
+compute in the lab is **coverage** — the fraction of gold supporting facts inside
+the returned bundle, $|\text{gold} \cap \text{facts}| / |\text{gold}|$; Lab 5's
+exercise 5 implements lines 2–7 verbatim and referees them against cosine retrieval.
+
+And a fourth, quietly load-bearing capability falls out of the
 architecture for free: **provenance surfaces through the graph** — every retrieved
 fact carries its source chunk, so answers arrive with citations a user can audit,
 which for regulated deployments is not a feature but the requirement that got the
@@ -417,7 +598,9 @@ retrieved evidence, or did the model freelance? — measured by entailment check
 answer claims against retrieved sources, human-audited on samples. The Microsoft
 paper's own evaluation — LLM-as-judge rating "comprehensiveness" and "diversity" —
 measures neither directly, which the required reading asks you to critique; the
-critique writes itself once you have the decomposition. Cost enters honestly too: a
+critique writes itself once you have the decomposition.
+
+Cost enters honestly too: a
 GraphRAG index is worth building when the corpus is queried *many times* (the
 indexing cost amortizes — the same economics as Query2box's amortized reasoning, one
 section ago) and when multi-hop or global questions are a real fraction of traffic;
@@ -479,12 +662,16 @@ institution?"), which works embarrassingly well and fails exactly where it matte
 most: confident merging of similarly-named distinct entities (two "St. Mary's
 Hospital"s), the one error class worse than duplication, because merges destroy
 information while duplicates merely dilute it. Bias the pipeline toward
-under-merging; duplicates can be fixed tomorrow. **Schema-first extraction** means
+under-merging; duplicates can be fixed tomorrow.
+
+**Schema-first extraction** means
 the prompt carries the ontology — allowed relation list, type signatures, and
 required output format — turning the model from an author into a form-filler;
 measured extraction precision routinely jumps double digits versus free-form
 prompting, and the rejected residue ("interesting non-conforming facts") becomes the
-queue for deliberate schema evolution rather than accidental drift. **Verification
+queue for deliberate schema evolution rather than accidental drift.
+
+**Verification
 economics** is the uncomfortable one: you cannot afford to verify everything, so
 spend the audit budget where queries land — sample per *relation type* (error rates
 vary wildly by relation), audit the high-traffic entities disproportionately, and
@@ -519,7 +706,8 @@ knowing the difference between the aspiration and the gate is due diligence.
 One more placement note for your mental map of the field: everything this week
 reasoned over a *fixed* vocabulary of entities and relations — Query2box's anchors
 are still table lookups (Week 3's transductive wall, unbroken since). The frontier
-beyond this course's core: *inductive* reasoners like ULTRA (optional reading)
+beyond this course's core: *inductive* reasoners like ULTRA
+[Galkin et al., 2024](https://arxiv.org/abs/2310.04562) (optional reading)
 that transfer zero-shot to unseen KGs by embedding relations relative to each other
 rather than absolutely — one pretrained reasoner for any graph. Read it after Week 6
 and you will recognize the trick as message passing over a graph *of relations*;
@@ -725,6 +913,23 @@ Pitfall 3. Guard rail: never let a triple into retrieval without a source span, 
 verify a sample of high-impact relations against those spans (trust budget spent
 where queries actually land).
 </details>
+
+::: {.notions}
+Notions introduced this week
+
+- **Conjunctive query** (@def-w05-cq) — an existential conjunction of triple patterns; its computation DAG is the shape of the reasoning.
+- **EPFO shapes** (@tbl-w05-shapes) — the nine benchmark DAGs `1p`…`up`; five trained, four answered zero-shot from composed operators.
+- **Query box** (@def-w05-box) — center $\mathbf{c}$, offset $\mathbf{o}$; membership is containment, the answer set is "everything inside".
+- **Projection · intersection** (@eq-w05-project, @eq-w05-intersect) — translate-and-grow; attention-average-and-shrink.
+- **Box distance** (@eq-w05-boxdist) — outside term plus $\alpha$-discounted inside term; the lab's first exercise.
+- **DNF rewrite** (@eq-w05-dnf) — unions become a min over conjunctive branches' distances.
+- **Easy vs. hard answers** (@def-w05-easyhard) — traversal-reachable vs. requiring a held-out edge; report hard, or you are reporting a database.
+- **Entailment vs. generalization** — a reasoner's regression-test channel and its product channel; a deployment needs both.
+- **Entity linking** (@def-w05-linking) — mention → node; the entry point and error floor of every GraphRAG query.
+- **GraphRAG local vs. global search** (@alg-w05-graphrag) — $k$-hop evidence bundles vs. map-reduce over Leiden community summaries.
+- **Amortize vs. search** — Query2box trains hard and answers in one distance; CQD keeps a one-hop scorer and spends at query time.
+- **Canonicalization · provenance · schema drift** — the three construction failure modes; their repairs are where the engineering lives.
+:::
 
 ## Where this leaves us
 

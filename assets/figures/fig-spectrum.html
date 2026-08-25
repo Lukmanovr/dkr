@@ -17,10 +17,10 @@
     <g transform="translate(380,80)">
       <circle r="40" fill="none" stroke="var(--dkr-border, #d5d4cf)" stroke-width="1.2"/>
       <circle cx="0" cy="-40" r="6" fill="#d9603b"/><circle cx="23.5" cy="-32.4" r="6" fill="#d9603b"/>
-      <circle cx="38" cy="-12.4" r="6" fill="#e8a186"/><circle cx="38" cy="12.4" r="6" fill="#7fbdb5"/>
+      <circle cx="38" cy="-12.4" r="6" fill="#e8a186" stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1"/><circle cx="38" cy="12.4" r="6" fill="#7fbdb5" stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1"/>
       <circle cx="23.5" cy="32.4" r="6" fill="#0f8377"/><circle cx="0" cy="40" r="6" fill="#0f8377"/>
-      <circle cx="-23.5" cy="32.4" r="6" fill="#0f8377"/><circle cx="-38" cy="12.4" r="6" fill="#7fbdb5"/>
-      <circle cx="-38" cy="-12.4" r="6" fill="#e8a186"/><circle cx="-23.5" cy="-32.4" r="6" fill="#d9603b"/>
+      <circle cx="-23.5" cy="32.4" r="6" fill="#0f8377"/><circle cx="-38" cy="12.4" r="6" fill="#7fbdb5" stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1"/>
+      <circle cx="-38" cy="-12.4" r="6" fill="#e8a186" stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1"/><circle cx="-23.5" cy="-32.4" r="6" fill="#d9603b"/>
       <text y="62" fill="var(--dkr-muted, #8e8e9a)">u₂ — one slow wave (= spectral clustering)</text>
     </g>
     <!-- u_high: alternating -->
@@ -31,21 +31,21 @@
       <circle cx="23.5" cy="32.4" r="6" fill="#d9603b"/><circle cx="0" cy="40" r="6" fill="#0f8377"/>
       <circle cx="-23.5" cy="32.4" r="6" fill="#d9603b"/><circle cx="-38" cy="12.4" r="6" fill="#0f8377"/>
       <circle cx="-38" cy="-12.4" r="6" fill="#d9603b"/><circle cx="-23.5" cy="-32.4" r="6" fill="#0f8377"/>
-      <text y="62" fill="var(--dkr-muted, #8e8e9a)">u_high — flips every edge</text>
+      <text y="62" fill="var(--dkr-muted, #8e8e9a)">u₁₀ — flips every edge</text>
     </g>
   </g>
 
   <!-- frequency axis -->
   <line x1="56" y1="240" x2="712" y2="240" stroke="var(--dkr-text, #1c1c21)" stroke-width="1.8"/>
-  <g fill="var(--dkr-teal, #0f8377)">
+  <g fill="var(--dkr-muted, #8e8e9a)">
     <circle cx="110" cy="240" r="5"/><circle cx="205" cy="240" r="5"/><circle cx="290" cy="240" r="5"/>
     <circle cx="380" cy="240" r="5"/><circle cx="470" cy="240" r="5"/><circle cx="558" cy="240" r="5"/><circle cx="650" cy="240" r="5"/>
   </g>
   <!-- GCN low-pass response over the axis -->
-  <path d="M70,196 C240,204 480,224 700,236" stroke="var(--dkr-text, #1c1c21)" stroke-width="2.4" fill="none" stroke-dasharray="7,4"/>
+  <path d="M70,196 C240,204 480,222 700,231" stroke="var(--dkr-text, #1c1c21)" stroke-width="2.4" fill="none" stroke-dasharray="7,4"/>
   <g font-family="'Source Sans 3', sans-serif" font-size="13.5">
     <text x="120" y="188" fill="var(--dkr-accent, #d9603b)" font-weight="700">GCN response g(λ): keeps these…</text>
-    <text x="700" y="222" text-anchor="end" fill="var(--dkr-muted, #8e8e9a)">…suppresses these</text>
+    <text x="698" y="221" text-anchor="end" fill="var(--dkr-muted, #8e8e9a)">…suppresses these</text>
     <text x="66"  y="266" fill="var(--dkr-muted, #8e8e9a)">λ = 0 · smooth · “low frequency”</text>
     <text x="706" y="266" text-anchor="end" fill="var(--dkr-muted, #8e8e9a)">λ large · oscillating · “high frequency”</text>
     <text x="380" y="296" text-anchor="middle" fill="var(--dkr-muted, #8e8e9a)">homophilous label signals live on the left — that is why averaging works on Cora</text>

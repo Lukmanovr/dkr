@@ -73,59 +73,66 @@
     nd.append("text").attr("text-anchor", "middle").attr("dy", 4.5)
       .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.text)
       .text((d) => NAMES[d.id]);
-    nd.append("text").attr("x", 0).attr("y", 30).attr("text-anchor", "middle")
-      .attr("font-size", 9.5).attr("fill", P.accent)
+    nd.append("text").attr("x", 0).attr("y", 32).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.accent)
       .text((d) => `row ${perm[d.id]}`);
-    gp.append("text").attr("x", 105, 0).attr("y", 265).attr("text-anchor", "middle")
-      .attr("font-size", 11).attr("fill", P.muted)
-      .text("same graph — only the storage order changes");
+    gp.append("text").attr("x", 105).attr("y", 262).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted)
+      .text("same graph — only the");
+    gp.append("text").attr("x", 105).attr("y", 279).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted)
+      .text("storage order changes");
 
     // --- adjacency matrix under current ordering ---
-    const mp = svg.append("g").attr("transform", "translate(235,40)");
-    mp.append("text").attr("x", 65).attr("y", -12).attr("text-anchor", "middle")
-      .attr("font-size", 11.5).attr("font-weight", 700).attr("fill", P.text)
+    const mp = svg.append("g").attr("transform", "translate(235,52)");
+    mp.append("text").attr("x", 65).attr("y", -30).attr("text-anchor", "middle")
+      .attr("font-size", 13).attr("font-weight", 700).attr("fill", P.text)
       .text(shuffled ? "PAPᵀ (shuffled rows)" : "A (original order)");
     U.drawMatrix(mp, M, {
       cell: 26,
       color: (v) => (v ? P.blue : "transparent"),
       fmt: (v) => (v ? "1" : "·"),
-      textColor: P.text, borderColor: P.border, fontSize: 11,
+      textColor: P.text, borderColor: P.border, fontSize: 12.5,
     });
-    // row labels = which identity sits in each slot
+    // row + column labels = which identity sits in each slot
     const slotName = Array(n).fill("");
     for (let id = 0; id < n; id++) slotName[perm[id]] = NAMES[id];
     mp.selectAll("text.rl").data(slotName).join("text")
-      .attr("class", "rl").attr("x", -10).attr("y", (d, i) => i * 26 + 17)
-      .attr("text-anchor", "end").attr("font-size", 10).attr("fill", P.muted)
+      .attr("class", "rl").attr("x", -10).attr("y", (d, i) => i * 26 + 18)
+      .attr("text-anchor", "end").attr("font-size", 12.5).attr("fill", P.muted)
+      .text((d) => d);
+    mp.selectAll("text.cl").data(slotName).join("text")
+      .attr("class", "cl").attr("x", (d, i) => i * 26 + 13).attr("y", -8)
+      .attr("text-anchor", "middle").attr("font-size", 12.5).attr("fill", P.muted)
       .text((d) => d);
 
     // --- outputs table ---
     const tp = svg.append("g").attr("transform", "translate(465,40)");
     tp.append("text").attr("x", 130).attr("y", -12).attr("text-anchor", "middle")
-      .attr("font-size", 11.5).attr("font-weight", 700).attr("fill", P.text)
+      .attr("font-size", 13).attr("font-weight", 700).attr("fill", P.text)
       .text("outputs, tracked by node identity");
     const header = ["node", "GNN before", "GNN after", "ok?"];
     header.forEach((h, j) =>
-      tp.append("text").attr("x", [15, 90, 165, 235][j]).attr("y", 12)
-        .attr("text-anchor", "middle").attr("font-size", 10).attr("fill", P.muted).text(h));
+      tp.append("text").attr("x", [15, 95, 180, 250][j]).attr("y", 12)
+        .attr("text-anchor", "middle").attr("font-size", 12.5).attr("fill", P.muted).text(h));
     for (let id = 0; id < n; id++) {
-      const y = 34 + id * 22;
+      const y = 36 + id * 23;
       const after = gnnNow[perm[id]];
       const same = Math.abs(after - gnnRef[id]) < 1e-9;
       tp.append("text").attr("x", 15).attr("y", y).attr("text-anchor", "middle")
-        .attr("font-size", 11).attr("font-weight", 700).attr("fill", P.text).text(NAMES[id]);
-      tp.append("text").attr("x", 90).attr("y", y).attr("text-anchor", "middle")
-        .attr("font-size", 11).attr("fill", P.text).text(gnnRef[id]);
-      tp.append("text").attr("x", 165).attr("y", y).attr("text-anchor", "middle")
-        .attr("font-size", 11).attr("fill", P.text).text(after);
-      tp.append("text").attr("x", 235).attr("y", y).attr("text-anchor", "middle")
-        .attr("font-size", 11).attr("fill", same ? P.green : P.red).text(same ? "✓" : "✗");
+        .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.text).text(NAMES[id]);
+      tp.append("text").attr("x", 95).attr("y", y).attr("text-anchor", "middle")
+        .attr("font-size", 12.5).attr("fill", P.text).text(gnnRef[id]);
+      tp.append("text").attr("x", 180).attr("y", y).attr("text-anchor", "middle")
+        .attr("font-size", 12.5).attr("fill", P.text).text(after);
+      tp.append("text").attr("x", 250).attr("y", y).attr("text-anchor", "middle")
+        .attr("font-size", 12.5).attr("fill", same ? P.green : P.red).text(same ? "✓" : "✗");
     }
     const mlpSame = Math.abs(mlpNow - mlpRef) < 1e-9;
-    tp.append("text").attr("x", 15).attr("y", 160).attr("font-size", 11)
+    tp.append("text").attr("x", 15).attr("y", 170).attr("font-size", 12.5)
       .attr("fill", P.text)
       .text(`MLP on vec(A): ${mlpRef.toFixed(2)} → ${mlpNow.toFixed(2)}`);
-    tp.append("text").attr("x", 15).attr("y", 180).attr("font-size", 11)
+    tp.append("text").attr("x", 15).attr("y", 191).attr("font-size", 12.5)
       .attr("font-weight", 700)
       .attr("fill", mlpSame ? P.green : P.red)
       .text(mlpSame ? "unchanged (by luck — shuffle again!)" : "changed — the MLP is fooled by renaming");
