@@ -33,8 +33,10 @@ ogbn-arxiv —
 of the course GPU, for a two-layer model of hidden width 128.
 
 Now the numbers the industry actually lives with. The academic graph HGT
-trained on: 179 million nodes. Pinterest's recommendation graph when PinSage
-shipped: 3 *billion* nodes, 18 billion edges. Payment networks, social
+([Hu et al., 2020](https://arxiv.org/abs/2003.01332)) trained on: 179
+million nodes. Pinterest's recommendation graph when PinSage
+([Ying et al., 2018](https://arxiv.org/abs/1806.01973)) shipped: 3
+*billion* nodes, 18 billion edges. Payment networks, social
 graphs, the web itself: the graphs where graph ML earns salaries sit two
 to five orders of magnitude past arxiv, and the one-line instruction
 does not degrade gracefully across that gap — it simply stops, with a
@@ -86,8 +88,32 @@ arxiv, measured:
 
 {{< include ../assets/figures/fig-w11-explosion.html >}}
 
-Why is the naive $\bar d^{\,L}$ estimate so wrong — 2,600 predicted,
-22,663 measured? Because "average degree 13.8" is a statistical fiction
+::: {#def-w11-explosion .definition name="Neighborhood (receptive-field) explosion"}
+For a graph $G$ and depth $L$, the **receptive field** of node $v$ is the
+set $B_L(v)$ of nodes within $L$ hops of $v$ — every node whose features
+can influence an $L$-layer GNN's output at $v$. The **explosion** is the
+empirical law that on heavy-tailed real graphs, $|B_L(v)|$ reaches a
+constant fraction of the whole graph within two or three hops. Read it as
+a budget statement: updating one node means loading $|B_L(v)|$ nodes, and
+on arxiv that is 13% of everything by $L = 3$.
+:::
+
+Why is the naive estimate so wrong? The back-of-envelope guess treats the
+frontier as a tree that multiplies by the average degree at every hop:
+
+$$
+|B_L(v)| \;\approx\; \bar d^{\,L}
+\qquad\text{arxiv: } 13.8^{3} \approx 2{,}600 \text{ predicted}, \quad 22{,}663 \text{ measured}
+$$ {#eq-w11-naive}
+
+where —
+
+- $B_L(v)$ is node $v$'s $L$-hop receptive field (@def-w11-explosion);
+- $\bar d$ is the graph's *average* degree (13.8 on arxiv);
+- $L$ is the hop depth (= layer count).
+
+The estimate is off by 9× — badly *low* — because "average degree 13.8"
+is a statistical fiction
 on a graph whose degrees follow the heavy-tailed shape Week 2 taught you
 to expect: arxiv's median degree is far below its mean, while its top
 nodes have thousands of neighbors, and a breadth-first frontier is
@@ -104,8 +130,22 @@ default planning assumption, not the worst case.
 Run the arithmetic yourself at other budgets — and note carefully what the
 fanout cap changes. Not the *average* so much as the *worst case*: an
 uncapped batch that happens to touch one hub loads that hub's entire crowd,
-so batch cost is decided by the graph's whims; capped at fanout $f$, the
-cost is $\sum_k f^k$ *no matter what the graph does*. Predictable cost is
+so batch cost is decided by the graph's whims. Capped at fanout $f$, one
+target's bill is bounded in advance:
+
+$$
+|B_L(v)| \;\le\; \sum_{k=0}^{L} f^{k}
+\qquad\text{at } f{=}10,\ L{=}2:\quad 1 + 10 + 100 = 111
+$$ {#eq-w11-fanout}
+
+where —
+
+- $f$ is the **fanout**: the maximum number of neighbors sampled per node
+  per hop;
+- $L$ is the depth, and the $k{=}0$ term is the target node itself.
+
+The bound holds no matter what the graph does — no hub can break it.
+Predictable cost is
 what schedulers, GPUs, and on-call engineers are made of:
 
 {{< include ../assets/d3/w11-explosion.html >}}
@@ -113,23 +153,40 @@ what schedulers, GPUs, and on-call engineers are made of:
 **The residency (memory for the whole graph).** Full-batch training must
 hold the graph's entire working set in GPU memory at once, and the audit
 is worth doing line by line, because each line is a different villain and
-a different escape targets each. Line one, the feature matrix: $N \times
-d \times 4$ bytes in float32 — arxiv at $d{=}128$ is $169{,}343 \times
-128 \times 4 \approx 83$ MB. Innocent. Line two, activations: every layer's
-output must be *retained* until backprop consumes it, so a 2-layer model
-holds two more 83 MB tensors plus the logits. Still innocent — under
-300 MB so far, nowhere near our measured 2,821. Line three is the
-culprit: **messages are per-edge, not per-node.** Before aggregation, an
-implementation materializes one $d$-vector per directed edge — arxiv's
-2.33 million directed edges at width 128 are $2.33\mathrm{M} \times 128
-\times 4 \approx 1.2$ GB — and autograd retains what it must of that for
-the backward pass, per layer. Suddenly 2,821 MB is not mysterious; it is
-edge count doing what edge count does. (Fused scatter kernels avoid full
-materialization; the measured number is what the standard PyG path costs,
-which is what you will actually pay.) Line four, the bookkeeping tax:
-gradients double every retained tensor's bill, and Adam's two moment
-buffers triple every *parameter's* — negligible here (our model has ~38k
-parameters), decisive for the 4.75M-parameter R-GCN layers of Week 10.
+a different escape targets each. The bill has three lines:
+
+$$
+\begin{aligned}
+\text{features} &\;=\; N \, d \cdot 4 \text{ B}
+  && \text{arxiv, } d{=}128:\ 169{,}343 \times 128 \times 4 \approx 83 \text{ MB} \\
+\text{activations} &\;=\; L \, N \, d \cdot 4 \text{ B}
+  && \text{one } N \times d \text{ tensor retained per layer} \\
+\text{messages} &\;=\; L \, E \, d \cdot 4 \text{ B}
+  && \text{arxiv: } 2.33\mathrm{M} \times 128 \times 4 \approx 1.2 \text{ GB per layer}
+\end{aligned}
+$$ {#eq-w11-bill}
+
+where —
+
+- $N$ is the node count and $E$ the *directed* edge count (2.33M on arxiv);
+- $d$ is the hidden width and $4$ the bytes per float32 entry;
+- $L$ is the layer count.
+
+Read the bill's lines in order of guilt. Line one, the feature matrix:
+83 MB — innocent. Line two, activations: a 2-layer model holds two more
+83 MB tensors plus the logits. Still innocent — under 300 MB so far,
+nowhere near our measured 2,821. Line three is the culprit: **messages
+are per-edge, not per-node.** Before aggregation, an implementation
+materializes one $d$-vector per directed edge — the 1.2 GB line — and
+autograd retains what it must of that for the backward pass, per layer.
+Suddenly 2,821 MB is not mysterious; it is edge count doing what edge
+count does. (Fused scatter kernels avoid full materialization; the
+measured number is what the standard PyG path costs, which is what you
+will actually pay.) And a fourth line rides on the others, the
+bookkeeping tax: gradients double every retained tensor's bill, and
+Adam's two moment buffers triple every *parameter's* — negligible here
+(our model has ~38k parameters), decisive for the 4.75M-parameter R-GCN
+layers of Week 10.
 
 Before the escapes, dispose of the tempting non-answer: *just buy a
 bigger GPU.* The arithmetic is unkind to it. Graphs of interest grow with
@@ -159,30 +216,68 @@ sentences, priced.
 
 ## Escape one: sample the neighborhood (and pay in time)
 
-[Week 7](07-gnn-design.qmd) introduced GraphSAGE's fanout sampling as a
-receptive-field curiosity. Reread it as a systems contract: *per batch,
-load the targets, then at most $f$ neighbors per node per hop* — a
-computation tree pruned to $O(f^L)$, which at $f{=}10$, $L{=}2$ means at
-most 111 nodes per target instead of 4,577. Memory becomes a function of
-batch size, not graph size. That is the entire idea; everything else is
+[Week 7](07-gnn-design.qmd) introduced GraphSAGE's fanout sampling
+([Hamilton et al., 2017](https://arxiv.org/abs/1706.02216)) as a
+receptive-field curiosity. Reread it as a systems contract.
+
+::: {#def-w11-fanout .definition name="Fanout contract (neighbor sampling)"}
+Per batch: load the target nodes, then at most $f$ *sampled* neighbors per
+node per hop, for $L$ hops. The computation tree is pruned to $O(f^L)$
+nodes per target (@eq-w11-fanout), so memory becomes a function of batch
+size, not graph size. Read the cap as a guarantee, not an average — its
+entire value is worst-case predictability.
+:::
+
+At $f{=}10$, $L{=}2$ the contract means at most 111 nodes per target
+instead of 4,577. That is the entire idea; everything else is
 implementation, and the implementation is where the week's most honest
 lesson lives.
 
-We built the sampler from scratch, and the construction deserves prose
-because Lab 11 will make you build the same one and because every
-production sampler is this algorithm with better engineering. Store the
-graph as CSR: one long array of destination nodes sorted by source
-(`dst_sorted`), one pointer array (`ptr`) so node $v$'s neighbors are the
-slice `dst_sorted[ptr[v]:ptr[v+1]]` — Week 1's adjacency-list storage,
-now load-bearing, because uniform sampling from a slice is O(fanout)
-with no scan. One *block* of sampling then does: for each of the batch's
-target nodes, draw $\le f$ neighbors from its slice; collect all drawn
-edges as (source, batch-position) pairs; take the *union* of targets and
-drawn sources; and — the fiddly step everyone gets wrong once — remap
-every global node ID into a dense local index for this batch, because
-the GPU tensors you are about to build have no idea 169,343 nodes exist.
+We built the sampler from scratch, and the construction deserves both
+prose and a spec, because Lab 11 will make you build the same one and
+because every production sampler is this algorithm with better
+engineering. Store the graph as CSR: one long array of destination nodes
+sorted by source (`dst_sorted`), one pointer array (`ptr`) so node $v$'s
+neighbors are the slice `dst_sorted[ptr[v]:ptr[v+1]]` — Week 1's
+adjacency-list storage, now load-bearing, because uniform sampling from
+a slice is O(fanout) with no scan. One *block* of sampling then prunes
+each target's neighborhood and — the fiddly step everyone gets wrong
+once — remaps every global node ID into a dense local index for this
+batch, because the GPU tensors you are about to build have no idea
+169,343 nodes exist. The spec, exactly as Lab 11's `sample_block`
+implements and asserts it:
+
+::: {#alg-w11-sampler .algorithm name="One Block of Neighbor Sampling (CSR)"}
+One sampling layer: prune each target's neighborhood to at most $f$
+draws, then re-index the result for batch-local GPU tensors.
+
+**Input:** CSR arrays `ptr`, `dst_sorted`; batch targets $B$; fanout $f$;
+seeded RNG. **Output:** deduplicated union $U$; local edge list $E_B$;
+positions of $B$ in $U$.
+
+1. $S \leftarrow \varnothing$ — the drawn (source, target-position) pairs
+2. **for** each target $v_i \in B$ **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;$\mathcal{N} \leftarrow$ `dst_sorted[ptr[v_i] : ptr[v_i+1]]`
+4. &nbsp;&nbsp;&nbsp;&nbsp;**if** $|\mathcal{N}| > f$ **then** draw $f$ uniform samples from $\mathcal{N}$
+5. &nbsp;&nbsp;&nbsp;&nbsp;**else** keep all of $\mathcal{N}$
+6. &nbsp;&nbsp;&nbsp;&nbsp;add $(u,\, i)$ to $S$ for every drawn neighbor $u$
+7. **end for**
+8. $U \leftarrow \mathrm{unique}\big(B \cup \{u : (u,i) \in S\}\big)$, with inverse map $\pi$
+9. $E_B \leftarrow \{(\pi(u),\, i) : (u,i) \in S\}$; $\ \mathrm{pos} \leftarrow \pi(B)$
+10. **return** $U$, $E_B$, $\mathrm{pos}$
+:::
+
+The cost is $O(|B| \cdot f)$ per block — steps 2–7 are the draws, and the
+CSR slice makes each draw O(1). Step 8 is the remap — the step the lab's
+first assert exists for. Two honest
+footnotes: the lab draws its $f$ samples *with* replacement (`randint`
+over the slice) — at $f{=}10$ duplicates
+are rare and the union absorbs them; and determinism is a feature, not
+an accident — seed the RNG and the same batch samples the same block,
+which the lab also asserts.
+
 Stack two blocks for a 2-layer model: the second block samples neighbors
-*of the first block's union*, so the batch's working set is targets +
+*of the first block's union* $U$, so the batch's working set is targets +
 their sampled neighbors + those neighbors' sampled neighbors. Concretely,
 at batch 1,024 and fanout 10: the bound says up to $1{,}024 \times 111
 \approx 114$k node-slots, but the *union* is far smaller — overlapping
@@ -199,8 +294,9 @@ Read that trade three times, because it is the one production always
 rediscovers. Sampling bought a 44× memory reduction and paid for it with a
 **122× slower epoch** — and the slowdown is not the GNN, which does *less*
 math than before; it is the *sampler*: pure-Python neighbor selection,
-tensor gathers, index remapping, all on CPU while the GPU idles. The
-canonical cure is not "make the sampler fast" alone but *overlap*: a
+tensor gathers, index remapping, all on CPU while the GPU idles.
+
+The canonical cure is not "make the sampler fast" alone but *overlap*: a
 producer-consumer pipeline in which CPU workers sample and assemble
 batch $k{+}1$ while the GPU trains on batch $k$, so the sampler's cost
 hides behind compute it was previously blocking. Every serious GNN
@@ -233,12 +329,29 @@ each need re-deriving on graphs, and mostly haven't been. When your
 loss curves on sampled graph training look stranger than your vision
 experience says they should, this paragraph is why.
 
-Statistically, neighbor sampling is the gentle option: the aggregated mean
-over a sampled neighborhood is an unbiased estimate of the full mean
-([Week 7's](07-gnn-design.qmd) widget showed you its spread), so the
-gradient is noisy but honest, and accuracy typically lands close to
-full-batch — our 0.605 vs 0.665 gap is mostly the shorter training budget,
-not the sampling. Three practice notes complete the contract. Fanouts are
+Statistically, neighbor sampling is the gentle option, and the claim is
+worth stating as an estimator, because it is the exact property
+partitioning will lack:
+
+$$
+\widehat{m}_v \;=\; \frac{1}{|S_f(v)|} \sum_{u \in S_f(v)} h_u,
+\qquad
+\mathbb{E}\big[\widehat{m}_v\big] \;=\; \frac{1}{|N(v)|} \sum_{u \in N(v)} h_u
+$$ {#eq-w11-estimator}
+
+where —
+
+- $N(v)$ is $v$'s full neighborhood and $S_f(v) \subseteq N(v)$ the
+  sampled subset of at most $f$ neighbors, drawn uniformly;
+- $h_u$ is neighbor $u$'s current feature (or hidden) vector;
+- $\widehat{m}_v$ is the sampled mean message; the expectation is over
+  the sampler's draws.
+
+Unbiasedness ([Week 7's](07-gnn-design.qmd) widget showed you the
+spread) means the gradient is noisy but honest, and accuracy typically
+lands close to full-batch — our 0.605 vs 0.665 gap is mostly the shorter
+training budget, not the sampling. Three practice notes complete the
+contract. Fanouts are
 chosen asymmetrically — larger at the layer nearest the targets (where
 each sample matters most), smaller further out; the GraphSAGE paper's
 25/10 remains a sane default, our 10/10 a budget one, and the right
@@ -264,7 +377,8 @@ GraphSAGE with every slot re-engineered for that reality: neighborhoods
 are not uniform samples but the top-$T$ nodes by personalized-PageRank
 visit counts (Week 2's random surfer, hired as an importance sampler);
 "aggregation" weights neighbors by those visit counts; training runs on
-MapReduce with a producer-consumer pipeline so CPUs sample while GPUs
+MapReduce (the classic split-the-work-across-machines batch-processing
+framework) with a producer-consumer pipeline so CPUs sample while GPUs
 compute (the 122× problem, solved by overlap); and serving — the part
 nobody's paper section reads but every engineer should — precomputes all
 3 billion embeddings offline and ships them to a nearest-neighbor index.
@@ -280,7 +394,34 @@ one-line summary of this lecture.
 Partition the nodes into clusters, keep only within-cluster edges, and
 train on one cluster at a time: each step is *full-batch on a small graph*
 — no sampler in the inner loop, plain GCN code unchanged from Week 6,
-memory bounded by the largest cluster. That is Cluster-GCN, and its
+memory bounded by the largest cluster. That is Cluster-GCN
+([Chiang et al., 2019](https://arxiv.org/abs/1905.07953)) — Lab 11's
+stretch exercise implements it exactly as written:
+
+::: {#alg-w11-cluster .algorithm name="Cluster-GCN: Partition, Then Train"}
+Mini-batching by subgraph: a one-time cut, then plain full-batch GCN
+steps on one cluster at a time.
+
+**Input:** graph $G = (V, E)$; features $X$; part count $k$; a
+partitioner (METIS, or uniform-random as the honest worst case);
+epochs $T$. **Output:** trained GCN weights $W$.
+
+1. $\{V_1, \dots, V_k\} \leftarrow \mathrm{partition}(V)$ — once, offline
+2. **for** $j = 1 \dots k$ **do** $E_j \leftarrow \{(u,v) \in E : u, v \in V_j\}$ **end for**
+3. **for** epoch $t = 1 \dots T$ **do**
+4. &nbsp;&nbsp;&nbsp;&nbsp;**for** each cluster $j$, in random order, **do**
+5. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;one full-batch GCN step on $(V_j, E_j, X[V_j])$
+6. &nbsp;&nbsp;&nbsp;&nbsp;**end for**
+7. **end for**
+8. **return** $W$ — evaluate on the *full* graph, all edges restored
+:::
+
+Line 5 is Week 6's training step, unchanged — that is the entire sales
+pitch. Memory is bounded by the largest cluster; the between-cluster
+edges dropped at line 2 never train, which is the bias priced below; and
+Chiang et al.'s own repair modifies line 4: draw a random *group* of
+clusters per step and restore the edges between them, trading bias back
+toward variance at a memory price you control by group size. Its
 engineering personality is the opposite of sampling's: where sampling
 moved complexity into the data pipeline, partitioning moves it into a
 one-time preprocessing job and keeps the training loop stupid. That
@@ -299,12 +440,21 @@ architecture, with partition quality now deciding network traffic
 published GNN systems all live here, and their engineering papers read
 as love letters to good partitions.
 
-The catch is printed in the construction: **between-cluster edges do not
-exist during training.** The model literally never sees them; the
-estimate is *biased*, unlike sampling's noisy-but-honest one — no amount
-of extra epochs converges to the full-graph answer, because the
-optimizer is faithfully minimizing the wrong objective. The repair has
+The catch is printed in the construction, and it deserves definition
+status because it is the exam-grade distinction of this section.
+
+::: {#def-w11-partition .definition name="Partition bias"}
+Under cluster training, **between-cluster edges do not exist during
+training**: the optimizer faithfully minimizes the loss of a *different,
+sparser graph*, so the gradient estimate is **biased** — unlike
+sampling's noisy-but-honest one (@eq-w11-estimator). Read the difference
+operationally: variance averages out with more steps; bias does not — no
+amount of extra epochs converges to the full-graph answer.
+:::
+
+The repair has
 two parts. Cut where the graph is thinnest: METIS-family partitioners
+([Karypis & Kumar, 1998](https://doi.org/10.1137/S1064827595287997))
 (coarsen the graph level by level, cut the small coarse graph well,
 project the cut back up, refine) routinely keep the large majority of a
 community-structured graph's edges inside clusters — Week 2's insight
@@ -316,10 +466,24 @@ variance, at a memory price you control by group size.
 
 Why does random partitioning keep so few edges, exactly? Do the
 one-line calculation, because it is a lovely instance of thinking in
-probabilities: a uniformly random 40-way partition puts an edge's two
-endpoints in the same part with probability $1/40 = 2.5\%$ — the
-measured retention is not an empirical accident but the formula itself,
-landing on the nose. (And it hands you the METIS sales pitch for free:
+probabilities:
+
+$$
+\Pr[\text{edge } (u,v) \text{ survives}]
+\;=\; \Pr[u \text{ and } v \text{ land in the same part}]
+\;=\; \frac{1}{k}
+\qquad k{=}40:\ 2.5\%
+$$ {#eq-w11-retention}
+
+where —
+
+- $k$ is the number of parts, with every node assigned uniformly and
+  independently at random;
+- $u, v$ are the edge's endpoints: fix $u$'s part, and $v$ has a $1/k$
+  chance of joining it;
+- the measured 2.5% at $k{=}40$ is the formula landing on the nose.
+
+(And @eq-w11-retention hands you the METIS sales pitch for free:
 any partitioner that beats $1/k$ is extracting real community
 structure, and on graphs like arxiv good partitioners retain the large
 majority of edges — the distance between $2.5\%$ and that majority is
@@ -339,11 +503,31 @@ where structure carries more of the load, the between-cluster bias is the
 whole game, and 2.5% would be the catastrophe everyone predicted. A biased
 method's report card is only as good as the task it was graded on.
 
-**GraphSAINT** completes the family and fixes the bias on paper: sample a
-small subgraph per step, train full-batch *within* it, and multiply each
-node's loss term and each edge's message by inverse inclusion
-probabilities so the mini-batch loss is provably unbiased for the
-full-graph loss. The sampler is a design slot with three stock options —
+**GraphSAINT** ([Zeng et al., 2020](https://arxiv.org/abs/1907.04931))
+completes the family and fixes the bias on paper: sample a
+small subgraph per step, train full-batch *within* it, and reweight so
+the mini-batch loss is provably unbiased for the full-graph loss:
+
+$$
+\hat{\mathcal{L}} \;=\; \sum_{v \in \mathcal{G}_s} \frac{\ell_v}{p_v},
+\qquad
+\text{each message on edge } (u,v) \text{ weighted by } \frac{1}{p_{uv}}
+$$ {#eq-w11-saint}
+
+where —
+
+- $\mathcal{G}_s$ is the sampled subgraph of the current step and $v$
+  runs over its labeled nodes;
+- $\ell_v$ is the loss at node $v$ and $\hat{\mathcal{L}}$ the
+  mini-batch estimate of the full-graph loss;
+- $p_v$ and $p_{uv}$ are the probabilities that the sampler includes
+  node $v$ and edge $(u,v)$ respectively — estimated empirically, once,
+  before training;
+- dividing by inclusion probability makes
+  $\mathbb{E}[\hat{\mathcal{L}}]$ the full-graph loss —
+  @eq-w11-estimator one level up.
+
+The sampler is a design slot with three stock options —
 uniform nodes (simple, misses structure), uniform edges (biases toward
 hubs in a controllable way), or short random walks from random roots
 (the practical winner: walk-visited subgraphs are connected and
@@ -353,7 +537,9 @@ training. It is the estimator-theory answer to the whole section: keep
 partitioning's simple inner loop, buy back sampling's honesty with
 importance weights — the same reweight-by-sampling-probability move this
 course first met in Week 3's negative sampling and Week 4's
-self-adversarial weighting, resurfacing as a systems tool. The family
+self-adversarial weighting, resurfacing as a systems tool.
+
+The family
 portrait, then, in one taxonomy you should be able to reproduce cold:
 *node-wise sampling* prunes each target's tree (unbiased aggregation,
 variance in the gradient, sampler in the hot loop); *subgraph methods*
@@ -367,25 +553,62 @@ in this three-cornered space.
 ## Escape three: stop propagating at training time entirely
 
 The most radical option comes from staring at [Week 6's](06-gcn.qmd) GCN
-until it confesses. Two layers:
-$\mathrm{softmax}\big(\hat A\,\sigma(\hat A X W_0)\,W_1\big)$. Now delete
-the nonlinearity $\sigma$ — the one piece with no obvious job on a
-homophilous task — and the parentheses collapse:
+until it confesses. Two layers, written out in full:
 
-$$\hat A\,(\hat A X W_0)\,W_1 \;=\; \hat A^2 X\,(W_0 W_1) \;=\; (\hat A^2 X)\,W.$$
+$$
+Z \;=\; \mathrm{softmax}\big(\hat A\,\sigma(\hat A X W_0)\,W_1\big)
+$$ {#eq-w11-gcn2}
 
-Everything graph-shaped — $\hat A^2 X$ — is a **fixed matrix**, computable
+where —
+
+- $\hat A = \tilde D^{-1/2}(A + I)\,\tilde D^{-1/2}$ is the symmetrically
+  normalized adjacency with self-loops (Week 6's propagation operator;
+  $\tilde D$ is the degree matrix of $A + I$);
+- $X$ is the $N \times d$ node-feature matrix and $Z$ the class
+  probabilities;
+- $W_0, W_1$ are the two layers' weight matrices;
+- $\sigma$ is the pointwise nonlinearity (ReLU) between them.
+
+Now delete the nonlinearity $\sigma$ — the one piece with no obvious job
+on a homophilous task — and the parentheses collapse:
+
+$$\hat A\,(\hat A X W_0)\,W_1 \;=\; \hat A^2 X\,(W_0 W_1) \;=\; (\hat A^2 X)\,W$$ {#eq-w11-sgc}
+
+where —
+
+- $\hat A^2 X$ is a **fixed matrix** — two rounds of propagation applied
+  to the features, no parameters involved; the exponent is the
+  propagation depth $K$, here 2;
+- $W = W_0 W_1$ is the single merged weight matrix that remains, of shape
+  $d \times C$, where $C$ is the number of classes (40 on arxiv);
+- the deleted $\sigma$ is the *only* thing that prevented the merge.
+
+Everything graph-shaped — $\hat A^2 X$ — is computable
 once, offline, on a CPU, with sparse matrix products, before training
-begins. Look at what the collapse did to each of this week's two
+begins. That is SGC ([Wu et al., 2019](https://arxiv.org/abs/1902.07153)),
+and the design pattern it perfects has a name worth keeping.
+
+::: {#def-w11-decouple .definition name="Precompute-and-decouple (SGC/SIGN)"}
+Move every graph-dependent computation into a **one-time offline
+preprocessing pass** (diffused feature tables such as $\hat A^K X$), so
+that training and serving see only an ordinary feature matrix and an
+ordinary (linear or MLP) model — no edges, no sampler, no graph in the
+loop. The other two escapes shrink the graph per step; this one removes
+it entirely.
+:::
+
+Look at what the collapse did to each of this week's two
 villains. The explosion: gone — sparse matrix–matrix products stream
 over edges without ever materializing anyone's computation tree, and
 the precompute's cost is a clean $O(K \cdot E \cdot d)$, paid once. The
 residency: gone from training — the optimizer holds the *train split's*
-rows of a feature table and a $d \times C$ weight matrix, and could not
+rows of a feature table and the $d \times C$ weight matrix, and could not
 name the graph's edge count if interrogated. What remains to train is a
-logistic regression on precomputed features. That is SGC, and the deletion is not an approximation trick so
-much as a scientific question aimed at every deep GNN: *was the depth doing
-nonlinear computation, or just propagation?* Measured on arxiv: precompute
+logistic regression on precomputed features — the deletion is not an
+approximation trick so much as a scientific question aimed at every deep
+GNN: *was the depth doing nonlinear computation, or just propagation?*
+
+Measured on arxiv: precompute
 3.9 s, then **1.5 milliseconds per epoch**, test **0.638** — beating our
 sampled SAGE, within three points of full-batch, trainable on a laptop with
 the GPU reserved for the 171 MB of the training split. On homophilous
@@ -410,11 +633,13 @@ homophilous leaderboards. When you meet a new architecture, the SGC
 question — *what survives if I delete the learning between hops?* — is
 the fastest honest test you can run.
 
-SIGN generalizes the move constructively: precompute *several* operators'
+SIGN ([Frasca et al., 2020](https://arxiv.org/abs/2004.11198))
+generalizes the move constructively: precompute *several* operators'
 diffusions — $\hat A X$, $\hat A^2 X$, a PPR-weighted diffusion, a
 triangle-based one — concatenate them per node, and let an MLP mix the
 columns. Each operator is one hand-designed "view" of the neighborhood
-(the inception-module idea, transplanted); everything graph-shaped
+(the inception-module idea — a CNN block that runs several filter sizes
+side by side and concatenates — transplanted to graphs); everything graph-shaped
 remains offline; training and serving stay MLP-simple; and the accuracy
 gap to trained message passing narrows further at a fraction of the
 cost. A small zoo of Week 2-style graph features, computed once, feeding
@@ -425,7 +650,9 @@ How do you choose $K$? The widget above is the intuition pump — at $K=0$
 the three planted errors sit unrepaired, by $K=2$ averaging has fixed two
 of them, by $K=8$ everything is washing toward Week 9's dominant
 direction — and Week 9 also gave you the quantitative handle: the
-non-dominant signal decays like $|\lambda_2|^K$, so the sweet spot is
+non-dominant signal decays like $|\lambda_2|^K$, where $\lambda_2$ is
+the propagation operator's second eigenvalue (Week 9's spectral gap)
+and $K$ the propagation depth, so the sweet spot is
 where enough smoothing has happened to denoise and not so much that the
 classes blur, a number the graph's spectrum sets and validation finds.
 In practice $K \in \{2, 3\}$ wins almost everywhere homophily reigns —
@@ -486,7 +713,9 @@ embeddings in a vector index, serve by lookup plus approximate
 nearest-neighbor search. Serving is microseconds and GPU-free; the price
 is *staleness*: a node's embedding reflects the graph as of the last
 batch job, so the new user, the just-posted item, the fraud ring
-assembled this afternoon are invisible until the next refresh. Size the
+assembled this afternoon are invisible until the next refresh.
+
+Size the
 consequence with PinSage's own arithmetic: 3 billion nodes at $d{=}256$
 float32 is roughly **3 TB of embeddings** — a storage system, a refresh
 pipeline, and an ANN index are now part of your "model," and the nightly
@@ -528,8 +757,11 @@ Real systems hybridize: precompute for the bulk, on-demand for hot or new
 nodes, periodic refresh in between — and the SGC/SIGN route deserves a
 special mention here, because "features precomputed offline, model is an
 MLP" is not just a training trick; it is the *serving architecture* many
-production stacks quietly prefer, GNN or not. A close cousin has become
-standard enough to name: **distill the GNN into an MLP** — train the
+production stacks quietly prefer, GNN or not.
+
+A close cousin has become
+standard enough to name: **distill the GNN into an MLP**
+([Zhang et al., 2022](https://arxiv.org/abs/2110.08727)) — train the
 graph model offline, then train a plain MLP on node features to imitate
 the GNN's outputs, and *serve only the MLP*. On homophilous data the
 student recovers most of the teacher's accuracy while serving with no
@@ -540,7 +772,8 @@ production," a good fraction of the time this is what is actually
 running.
 
 Two more scaling tools fill out the practitioner's shelf, each one
-sentence of idea. **Historical embeddings** (the GNNAutoScale line):
+sentence of idea. **Historical embeddings** (the GNNAutoScale line,
+[Fey et al., 2021](https://arxiv.org/abs/2106.05609)):
 train on mini-batches, but where a batch's computation tree wants an
 out-of-batch neighbor, substitute that neighbor's *cached activation
 from the last time it was computed* — slightly stale inputs in exchange
@@ -573,11 +806,14 @@ pays for it.
 The week's transferable procedure — run it before writing any model code,
 the way this lecture ran it on arxiv:
 
-**Bill the residency.** $N \times d \times 4$ bytes per activation layer;
-edge-message terms $E \times d \times 4$ where the implementation
-materializes them; ×2 for backprop retention; ×3 on parameters for Adam.
+**Bill the residency.** Run @eq-w11-bill: $N \times d \times 4$ bytes per
+activation layer; edge-message terms $E \times d \times 4$ where the
+implementation materializes them; ×2 for backprop retention; ×3 on
+parameters for Adam.
 Compare to the device. If it fits with headroom, stop — full-batch is the
-best-accuracy, least-code option, and our table says so. This
+best-accuracy, least-code option, and our table says so.
+
+This
 anti-recommendation deserves italics because cargo-culted scale
 machinery is this subfield's most popular self-inflicted wound: the
 median graph a working team actually touches — a company's citation-like
@@ -610,14 +846,19 @@ at what latency" before training, because the answer (precompute vs
 on-demand) decides the model you should train — a model too slow to serve
 is a benchmark entry, not a system.
 
+::: {.callout-note title="Worked capacity plan: 10M users, 200M follow edges, churn weekly"}
 Watch the whole procedure run once on a fictional-but-typical brief: *10M
 users, 200M follow edges, predict churn weekly, one 24 GB GPU, features
-are 256-d.* Bill the residency: features $10^7 \times 256 \times 4
+are 256-d.*
+
+**Bill the residency** (@eq-w11-bill): features $10^7 \times 256 \times 4
 \approx 10$ GB; one retained activation layer, another 10; edge messages
 $2 \times 10^8 \times 256 \times 4 \approx 200$ GB — full-batch is dead
-at line three, no meeting required. Probe the explosion: follow graphs
+at line three, no meeting required. **Probe the explosion:** follow graphs
 are heavy-tailed, so assume 2-hop ≈ tens of thousands; sampling is the
-design, not an option. Pick by constraint: weekly retrain means epoch
+design, not an option.
+
+**Pick by constraint:** weekly retrain means epoch
 time is forgiving; churn is a feature-heavy, homophily-flavored signal,
 so run the SGC/SIGN candidate *first* — $\hat A^2 X$ is one sparse
 multiply per week on CPU, the classifier trains in minutes, and if it
@@ -627,6 +868,7 @@ precomputed features plus an MLP *is* a serving architecture. Total
 design time: one page of arithmetic, one afternoon of bake-off — and
 every decision traceable to a measured number, which is the entire
 method.
+:::
 
 One synthesis before the pitfalls, because it is the reason this week sat
 *after* the theory weeks rather than before them. Each escape is an old
@@ -683,13 +925,15 @@ and the retention. Fix OOMs with the audit in hand, not by turning dials
 until the crash stops — the dial that stops the crash is often the one
 that quietly killed the accuracy.
 
-**Batch statistics that smuggle the batch.** BatchNorm inside a sampled
+**Batch statistics that smuggle the batch.** BatchNorm (normalization of
+each feature over the batch dimension) inside a sampled
 or clustered batch normalizes over *whatever the sampler drew* —
 statistics differ between training batches, full-graph inference, and
 serving one node at a time, and the mismatch surfaces as
 "eval accuracy depends on batch size," one of the field's most-reported
-ghost bugs. LayerNorm, or norms frozen for inference, are the standard
-exorcisms.
+ghost bugs. LayerNorm (normalizing within each node's own feature
+vector, batch-independent), or norms frozen for inference, are the
+standard exorcisms.
 
 ## In this week's lab
 
@@ -710,27 +954,32 @@ deliberately CPU-friendly, which is its entire argument.)
 
 ## Required reading
 
-- **Hamilton, Ying, Leskovec — Inductive Representation Learning on Large
-  Graphs** (NeurIPS 2017). You read it in Week 7 for the aggregators;
+- **Hamilton, Ying, Leskovec — [Inductive Representation Learning on Large
+  Graphs](https://arxiv.org/abs/1706.02216)** (NeurIPS 2017). You read it in Week 7 for the aggregators;
   reread §3 now as a systems paper — the fanout contract, the
   minibatch algorithm's bookkeeping (our Lab's sampler is its Algorithm
   2), and the inductive serving story that made the paper an industry
   document.
-- **Chiang et al. — Cluster-GCN** (KDD 2019). The partition escape. §3.2's
+- **Chiang et al. — [Cluster-GCN](https://arxiv.org/abs/1905.07953)**
+  (KDD 2019). The partition escape. §3.2's
   stochastic multi-cluster batching is the part that makes it honest;
   the memory table is the part to internalize; and note which authors'
   affiliation the paper carries — this was Google needing to train on
   graphs Google-sized.
-- **Wu et al. — Simplifying Graph Convolutional Networks** (ICML 2019).
+- **Wu et al. — [Simplifying Graph Convolutional
+  Networks](https://arxiv.org/abs/1902.07153)** (ICML 2019).
   The deletion experiment. Internalize Table 2's "same accuracy, 100×
   faster" shape, and read the abstract's tone — a null model politely
   embarrassing a subfield — as a genre you should learn to both write
   and fear.
 
-Optional: GraphSAINT (ICLR 2020) for unbiased subgraph sampling done
-right — read the estimator section as a statistics exercise; SIGN (2020)
+Optional: [GraphSAINT](https://arxiv.org/abs/1907.04931) (ICLR 2020) for
+unbiased subgraph sampling done
+right — read the estimator section as a statistics exercise;
+[SIGN](https://arxiv.org/abs/2004.11198) (2020)
 for the multi-operator generalization and its unabashedly
-production-first framing; the OGB paper (NeurIPS 2020) for why these
+production-first framing; the [OGB
+paper](https://arxiv.org/abs/2005.00687) (NeurIPS 2020) for why these
 benchmarks exist, how their splits were designed against the leaks this
 course keeps cataloguing, and what leaderboard hygiene looks like when
 the graphs get big enough that nobody can afford to rerun everyone
@@ -819,7 +1068,8 @@ target, and explain why depth 3 changes the sampling conversation
 qualitatively.
 
 <details><summary>Answer</summary>
-$1 + 10 + 100 = 111$. At depth 3 the bound is 1,111 per target — a
+$1 + 10 + 100 = 111$ (@eq-w11-fanout). At depth 3 the bound is 1,111 per
+target — a
 2,048-target batch may touch two million node-slots, rivaling the whole
 graph: fanout caps tame the *base*, not the *exponent*. Hence deep
 scalable GNNs pair sampling with the other escapes (precompute, or
@@ -841,6 +1091,30 @@ structure signal you need, full-batch is ~41 GB at that scale (the stress
 test's red row), so the fanout contract is what remains; budget the
 pipeline engineering accordingly.
 </details>
+
+::: {.notions}
+**Notions introduced this week**
+
+- **neighborhood explosion** (@def-w11-explosion) — $L$ hops reach a
+  constant fraction of a heavy-tailed graph; 18 / 4,577 / 22,663.
+- **fanout contract** (@def-w11-fanout, @alg-w11-sampler) — at most $f$
+  sampled neighbors per node per hop (@eq-w11-fanout).
+- **partition bias** (@def-w11-partition, @alg-w11-cluster) — cut edges
+  never train; bias does not average out.
+- **precompute-and-decouple** (@def-w11-decouple, @eq-w11-sgc) —
+  propagation as offline preprocessing; training becomes logistic
+  regression.
+- **unbiased subgraph estimator** (@eq-w11-saint) — GraphSAINT's
+  inverse-inclusion-probability reweighting; Week 3's trick at scale.
+- **CSR storage** — `ptr` plus sorted destination array: neighbors as a
+  slice; sampling O(fanout).
+- **producer–consumer pipeline** — CPU assembles batch $k{+}1$ while the
+  GPU trains on $k$; the cure for the 122×.
+- **staleness vs. latency** — the serving fork: cheap-but-stale lookup
+  vs. fresh on-demand inference.
+- **historical embeddings** — cached out-of-batch activations for a
+  batch-bounded tree (GNNAutoScale).
+:::
 
 ## Where this leaves us
 

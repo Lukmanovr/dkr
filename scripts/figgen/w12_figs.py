@@ -25,8 +25,8 @@ ACC = "var(--dkr-accent, #d9603b)"
 TEAL = "var(--dkr-blue, #0f8377)"
 GOLD = "var(--dkr-yellow, #d9a62e)"
 GREEN = "var(--dkr-green, #199473)"
-PURPLE = "#7c5cd6"
-RED = "#cf4a30"
+PURPLE = "var(--dkr-purple, #7c5cd6)"
+RED = "var(--dkr-red, #cf4a30)"
 MUTED = "var(--dkr-muted, #6e6e7a)"
 TEXT = "var(--dkr-text, #1c1c21)"
 BG = "var(--dkr-bg, #fff)"
@@ -76,19 +76,25 @@ write("fig-w12-splits", "\n".join(sp),
 ld = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" fill="{MUTED}">'
       f'test AUC on Cora, one shared proper split — and what one labeling leak did to SEAL</text>']
 X0 = 250
+W_FULL = 420  # bar length for AUC = 1.0; bars are zero-based (length ∝ AUC)
 for i, (name, v, col) in enumerate(LADDER):
-    yy = 60 + i * 48
-    w = 420 * (v - 0.3) / 0.7
+    yy = 64 + i * 48
+    w = W_FULL * v
     ld.append(f'  <text x="{X0 - 12}" y="{yy + 14}" text-anchor="end" font-family="{SANS}" font-size="13" font-weight="700" fill="{col if col != MUTED else TEXT}">{name}</text>')
     ld.append(f'  <rect x="{X0}" y="{yy}" width="{w:.0f}" height="22" rx="6" fill="{col}" opacity="0.85"/>')
     ld.append(f'  <text x="{X0 + w + 8:.0f}" y="{yy + 15}" font-family="{MONO}" font-size="12.5" font-weight="700" fill="{TEXT}">{v:.3f}</text>')
-yy = 60 + 4 * 48 + 8
-wl = 420 * (LEAKY - 0.3) / 0.7
+yy = 64 + 4 * 48 + 8
+wl = W_FULL * LEAKY
 ld.append(f'  <text x="{X0 - 12}" y="{yy + 14}" text-anchor="end" font-family="{SANS}" font-size="13" font-weight="700" fill="{RED}">SEAL with the label leak</text>')
 ld.append(f'  <rect x="{X0}" y="{yy}" width="{wl:.0f}" height="22" rx="6" fill="{RED}" opacity="0.75"/>')
-ld.append(f'  <text x="{X0 + wl + 8:.0f}" y="{yy + 15}" font-family="{MONO}" font-size="12.5" font-weight="700" fill="{RED}">{LEAKY:.3f} — below random!</text>')
-ld.append(f'  <line x1="{X0 + 420 * 0.2 / 0.7:.0f}" y1="52" x2="{X0 + 420 * 0.2 / 0.7:.0f}" y2="{yy + 30}" stroke="{MUTED}" stroke-width="1" stroke-dasharray="4 3"/>')
-ld.append(f'  <text x="{X0 + 420 * 0.2 / 0.7:.0f}" y="{yy + 46}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{MUTED}">0.5 = coin flip</text>')
+ld.append(f'  <text x="{X0 + wl + 8:.0f}" y="{yy + 15}" font-family="{MONO}" font-size="12.5" font-weight="700" fill="{RED}">{LEAKY:.3f}</text>')
+# zero baseline + full-height coin-flip line, label at top
+ld.append(f'  <line x1="{X0}" y1="52" x2="{X0}" y2="{yy + 30}" stroke="{MUTED}" stroke-width="1" opacity="0.6"/>')
+ld.append(f'  <text x="{X0}" y="{yy + 46}" text-anchor="middle" font-family="{MONO}" font-size="12.5" fill="{MUTED}">0</text>')
+ld.append(f'  <text x="{X0 + W_FULL}" y="{yy + 46}" text-anchor="middle" font-family="{MONO}" font-size="12.5" fill="{MUTED}">1.0</text>')
+XC = X0 + W_FULL // 2
+ld.append(f'  <text x="{XC}" y="{46}" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="{MUTED}">0.5 = coin flip</text>')
+ld.append(f'  <line x1="{XC}" y1="52" x2="{XC}" y2="{yy + 30}" stroke="{MUTED}" stroke-width="1" stroke-dasharray="4 3"/>')
 ld.append(f'''  <g font-family="{SANS}">
     <rect x="70" y="{yy + 58}" width="620" height="30" rx="15" fill="{PURPLE}"/>
     <text x="380" y="{yy + 78}" text-anchor="middle" font-size="13" font-weight="700" fill="{BG}">the leaked feature exists only for TRAINING positives — at test the model votes backwards</text>
@@ -102,14 +108,14 @@ se = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-si
       f'SEAL: score the PAIR by classifying its neighborhood-as-a-graph — labels = distances to the two endpoints</text>']
 # worked enclosing subgraph: a-b candidate, common neighbor c, a-only d, b-only e
 POSN = {"a": (110, 120), "b": (270, 120), "c": (190, 60), "d": (60, 200), "e": (320, 200)}
-LBL = {"a": "(0,1)", "b": "(1,0)", "c": "(1,1)", "d": "(1,2)", "e": "(2,1)"}
+LBL = {"a": "(0,2)", "b": "(2,0)", "c": "(1,1)", "d": "(1,2)", "e": "(2,1)"}
 COLN = {"a": ACC, "b": ACC, "c": GREEN, "d": MUTED, "e": MUTED}
 EDG = [("a", "c"), ("b", "c"), ("a", "d"), ("b", "e")]
 for u, v in EDG:
     (x1, y1), (x2, y2) = POSN[u], POSN[v]
     se.append(f'  <line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{MUTED}" stroke-width="2" opacity="0.6"/>')
 se.append(f'  <line x1="{POSN["a"][0]}" y1="{POSN["a"][1]}" x2="{POSN["b"][0]}" y2="{POSN["b"][1]}" stroke="{RED}" stroke-width="2" stroke-dasharray="6 4"/>')
-se.append(f'  <text x="190" y="140" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{RED}">the candidate — REMOVED everywhere</text>')
+se.append(f'  <text x="190" y="147" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{RED}">the candidate — REMOVED everywhere</text>')
 for v, (x, y) in POSN.items():
     se.append(f'  <circle cx="{x}" cy="{y}" r="15" fill="{COLN[v]}"/>')
     se.append(f'  <text x="{x}" y="{y + 4}" text-anchor="middle" font-family="{SANS}" font-size="12" font-weight="700" fill="{BG}">{v}</text>')
@@ -117,7 +123,7 @@ for v, (x, y) in POSN.items():
 steps = [
     ("1 · extract", "k-hop subgraph around (a, b)", TEAL),
     ("2 · label", "each node by (dist to a, dist to b)", GREEN),
-    ("3 · classify", "a small GNN scores the labeled graph", PURPLE),
+    ("3 · classify", "a small GNN scores it — the learned stage", PURPLE),
 ]
 for i, (t1, t2, col) in enumerate(steps):
     x0 = 420
@@ -138,41 +144,45 @@ write("fig-w12-seal", "\n".join(se),
 ge = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" fill="{MUTED}">'
       f'two ways to make a graph from nothing — and the measured verdict on community graphs</text>']
 ge.append(f'  <text x="200" y="56" text-anchor="middle" font-family="{SANS}" font-size="13" font-weight="700" fill="{TEAL}">autoregressive (GraphRNN)</text>')
-# adjacency rows building up
+# adjacency rows building up (cells sized to balance the diffusion panel)
+CS, CY0 = 32, 68
 for i in range(5):
     for j in range(i):
         filled = (i, j) in [(1, 0), (2, 1), (3, 1), (3, 2), (4, 0)]
-        ge.append(f'  <rect x="{120 + j * 26}" y="{70 + i * 26}" width="22" height="22" rx="3" '
+        ge.append(f'  <rect x="{120 + j * CS}" y="{CY0 + i * CS}" width="{CS - 4}" height="{CS - 4}" rx="3" '
                   f'fill="{TEAL if filled else MUTED}" opacity="{0.85 if filled else 0.15}"/>')
-    ge.append(f'  <text x="{120 + i * 26 + 11}" y="{70 + 5 * 26 + 16}" text-anchor="middle" font-family="{MONO}" font-size="12" fill="{MUTED}">{i + 1}</text>')
-ge.append(f'  <text x="200" y="{70 + 5 * 26 + 40}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{TEXT}">one row at a time: node i&#x2019;s edges to</text>')
-ge.append(f'  <text x="200" y="{70 + 5 * 26 + 58}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{TEXT}">earlier nodes, conditioned on history (RNN)</text>')
+    ge.append(f'  <text x="{120 + i * CS + CS // 2 - 2}" y="{CY0 + 5 * CS + 16}" text-anchor="middle" font-family="{MONO}" font-size="12" fill="{MUTED}">{i + 1}</text>')
+CAP_Y = CY0 + 5 * CS + 40  # shared caption baseline for BOTH panels
+ge.append(f'  <text x="200" y="{CAP_Y}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{TEXT}">one row at a time: node i&#x2019;s edges to</text>')
+ge.append(f'  <text x="200" y="{CAP_Y + 18}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{TEXT}">earlier nodes, conditioned on history (RNN)</text>')
 ge.append(f'  <text x="560" y="56" text-anchor="middle" font-family="{SANS}" font-size="13" font-weight="700" fill="{PURPLE}">diffusion (DiGress)</text>')
 stages = [1.0, 0.65, 0.3, 0.05]
 gk = nx.gnp_random_graph(8, 0.35, seed=4)
 pos8 = {v: (math.cos(2 * math.pi * v / 8), math.sin(2 * math.pi * v / 8)) for v in gk}
+DCY, DR = 158, 30
 for si, noise in enumerate(stages):
     cx = 445 + si * 78
     rng2 = np.random.default_rng(si)
     for u, v in gk.edges():
         keep = rng2.random() > noise * 0.7
         if keep:
-            ge.append(f'  <line x1="{cx + 26 * pos8[u][0]:.0f}" y1="{150 + 26 * pos8[u][1]:.0f}" '
-                      f'x2="{cx + 26 * pos8[v][0]:.0f}" y2="{150 + 26 * pos8[v][1]:.0f}" '
+            ge.append(f'  <line x1="{cx + DR * pos8[u][0]:.0f}" y1="{DCY + DR * pos8[u][1]:.0f}" '
+                      f'x2="{cx + DR * pos8[v][0]:.0f}" y2="{DCY + DR * pos8[v][1]:.0f}" '
                       f'stroke="{PURPLE}" stroke-width="1.4" opacity="{1 - 0.7 * noise:.2f}"/>')
     for v in gk:
-        ge.append(f'  <circle cx="{cx + 26 * pos8[v][0]:.0f}" cy="{150 + 26 * pos8[v][1]:.0f}" r="4" fill="{PURPLE}" opacity="{1 - 0.5 * noise:.2f}"/>')
+        ge.append(f'  <circle cx="{cx + DR * pos8[v][0]:.0f}" cy="{DCY + DR * pos8[v][1]:.0f}" r="4" fill="{PURPLE}" opacity="{1 - 0.5 * noise:.2f}"/>')
     if si < 3:
-        ge.append(f'  <text x="{cx + 39}" y="154" text-anchor="middle" font-size="14" fill="{MUTED}">&#x2192;</text>')
-ge.append(f'  <text x="560" y="216" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{TEXT}">start from noise; a GNN denoises all</text>')
-ge.append(f'  <text x="560" y="234" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{TEXT}">edges and node types jointly, step by step</text>')
+        ge.append(f'  <text x="{cx + 39}" y="{DCY + 4}" text-anchor="middle" font-size="14" fill="{MUTED}">&#x2192;</text>')
+ge.append(f'  <text x="560" y="{CAP_Y}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{TEXT}">start from noise; a GNN denoises all</text>')
+ge.append(f'  <text x="560" y="{CAP_Y + 18}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{TEXT}">edges and node types jointly, step by step</text>')
+MEAS_Y = CAP_Y + 42
 ge.append(f'  <g font-family="{MONO}" font-size="12.5">'
-          f'<text x="120" y="292" fill="{TEXT}">measured (TV distance to held-out community graphs):</text></g>')
-ge.append(f'  <text x="120" y="316" font-family="{MONO}" font-size="12.5" fill="{GREEN}">GraphRNN-S: degree 0.111 · clustering 0.154</text>')
-ge.append(f'  <text x="450" y="316" font-family="{MONO}" font-size="12.5" fill="{RED}">ER baseline: 0.152 · 0.596</text>')
+          f'<text x="120" y="{MEAS_Y}" fill="{TEXT}">measured (TV distance to held-out community graphs):</text></g>')
+ge.append(f'  <text x="120" y="{MEAS_Y + 24}" font-family="{MONO}" font-size="12.5" fill="{GREEN}">GraphRNN-S: degree 0.111 · clustering 0.154</text>')
+ge.append(f'  <text x="450" y="{MEAS_Y + 24}" font-family="{MONO}" font-size="12.5" fill="{RED}">ER baseline: 0.152 · 0.596</text>')
 write("fig-w12-generate", "\n".join(ge),
       "Two graph generation paradigms: autoregressive GraphRNN builds the adjacency matrix one row at a time conditioned on history, while diffusion models denoise a random graph into a sample over several steps; measured on community graphs the trained GraphRNN's samples sit at total-variation distance 0.111 (degree) and 0.154 (clustering) from held-out graphs versus 0.152 and 0.596 for an Erdos-Renyi baseline",
-      height=336)
+      height=MEAS_Y + 42)
 
 # ═══════════ bake: karate VGAE 2-D latent for the widget ═══════════════════
 G = nx.karate_club_graph()

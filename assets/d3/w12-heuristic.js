@@ -54,7 +54,7 @@
 
   function render() {
     const P = U.pal();
-    const svg = U.svgIn("w12-he-svg", 760, 330);
+    const svg = U.svgIn("w12-he-svg", 760, 372);
     svg.attr("font-family", "'Source Sans 3', sans-serif");
     const g = svg.append("g");
 
@@ -72,6 +72,22 @@
     g.append("text").attr("x", 380).attr("y", 22).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted)
       .text(`${NAMES[heur]} ranks every non-edge of the message graph — its top 10 guesses drawn bold`);
+
+    // mini-legend: what the three bold edge styles mean
+    const LEG = [
+      { col: P.green, dash: null, label: "hit" },
+      { col: P.accent, dash: null, label: "miss" },
+      { col: P.yellow, dash: "5 4", label: "hidden truth" },
+    ];
+    let lx = 247;
+    LEG.forEach((it) => {
+      g.append("line").attr("x1", lx).attr("y1", 46).attr("x2", lx + 22).attr("y2", 46)
+        .attr("stroke", it.col).attr("stroke-width", it.dash ? 2.4 : 3)
+        .attr("stroke-dasharray", it.dash).attr("opacity", 0.9);
+      g.append("text").attr("x", lx + 28).attr("y", 50)
+        .attr("font-size", 12.5).attr("fill", P.text).text(it.label);
+      lx += 28 + 28 + it.label.length * 6.5;
+    });
 
     MSG.forEach(([a, b]) => {
       g.append("line").attr("x1", POS[a][0]).attr("y1", POS[a][1] + 25)
@@ -94,12 +110,12 @@
       g.append("circle").attr("cx", POS[v][0]).attr("cy", POS[v][1] + 25).attr("r", 6)
         .attr("fill", P.blue).attr("opacity", 0.8);
     }
-    g.append("text").attr("x", 380).attr("y", 306).attr("text-anchor", "middle")
+    g.append("text").attr("x", 380).attr("y", 338).attr("text-anchor", "middle")
       .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 13)
       .attr("font-weight", 700).attr("fill", hits >= 4 ? P.green : P.accentDark)
       .text(`hits: ${hits}/10 hidden edges found (gold dashed = hidden truth)`);
-    g.append("text").attr("x", 380).attr("y", 326).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+    g.append("text").attr("x", 380).attr("y", 360).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text(heur === "pa" ? "degree × degree finds hubs, not relationships — the weakest lens"
             : "closed triangles are most of what these heuristics know — Week 2, monetized");
   }

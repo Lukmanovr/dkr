@@ -15,13 +15,16 @@ on ogbn-arxiv:
    verifies the heavy tail (mean degree 3.5× the median) that makes the naive
    estimate 9× too small.
 2. **One block of fanout sampling** (exercise 2): the bounded, deduplicated,
-   deterministic sampler every production system reimplements — asserted for
+   deterministic sampler every production system reimplements
+   ([Hamilton et al., 2017](https://arxiv.org/abs/1706.02216)) — you code
+   against the lecture's Algorithm 1, restated in the notebook, asserted for
    the remap contract, the fanout bound, and seed-determinism, then stacked
    into a two-layer sampled SAGE you train (and feel the pipeline cost of).
 3. **SGC, derived and raced** (exercise 3): the sparse precompute in eight
-   lines, then a logistic regression whose epochs are measured in
-   *milliseconds* — asserted to be ≥5× cheaper per epoch than the full-batch
-   GCN you time alongside it.
+   lines ([Wu et al., 2019](https://arxiv.org/abs/1902.07153)), spec'd as an
+   algorithm block in the notebook, then a logistic regression whose epochs
+   are measured in *milliseconds* — asserted to be ≥5× cheaper per epoch
+   than the full-batch GCN you time alongside it.
 4. **The table** (exercise 4): your rows joined with the lecture's, closed by
    a claims paragraph that must cite its cells — including one claim about
    what the table does *not* establish.

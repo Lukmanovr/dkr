@@ -56,11 +56,11 @@ def write(name, body, aria, height=400):
 
 # ═══════════ figure 1: locality vs attention ═══════════════════════════════
 at = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" fill="{MUTED}">'
-      f'who can talk to whom in ONE layer — and what each convention costs</text>']
+      f'who can talk to whom in ONE layer (bright = reached, pale = silent) — and what each costs</text>']
 ring = [(120 + 62 * math.cos(-math.pi / 2 + k * math.pi / 4),
-         150 + 62 * math.sin(-math.pi / 2 + k * math.pi / 4)) for k in range(8)]
+         142 + 62 * math.sin(-math.pi / 2 + k * math.pi / 4)) for k in range(8)]
 ring2 = [(560 + 62 * math.cos(-math.pi / 2 + k * math.pi / 4),
-          150 + 62 * math.sin(-math.pi / 2 + k * math.pi / 4)) for k in range(8)]
+          142 + 62 * math.sin(-math.pi / 2 + k * math.pi / 4)) for k in range(8)]
 # left: MPNN — ring edges only, node 0 highlighted with its 1-hop reach
 for k in range(8):
     x1, y1 = ring[k]; x2, y2 = ring[(k + 1) % 8]
@@ -109,9 +109,10 @@ for i, v in enumerate([0, 2, 3]):
     rw.append(f'  <text x="475" y="{yy}" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{NODE_COL[v]}">{lbl}</text>')
     for j, k in enumerate((2, 3, 4)):
         val = HAND[k][v]
-        hot = (k == 3)
+        hot = (k == 3)   # emphasize via accent color + weight (never underline
+        # or strike — mono slashed zeros already read as marks)
         rw.append(f'  <text x="{545 + j * 70}" y="{yy}" font-family="{MONO}" font-size="12.5" '
-                  f'{"font-weight=\"700\"" if hot else ""} fill="{TEXT}">{val:.3f}</text>')
+                  f'{"font-weight=\"700\"" if hot else ""} fill="{ACC if hot else TEXT}">{val:.3f}</text>')
 rw.append(f'  <text x="380" y="262" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="{TEXT}">'
           f'k = 3 is the triangle detector: nodes 0, 1, 2 can walk their triangle home (1/6 each); node 3 cannot — exactly 0</text>')
 rw.append(f'''  <g font-family="{SANS}">
@@ -147,23 +148,33 @@ write("fig-w13-graphormer", "\n".join(gr),
       height=262)
 
 # ═══════════ figure 4: the measured ladder ═════════════════════════════════
+# Honest encoding: bar length IS the MAE (zero-based), so the best model has
+# the SHORTEST bar — said out loud in the annotation. Tuned reference is a
+# dashed in-chart line at 0.070, not a floating sentence.
+X0, XSCALE = 262, 470 / 0.42   # zero-based axis: 0 .. 0.42 MAE
 ld = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" fill="{MUTED}">'
-      f'ZINC-subset, 100 epochs, same budget discipline — test MAE (lower is better) and the wall-clock bill</text>']
+      f'ZINC-subset, 100 epochs, same budget discipline — test MAE and the wall-clock bill</text>',
+      f'  <text x="380" y="44" text-anchor="middle" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{TEXT}">'
+      f'bar length = MAE, from zero — lower is better, so SHORTER is better</text>']
+ld.append(f'  <line x1="{X0}" y1="56" x2="{X0}" y2="212" stroke="{MUTED}" stroke-width="1.5" opacity="0.7"/>')
+ld.append(f'  <text x="{X0}" y="228" text-anchor="middle" font-family="{MONO}" font-size="12.5" fill="{MUTED}">0</text>')
 for i, (name, mae, secs, col) in enumerate(LADDER):
-    yy = 62 + i * 56
-    w = 470 * (0.42 - mae) / 0.15
+    yy = 76 + i * 52
+    w = XSCALE * mae
     ld.append(f'  <text x="250" y="{yy + 4}" text-anchor="end" font-family="{SANS}" font-size="13" font-weight="700" fill="{col}">{name}</text>')
     ld.append(f'  <text x="250" y="{yy + 22}" text-anchor="end" font-family="{SANS}" font-size="12" fill="{MUTED}">{secs} s</text>')
-    ld.append(f'  <rect x="262" y="{yy - 8}" width="{w:.0f}" height="24" rx="6" fill="{col}" opacity="0.85"/>')
-    ld.append(f'  <text x="{262 + w + 8:.0f}" y="{yy + 9}" font-family="{MONO}" font-size="13" font-weight="700" fill="{TEXT}">{mae:.3f}</text>')
-ld.append(f'  <text x="380" y="248" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="{MUTED}">'
-          f'reference: heavily tuned GPS with ~10&#xD7; the schedule reports &#x2248;0.07 on this benchmark — budget moves everything</text>')
+    ld.append(f'  <rect x="{X0}" y="{yy - 8}" width="{w:.0f}" height="24" rx="6" fill="{col}" opacity="0.85"/>')
+    ld.append(f'  <text x="{X0 + w + 8:.0f}" y="{yy + 9}" font-family="{MONO}" font-size="13" font-weight="700" fill="{TEXT}">{mae:.3f}</text>')
+xr = X0 + XSCALE * 0.070
+ld.append(f'  <line x1="{xr:.0f}" y1="56" x2="{xr:.0f}" y2="212" stroke="{ACC}" stroke-width="2" stroke-dasharray="6 4"/>')
+ld.append(f'  <text x="{xr + 8:.0f}" y="228" text-anchor="start" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{ACC}">tuned GPS, ~10&#xD7; schedule: &#x2248;0.070</text>')
+ld.append(f'  <text x="{xr + 8:.0f}" y="246" text-anchor="start" font-family="{SANS}" font-size="12.5" fill="{MUTED}">a different budget — comparable to nothing above</text>')
 ld.append(f'''  <g font-family="{SANS}">
-    <rect x="60" y="266" width="640" height="30" rx="15" fill="{GREEN}"/>
-    <text x="380" y="286" text-anchor="middle" font-size="13" font-weight="700" fill="{BG}">at our budget the ENCODING paid (0.349&#x2192;0.296, free) and the attention did not (0.303 at 2.7&#xD7; the time)</text>
+    <rect x="60" y="262" width="640" height="30" rx="15" fill="{GREEN}"/>
+    <text x="380" y="282" text-anchor="middle" font-size="13" font-weight="700" fill="{BG}">at our budget the ENCODING paid (0.349&#x2192;0.296, free) and the attention did not (0.303 at 2.7&#xD7; the time)</text>
   </g>''')
 write("fig-w13-results", "\n".join(ld),
-      "The measured ZINC ladder at 100 epochs: MPNN-only reaches test MAE 0.349 in 188 seconds; adding random-walk structural encodings improves it to 0.296 at no extra cost; the GPS-lite hybrid with global attention lands at 0.303 while costing 529 seconds — at this budget the structural encoding paid and the attention did not",
-      height=310)
+      "The measured ZINC ladder at 100 epochs, drawn with bar length proportional to test MAE from a zero baseline so shorter bars are better: MPNN-only reaches 0.349 in 188 seconds; adding random-walk structural encodings shortens the bar to 0.296 at no extra cost; the GPS-lite hybrid lands at 0.303 while costing 529 seconds; a dashed line marks the 0.070 that heavily tuned ten-times-longer schedules report — at this budget the structural encoding paid and the attention did not",
+      height=304)
 
 print("\nall Week 13 figures verified and baked")

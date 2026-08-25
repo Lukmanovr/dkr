@@ -22,17 +22,25 @@
 
     g.append("text").attr("x", 380).attr("y", 22).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted)
-      .text("ZINC-subset test MAE (lower is better) · 100 epochs each · wall-clock shown");
+      .text("ZINC-subset test MAE · 100 epochs each · wall-clock shown");
+    g.append("text").attr("x", 380).attr("y", 41).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.text)
+      .text("bar length = MAE, from zero — lower is better, so SHORTER is better");
 
-    const lo = ref ? 0.05 : 0.28;
-    const scale = (m) => 480 * (0.42 - m) / (0.42 - lo);
+    // honest, fixed axis: 0 .. 0.42 MAE, bars proportional to the number shown
+    const scale = (m) => 480 * m / 0.42;
+    g.append("line").attr("x1", 252).attr("y1", 52).attr("x2", 252).attr("y2", 196)
+      .attr("stroke", P.muted).attr("stroke-width", 1.5).attr("opacity", 0.7);
+    g.append("text").attr("x", 252).attr("y", 212).attr("text-anchor", "middle")
+      .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12.5)
+      .attr("fill", P.muted).text("0");
     ROWS.forEach(([name, mae, secs, ck], i) => {
-      const yy = 62 + i * 52;
-      const w = Math.max(6, scale(mae));
+      const yy = 70 + i * 46;
+      const w = scale(mae);
       g.append("text").attr("x", 240).attr("y", yy + 4).attr("text-anchor", "end")
         .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", colOf[ck]).text(name);
       g.append("text").attr("x", 240).attr("y", yy + 21).attr("text-anchor", "end")
-        .attr("font-size", 12).attr("fill", P.muted).text(secs + " s");
+        .attr("font-size", 12.5).attr("fill", P.muted).text(secs + " s");
       g.append("rect").attr("x", 252).attr("y", yy - 8).attr("width", w).attr("height", 22)
         .attr("rx", 6).attr("fill", colOf[ck]).attr("opacity", 0.85);
       g.append("text").attr("x", 252 + w + 8).attr("y", yy + 8)
@@ -41,19 +49,19 @@
     });
     if (ref) {
       const xr = 252 + scale(0.07);
-      g.append("line").attr("x1", xr).attr("y1", 44).attr("x2", xr).attr("y2", 212)
+      g.append("line").attr("x1", xr).attr("y1", 52).attr("x2", xr).attr("y2", 196)
         .attr("stroke", P.accent).attr("stroke-width", 2).attr("stroke-dasharray", "6 4");
-      g.append("text").attr("x", xr).attr("y", 232).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("font-weight", 700).attr("fill", P.accent)
-        .text("tuned GPS, ~10× schedule: ≈0.070");
+      g.append("text").attr("x", xr + 8).attr("y", 212).attr("text-anchor", "start")
+        .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.accent)
+        .text("tuned GPS, ~10× schedule: ≈0.070 — a different budget");
     }
     const msg = ref
       ? "same architecture family, 10× the budget, 4× better MAE — never compare across budgets"
       : "the encoding paid (−0.053, free); the attention didn't (+0.007 at 2.7× time) — at THIS scale and budget";
-    g.append("text").attr("x", 380).attr("y", 266).attr("text-anchor", "middle")
+    g.append("text").attr("x", 380).attr("y", 250).attr("text-anchor", "middle")
       .attr("font-size", 13).attr("font-weight", 600).attr("fill", P.accentDark).text(msg);
-    g.append("text").attr("x", 380).attr("y", 288).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+    g.append("text").attr("x", 380).attr("y", 272).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text("molecules average 23 atoms: four local layers already reach everything — range wasn't the bottleneck");
   }
 

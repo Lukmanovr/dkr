@@ -42,6 +42,11 @@
       .text(`return probabilities k = 1..8 — node ${a} (deg ${deg[a]}) vs node ${b} (deg ${deg[b]})`);
 
     const x0 = 90, bw = 34, gap = 78;
+    // visible zero baseline: zeros are data here (k=1 is PROVABLY zero — no
+    // self-loops), so they must read as measured zeros, not missing bars
+    g.append("line").attr("x1", x0 - 10).attr("y1", 210)
+      .attr("x2", x0 + 7 * gap + bw + 10).attr("y2", 210)
+      .attr("stroke", P.muted).attr("stroke-width", 1.5).attr("opacity", 0.7);
     for (let k = 0; k < 8; k++) {
       const va = RW[k][a], vb = RW[k][b];
       const xx = x0 + k * gap;
@@ -49,8 +54,13 @@
         .attr("width", bw / 2 - 2).attr("height", 420 * va).attr("fill", P.accent).attr("opacity", 0.85);
       g.append("rect").attr("x", xx + bw / 2).attr("y", 210 - 420 * vb)
         .attr("width", bw / 2 - 2).attr("height", 420 * vb).attr("fill", P.blue).attr("opacity", 0.85);
+      if (va < 1e-9 && vb < 1e-9) {
+        g.append("text").attr("x", xx + bw / 2).attr("y", 202).attr("text-anchor", "middle")
+          .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12.5)
+          .attr("fill", P.muted).text("0");
+      }
       g.append("text").attr("x", xx + bw / 2).attr("y", 230).attr("text-anchor", "middle")
-        .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12)
+        .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12.5)
         .attr("fill", P.muted).text("k" + (k + 1));
     }
     g.append("text").attr("x", 120).attr("y", 52).attr("font-size", 12.5)

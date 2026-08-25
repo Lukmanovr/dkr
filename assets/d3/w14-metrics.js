@@ -37,13 +37,13 @@
       const inK = r <= K;
       g.append("rect").attr("x", x).attr("y", 52).attr("width", 52).attr("height", 52)
         .attr("rx", 8).attr("fill", isPos ? P.green : P.muted)
-        .attr("opacity", inK ? (isPos ? 0.9 : 0.35) : 0.12);
+        .attr("opacity", inK ? (isPos ? 0.9 : 0.35) : (isPos ? 0.24 : 0.12));
       g.append("text").attr("x", x + 26).attr("y", 84).attr("text-anchor", "middle")
         .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 13)
         .attr("font-weight", 700).attr("fill", inK ? P.text : P.muted).text(r);
       if (isPos) {
         g.append("text").attr("x", x + 26).attr("y", 124).attr("text-anchor", "middle")
-          .attr("font-size", 12).attr("font-weight", 700)
+          .attr("font-size", 12.5).attr("font-weight", 700)
           .attr("fill", inK ? P.green : P.muted).text("liked");
       }
     }
@@ -73,7 +73,7 @@
       .attr("font-size", 12.5).attr("font-weight", 600).attr("fill", P.accentDark)
       .text(msg);
     g.append("text").attr("x", 380).attr("y", 278).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text("1/log₂(r+1) discounting: rank 1 pays 1.0, rank 4 pays 0.43, rank 9 pays 0.30");
   }
 

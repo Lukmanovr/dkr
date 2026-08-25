@@ -5,31 +5,31 @@
   <text x="380" y="24" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="13" fill="var(--dkr-muted, #6e6e7a)">three answers to &#x201C;what do we load for one gradient step?&#x201D; — each with its measured report card</text>
   <rect x="30" y="46" width="215" height="212" rx="12" fill="var(--dkr-blue, #0f8377)" opacity="0.09"/>
   <rect x="30" y="46" width="215" height="212" rx="12" fill="none" stroke="var(--dkr-blue, #0f8377)" stroke-width="2"/>
-  <text x="137" y="74" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="13.5" font-weight="700" fill="var(--dkr-blue, #0f8377)">neighbor sampling</text>
+  <text x="137" y="74" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="13.5" font-weight="700" fill="var(--dkr-text, #1c1c21)">neighbor sampling</text>
   <text x="137" y="94" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="12" fill="var(--dkr-muted, #6e6e7a)">GraphSAGE / PinSage</text>
   <text x="137" y="126" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12" fill="var(--dkr-text, #1c1c21)">keep the target nodes,</text>
   <text x="137" y="148" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12" fill="var(--dkr-text, #1c1c21)">sample &#x2264; f neighbors per hop:</text>
   <text x="137" y="170" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12" fill="var(--dkr-text, #1c1c21)">cost bounded by f^L per node</text>
   <rect x="52" y="206" width="171" height="28" rx="14" fill="var(--dkr-blue, #0f8377)"/>
   <text x="137" y="225" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="12.5" font-weight="700" fill="var(--dkr-bg, #fff)">.605 acc · 64 MB</text>
-  <rect x="275" y="46" width="215" height="212" rx="12" fill="#7c5cd6" opacity="0.09"/>
-  <rect x="275" y="46" width="215" height="212" rx="12" fill="none" stroke="#7c5cd6" stroke-width="2"/>
-  <text x="382" y="74" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="13.5" font-weight="700" fill="#7c5cd6">graph partitioning</text>
+  <rect x="275" y="46" width="215" height="212" rx="12" fill="var(--dkr-purple, #7c5cd6)" opacity="0.09"/>
+  <rect x="275" y="46" width="215" height="212" rx="12" fill="none" stroke="var(--dkr-purple, #7c5cd6)" stroke-width="2"/>
+  <text x="382" y="74" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="13.5" font-weight="700" fill="var(--dkr-text, #1c1c21)">graph partitioning</text>
   <text x="382" y="94" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="12" fill="var(--dkr-muted, #6e6e7a)">Cluster-GCN</text>
   <text x="382" y="126" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12" fill="var(--dkr-text, #1c1c21)">cut the graph into parts,</text>
   <text x="382" y="148" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12" fill="var(--dkr-text, #1c1c21)">train on one part at a time:</text>
   <text x="382" y="170" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12" fill="var(--dkr-text, #1c1c21)">loses the between-part edges</text>
-  <rect x="297" y="206" width="171" height="28" rx="14" fill="#7c5cd6"/>
+  <rect x="297" y="206" width="171" height="28" rx="14" fill="var(--dkr-purple, #7c5cd6)"/>
   <text x="382" y="225" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="12.5" font-weight="700" fill="var(--dkr-bg, #fff)">.628 acc · 31 MB</text>
-  <rect x="520" y="46" width="215" height="212" rx="12" fill="var(--dkr-green, #199473)" opacity="0.09"/>
-  <rect x="520" y="46" width="215" height="212" rx="12" fill="none" stroke="var(--dkr-green, #199473)" stroke-width="2"/>
-  <text x="627" y="74" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="13.5" font-weight="700" fill="var(--dkr-green, #199473)">precompute + decouple</text>
+  <rect x="520" y="46" width="215" height="212" rx="12" fill="var(--dkr-yellow, #d9a62e)" opacity="0.09"/>
+  <rect x="520" y="46" width="215" height="212" rx="12" fill="none" stroke="var(--dkr-yellow, #d9a62e)" stroke-width="2"/>
+  <text x="627" y="74" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="13.5" font-weight="700" fill="var(--dkr-text, #1c1c21)">precompute + decouple</text>
   <text x="627" y="94" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="12" fill="var(--dkr-muted, #6e6e7a)">SGC / SIGN</text>
   <text x="627" y="126" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12" fill="var(--dkr-text, #1c1c21)">run propagation ONCE, offline,</text>
   <text x="627" y="148" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12" fill="var(--dkr-text, #1c1c21)">then train a plain MLP on the</text>
-  <text x="627" y="170" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12" fill="var(--dkr-text, #1c1c21)">diffused features: no graph in training</text>
-  <rect x="542" y="206" width="171" height="28" rx="14" fill="var(--dkr-green, #199473)"/>
-  <text x="627" y="225" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="12.5" font-weight="700" fill="var(--dkr-bg, #fff)">.638 acc · 171 MB</text>
+  <text x="627" y="170" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12" fill="var(--dkr-text, #1c1c21)">diffused features — graph-free</text>
+  <rect x="542" y="206" width="171" height="28" rx="14" fill="var(--dkr-yellow, #d9a62e)"/>
+  <text x="627" y="225" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="12.5" font-weight="700" fill="#26282e">.638 acc · 171 MB</text>
   <text x="380" y="288" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12.5" fill="var(--dkr-muted, #6e6e7a)">measured on ogbn-arxiv, this course&#x2019;s GPU — full-batch reference: .665 acc, 2,821 MB</text>
 </svg>
 </figure>

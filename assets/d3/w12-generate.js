@@ -97,7 +97,7 @@
         .attr("width", 18).attr("height", 55 * v / 0.4).attr("fill", COLS[src]).attr("opacity", 0.75);
       g.append("rect").attr("x", bx + i * 22).attr("y", 260 - 55 * TH_DEG[i] / 0.4)
         .attr("width", 18).attr("height", 55 * TH_DEG[i] / 0.4)
-        .attr("fill", "none").attr("stroke", P.text).attr("stroke-width", 1);
+        .attr("fill", "none").attr("stroke", P.text).attr("stroke-width", 1.6);
     });
     const cx = 470;
     g.append("text").attr("x", cx).attr("y", 188).attr("font-size", 12.5)
@@ -107,7 +107,7 @@
         .attr("width", 20).attr("height", 55 * v / 0.6).attr("fill", COLS[src]).attr("opacity", 0.75);
       g.append("rect").attr("x", cx + i * 24).attr("y", 260 - 55 * TH_CLU[i] / 0.6)
         .attr("width", 20).attr("height", 55 * TH_CLU[i] / 0.6)
-        .attr("fill", "none").attr("stroke", P.text).attr("stroke-width", 1);
+        .attr("fill", "none").attr("stroke", P.text).attr("stroke-width", 1.6);
     });
     g.append("text").attr("x", 380).attr("y", 296).attr("text-anchor", "middle")
       .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12.5)

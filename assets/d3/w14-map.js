@@ -44,7 +44,7 @@
       arch: "RelBench-style hetero-temporal GNNs · sampling systems",
       weeks: "Weeks 10, 11, 14",
       where: "the frontier: replacing hand-built feature pipelines",
-      col: "red",
+      col: "purple",
     },
   };
   let sel = "recsys";
@@ -89,7 +89,7 @@
         .attr("fill", P.text).text(val);
     });
     g.append("text").attr("x", 380).attr("y", 282).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text("every sector runs on machinery this course built by hand — the map is the syllabus, employed");
   }
 

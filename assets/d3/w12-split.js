@@ -48,7 +48,7 @@
     POS.forEach(([x, y], v) => {
       g.append("circle").attr("cx", x).attr("cy", y + 30).attr("r", 11).attr("fill", P.muted);
       g.append("text").attr("x", x).attr("y", y + 34).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("font-weight", 700).attr("fill", P.bg).text(v);
+        .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.bg).text(v);
     });
     const counts = [0, 0, 0];
     role.forEach((r) => counts[r]++);

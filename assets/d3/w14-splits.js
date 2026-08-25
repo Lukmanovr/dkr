@@ -50,10 +50,10 @@
       g.append("circle").attr("cx", x).attr("cy", 92).attr("r", 13)
         .attr("fill", col).attr("opacity", role === "train" ? 0.55 : 0.95);
       g.append("text").attr("x", x).attr("y", 96).attr("text-anchor", "middle")
-        .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12)
+        .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12.5)
         .attr("font-weight", 700).attr("fill", "#fff").text(t);
       g.append("text").attr("x", x).attr("y", 124).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("fill", col)
+        .attr("font-size", 12.5).attr("fill", col)
         .text(role === "train" ? "" : role);
     }
     if (mode === "temporal") {
@@ -62,7 +62,7 @@
         .attr("stroke", P.accent).attr("stroke-width", 2.5)
         .attr("stroke-dasharray", "6 4");
       g.append("text").attr("x", wx).attr("y", 48).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("font-weight", 700).attr("fill", P.accent)
+        .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.accent)
         .text("the time wall");
     }
 
@@ -73,7 +73,7 @@
       .attr("font-weight", 700).attr("fill", P.text)
       .text("measured LightGCN K=3 test Recall@20: " + cfg.score);
     g.append("text").attr("x", 380).attr("y", 214).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted).text(cfg.users);
+      .attr("font-size", 12.5).attr("fill", P.muted).text(cfg.users);
     g.append("text").attr("x", 380).attr("y", 236).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("font-weight", 600).attr("fill", P.accentDark)
       .text(cfg.verdict);

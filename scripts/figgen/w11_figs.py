@@ -19,21 +19,25 @@ ACC = "var(--dkr-accent, #d9603b)"
 TEAL = "var(--dkr-blue, #0f8377)"
 GOLD = "var(--dkr-yellow, #d9a62e)"
 GREEN = "var(--dkr-green, #199473)"
-PURPLE = "#7c5cd6"
+PURPLE = "var(--dkr-purple, #7c5cd6)"
 MUTED = "var(--dkr-muted, #6e6e7a)"
 TEXT = "var(--dkr-text, #1c1c21)"
 BG = "var(--dkr-bg, #fff)"
+# Method identity colors (S2 fix, 2026-08-25): one hue per method, everywhere
+# in Week 11. --dkr-green is visually a teal twin, so the precompute family
+# gets GOLD instead; gold never carries small text (chips/bars only) for AA.
+INK = "#26282e"          # literal dark ink for text ON a gold fill, both themes
+RESULTS = [
+    ("full-batch GCN", 0.665, "0.10", 2821, ACC),
+    ("sampled SAGE (f=10)", 0.605, "12.2", 64, TEAL),
+    ("Cluster-GCN (random)", 0.628, "0.51", 31, PURPLE),
+    ("SGC (K=2)", 0.638, "0.0015", 171, GOLD),
+]
 
 HOPS = [18, 4577, 22663]
 N_ARXIV = 169343
 assert round(100 * HOPS[2] / N_ARXIV) == 13, "3 hops touch ~13% of the graph"
 FANOUT = [1 + 10, 1 + 10 + 100, 1 + 10 + 100 + 1000]   # fanout-10 upper bounds
-RESULTS = [
-    ("full-batch GCN", 0.665, 0.10, 2821, ACC),
-    ("sampled SAGE (f=10)", 0.605, 12.2, 64, TEAL),
-    ("Cluster-GCN (random)", 0.628, 0.51, 31, PURPLE),
-    ("SGC (K=2)", 0.638, 0.0015, 171, GREEN),
-]
 
 
 def write(name, body, aria, height=400):
@@ -48,18 +52,18 @@ def write(name, body, aria, height=400):
 ex = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" fill="{MUTED}">'
       f'average number of DISTINCT nodes inside L hops on ogbn-arxiv — measured over 200 random seeds</text>']
 X0, Y0, W, Hh = 110, 268, 560, 190
-lo, hi = math.log10(1), math.log10(200000)
+lo, hi = math.log10(3), math.log10(48000)   # tight log domain: data 11..22,663
 
 
 def ey(v):
     return Y0 - Hh * (math.log10(max(v, 1)) - lo) / (hi - lo)
 
 
-for v, lbl in [(10, "10"), (1000, "1k"), (100000, "100k")]:
+for v, lbl in [(10, "10"), (100, "100"), (1000, "1k"), (10000, "10k")]:
     ex.append(f'  <line x1="{X0 - 4}" y1="{ey(v):.0f}" x2="{X0 + W}" y2="{ey(v):.0f}" stroke="{MUTED}" stroke-width="0.6" opacity="0.35"/>')
     ex.append(f'  <text x="{X0 - 10}" y="{ey(v) + 4:.0f}" text-anchor="end" font-family="{MONO}" font-size="12" fill="{MUTED}">{lbl}</text>')
 ex.append(f'  <line x1="{X0}" y1="{Y0}" x2="{X0 + W}" y2="{Y0}" stroke="{MUTED}" stroke-width="1.4"/>')
-ex.append(f'  <line x1="{ey(1) and X0}" y1="{Y0}" x2="{X0}" y2="{ey(200000):.0f}" stroke="{MUTED}" stroke-width="1.4"/>')
+ex.append(f'  <line x1="{X0}" y1="{Y0}" x2="{X0}" y2="{ey(48000):.0f}" stroke="{MUTED}" stroke-width="1.4"/>')
 xs = [X0 + 90 + i * 190 for i in range(3)]
 pts_real = " ".join(f"{x},{ey(v):.0f}" for x, v in zip(xs, HOPS))
 pts_fan = " ".join(f"{x},{ey(v):.0f}" for x, v in zip(xs, FANOUT))
@@ -89,25 +93,25 @@ write("fig-w11-explosion", "\n".join(ex),
 me = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" fill="{MUTED}">'
       f'three answers to &#x201C;what do we load for one gradient step?&#x201D; — each with its measured report card</text>']
 panels = [
-    (30, "neighbor sampling", "GraphSAGE / PinSage", TEAL,
+    (30, "neighbor sampling", "GraphSAGE / PinSage", TEAL, BG,
      ["keep the target nodes,", "sample &#x2264; f neighbors per hop:", "cost bounded by f^L per node"],
      ".605 acc · 64 MB"),
-    (275, "graph partitioning", "Cluster-GCN", PURPLE,
+    (275, "graph partitioning", "Cluster-GCN", PURPLE, BG,
      ["cut the graph into parts,", "train on one part at a time:", "loses the between-part edges"],
      ".628 acc · 31 MB"),
-    (520, "precompute + decouple", "SGC / SIGN", GREEN,
-     ["run propagation ONCE, offline,", "then train a plain MLP on the", "diffused features: no graph in training"],
+    (520, "precompute + decouple", "SGC / SIGN", GOLD, INK,
+     ["run propagation ONCE, offline,", "then train a plain MLP on the", "diffused features — graph-free"],
      ".638 acc · 171 MB"),
 ]
-for x0, title, models, col, lines, badge in panels:
+for x0, title, models, col, badge_ink, lines, badge in panels:
     me.append(f'  <rect x="{x0}" y="46" width="215" height="212" rx="12" fill="{col}" opacity="0.09"/>')
     me.append(f'  <rect x="{x0}" y="46" width="215" height="212" rx="12" fill="none" stroke="{col}" stroke-width="2"/>')
-    me.append(f'  <text x="{x0 + 107}" y="74" text-anchor="middle" font-family="{SANS}" font-size="13.5" font-weight="700" fill="{col}">{title}</text>')
+    me.append(f'  <text x="{x0 + 107}" y="74" text-anchor="middle" font-family="{SANS}" font-size="13.5" font-weight="700" fill="{TEXT}">{title}</text>')
     me.append(f'  <text x="{x0 + 107}" y="94" text-anchor="middle" font-family="{MONO}" font-size="12" fill="{MUTED}">{models}</text>')
     for i, ln in enumerate(lines):
         me.append(f'  <text x="{x0 + 107}" y="{126 + i * 22}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{TEXT}">{ln}</text>')
     me.append(f'  <rect x="{x0 + 22}" y="206" width="171" height="28" rx="14" fill="{col}"/>')
-    me.append(f'  <text x="{x0 + 107}" y="225" text-anchor="middle" font-family="{MONO}" font-size="12.5" font-weight="700" fill="{BG}">{badge}</text>')
+    me.append(f'  <text x="{x0 + 107}" y="225" text-anchor="middle" font-family="{MONO}" font-size="12.5" font-weight="700" fill="{badge_ink}">{badge}</text>')
 me.append(f'  <text x="380" y="288" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="{MUTED}">'
           f'measured on ogbn-arxiv, this course&#x2019;s GPU — full-batch reference: .665 acc, 2,821 MB</text>')
 write("fig-w11-methods", "\n".join(me),
@@ -115,32 +119,54 @@ write("fig-w11-methods", "\n".join(me),
       height=306)
 
 # ═══════════ figure 3: the measured trade-off table ════════════════════════
+# Encoding notes (audit 2026-08-25): accuracy as dots on a ZOOMED, labeled
+# axis (0.60–0.67) so the 3.7-point story is visible in the ink; memory as
+# log-scale bars, labeled as such (31→2,821 MB spans two decades); s/epoch
+# stays numbers-only (its 0.0015→12.2 range defeats any single bar scale).
 tb = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" fill="{MUTED}">'
       f'accuracy · seconds per epoch · TRAINING-peak GPU memory — same data, same budget discipline</text>']
-y0 = 58
+y0 = 62
+ACC_X, ACC_W, ACC_LO, ACC_HI = 265, 130, 0.60, 0.67
+MEM_X, MEM_W, MEM_LO, MEM_HI = 565, 120, 10, 3000
+
+
+def accx(v):
+    return ACC_X + ACC_W * (v - ACC_LO) / (ACC_HI - ACC_LO)
+
+
+def memw(v):
+    return MEM_W * math.log10(max(v, MEM_LO) / MEM_LO) / math.log10(MEM_HI / MEM_LO)
+
+
 tb.append(f'  <g font-family="{SANS}" font-size="12" font-weight="700" fill="{MUTED}">'
-          f'<text x="60" y="{y0}">method</text><text x="255" y="{y0}">test acc</text>'
-          f'<text x="420" y="{y0}">s / epoch</text><text x="580" y="{y0}">peak MB</text></g>')
-accmax, memmax = 0.7, 3000
+          f'<text x="60" y="{y0}">method</text><text x="{ACC_X}" y="{y0}">test acc (axis 0.60&#x2013;0.67)</text>'
+          f'<text x="455" y="{y0}">s / epoch</text><text x="{MEM_X}" y="{y0}">peak MB (log scale)</text></g>')
+# zoomed accuracy axis: baseline + end ticks, drawn once under the header
+ax_y = y0 + 10
+tb.append(f'  <line x1="{ACC_X}" y1="{ax_y}" x2="{ACC_X + ACC_W}" y2="{ax_y}" stroke="{MUTED}" stroke-width="1"/>')
+for v in (0.60, 0.67):
+    tb.append(f'  <line x1="{accx(v):.0f}" y1="{ax_y - 3}" x2="{accx(v):.0f}" y2="{ax_y + 3}" stroke="{MUTED}" stroke-width="1"/>')
 for i, (name, acc_v, spe, mem, col) in enumerate(RESULTS):
-    yy = y0 + 30 + i * 52
+    yy = y0 + 44 + i * 52
     if i % 2 == 0:
         tb.append(f'  <rect x="46" y="{yy - 20}" width="668" height="46" fill="{MUTED}" opacity="0.05"/>')
-    tb.append(f'  <text x="60" y="{yy}" font-family="{SANS}" font-size="13" font-weight="700" fill="{col}">{name}</text>')
-    aw = 120 * acc_v / accmax
-    tb.append(f'  <rect x="255" y="{yy - 12}" width="{aw:.0f}" height="15" rx="4" fill="{col}" opacity="0.8"/>')
-    tb.append(f'  <text x="{255 + aw + 6:.0f}" y="{yy}" font-family="{MONO}" font-size="12" fill="{TEXT}">{acc_v:.3f}</text>')
-    tb.append(f'  <text x="420" y="{yy}" font-family="{MONO}" font-size="12.5" fill="{TEXT}">{spe if spe >= 0.01 else spe}</text>')
-    mw = 120 * math.log10(max(mem, 10)) / math.log10(memmax)
-    tb.append(f'  <rect x="580" y="{yy - 12}" width="{mw:.0f}" height="15" rx="4" fill="{col}" opacity="0.8"/>')
-    tb.append(f'  <text x="{580 + mw + 6:.0f}" y="{yy}" font-family="{MONO}" font-size="12" fill="{TEXT}">{mem:,}</text>')
-ys = y0 + 30 + 4 * 52 + 6
+    tb.append(f'  <rect x="60" y="{yy - 11}" width="12" height="12" rx="3" fill="{col}"/>')
+    tb.append(f'  <text x="80" y="{yy}" font-family="{SANS}" font-size="13" font-weight="700" fill="{TEXT}">{name}</text>')
+    ax = accx(acc_v)
+    tb.append(f'  <line x1="{ACC_X}" y1="{yy - 5}" x2="{ACC_X + ACC_W}" y2="{yy - 5}" stroke="{MUTED}" stroke-width="0.6" opacity="0.35"/>')
+    tb.append(f'  <circle cx="{ax:.0f}" cy="{yy - 5}" r="6" fill="{col}"/>')
+    tb.append(f'  <text x="{ax:.0f}" y="{yy + 15}" text-anchor="middle" font-family="{MONO}" font-size="12" fill="{TEXT}">{acc_v:.3f}</text>')
+    tb.append(f'  <text x="500" y="{yy}" text-anchor="end" font-family="{MONO}" font-size="12.5" fill="{TEXT}">{spe}</text>')
+    mw = memw(mem)
+    tb.append(f'  <rect x="{MEM_X}" y="{yy - 12}" width="{mw:.0f}" height="15" rx="4" fill="{col}" opacity="0.85"/>')
+    tb.append(f'  <text x="{MEM_X + mw + 6:.0f}" y="{yy}" font-family="{MONO}" font-size="12" fill="{TEXT}">{mem:,}</text>')
+ys = y0 + 44 + 4 * 52 + 6
 tb.append(f'''  <g font-family="{SANS}">
     <rect x="60" y="{ys}" width="640" height="30" rx="15" fill="{TEAL}"/>
     <text x="380" y="{ys + 20}" text-anchor="middle" font-size="13" font-weight="700" fill="{BG}">memory 2,821&#x2192;31 MB cost 3.7 accuracy points — scaling is a negotiation</text>
   </g>''')
 write("fig-w11-table", "\n".join(tb),
-      "The measured scaling table on ogbn-arxiv: full-batch GCN reaches 0.665 accuracy using 2,821 megabytes; sampled SAGE 0.605 at 64 megabytes; random-partition Cluster-GCN 0.628 at 31 megabytes; SGC 0.638 at 171 megabytes with 1.5-millisecond epochs after a one-time precompute",
+      "The measured scaling table on ogbn-arxiv: full-batch GCN reaches 0.665 accuracy using 2,821 megabytes; sampled SAGE 0.605 at 64 megabytes; random-partition Cluster-GCN 0.628 at 31 megabytes; SGC 0.638 at 171 megabytes with 1.5-millisecond epochs after a one-time precompute; accuracy is drawn on a zoomed axis from 0.60 to 0.67 and memory bars use a labeled log scale",
       height=ys + 44)
 
 # ═══════════ figure 4: the wall, extrapolated + the serving story ══════════
@@ -156,13 +182,14 @@ rows2 = [
     ("fits the course GPU (8 GB)?", "yes — barely", "no — by 5&#xD7;"),
 ]
 wa.append(f'  <g font-family="{SANS}" font-size="12.5" font-weight="700" fill="{MUTED}">'
-          f'<text x="330" y="56" text-anchor="end">ogbn-arxiv (169k)</text>'
-          f'<text x="580" y="56" text-anchor="middle">ogbn-products (2.4M)</text></g>')
+          f'<text x="510" y="56" text-anchor="end">ogbn-arxiv (169k)</text>'
+          f'<text x="700" y="56" text-anchor="end">ogbn-products (2.4M)</text></g>')
 for i, (lbl, a, b) in enumerate(rows2):
     yy = 86 + i * 34
+    wa.append(f'  <line x1="40" y1="{yy + 10}" x2="720" y2="{yy + 10}" stroke="{MUTED}" stroke-width="0.5" opacity="0.25"/>')
     wa.append(f'  <text x="40" y="{yy}" font-family="{SANS}" font-size="12.5" fill="{TEXT}">{lbl}</text>')
-    wa.append(f'  <text x="330" y="{yy}" text-anchor="end" font-family="{MONO}" font-size="12.5" fill="{TEXT}">{a}</text>')
-    wa.append(f'  <text x="580" y="{yy}" text-anchor="middle" font-family="{MONO}" font-size="12.5" font-weight="700" fill="{ACC}">{b}</text>')
+    wa.append(f'  <text x="510" y="{yy}" text-anchor="end" font-family="{MONO}" font-size="12.5" fill="{TEXT}">{a}</text>')
+    wa.append(f'  <text x="700" y="{yy}" text-anchor="end" font-family="{MONO}" font-size="12.5" font-weight="700" fill="{ACC}">{b}</text>')
 wa.append(f'  <line x1="40" y1="196" x2="720" y2="196" stroke="{MUTED}" stroke-width="1"/>')
 wa.append(f'  <text x="380" y="222" text-anchor="middle" font-family="{SANS}" font-size="13" font-weight="700" fill="{TEXT}">and after training: the serving decision</text>')
 for x0, title, lines, col in [

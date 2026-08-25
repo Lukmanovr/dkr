@@ -14,9 +14,6 @@
 
   function render() {
     const P = U.pal();
-    const svg = U.svgIn("w11-ex-svg", 760, 300);
-    svg.attr("font-family", "'Source Sans 3', sans-serif");
-    const g = svg.append("g");
     const eff = Math.min(b, f);
     let terms = [], total = 1;
     for (let k = 1; k <= L; k++) {
@@ -24,23 +21,29 @@
       terms.push(t);
       total += t;
     }
+    // compact vertical rhythm: bars right under the subtitle, total right
+    // under the bars, verdict right under the total; height follows content
+    const y0 = 52, ROW = 40;
+    const yT = y0 + L * ROW + 4;
+    const yNote = yT + 44;
+    const svg = U.svgIn("w11-ex-svg", 760, yNote + 18);
+    svg.attr("font-family", "'Source Sans 3', sans-serif");
+    const g = svg.append("g");
     g.append("text").attr("x", 380).attr("y", 24).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted)
-      .text(`worst case: 1 + ${terms.map((t, i) => `${eff}^${i + 1}`).join(" + ")} nodes loaded to update ONE node`);
+      .text(`worst case: 1 + ${terms.map((t, i) => `${eff}^${i + 1}`).join(" + ")} nodes loaded to update ONE node (bar length: log scale)`);
 
-    const y0 = 70;
     terms.forEach((t, i) => {
       const w = Math.max(6, 480 * Math.log10(t + 1) / Math.log10(3e6));
-      g.append("text").attr("x", 120).attr("y", y0 + i * 44 + 14).attr("text-anchor", "end")
+      g.append("text").attr("x", 120).attr("y", y0 + i * ROW + 14).attr("text-anchor", "end")
         .attr("font-size", 12.5).attr("fill", P.text).text(`hop ${i + 1}`);
-      g.append("rect").attr("x", 132).attr("y", y0 + i * 44).attr("width", w).attr("height", 22)
+      g.append("rect").attr("x", 132).attr("y", y0 + i * ROW).attr("width", w).attr("height", 22)
         .attr("rx", 6).attr("fill", P.accent).attr("opacity", 0.55 + 0.15 * i);
-      g.append("text").attr("x", 138 + w).attr("y", y0 + i * 44 + 15)
+      g.append("text").attr("x", 138 + w).attr("y", y0 + i * ROW + 15)
         .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12.5)
         .attr("fill", P.text).text(fmt(t));
     });
-    const yT = y0 + L * 44 + 10;
-    g.append("text").attr("x", 132).attr("y", yT + 8).attr("font-size", 13.5)
+    g.append("text").attr("x", 132).attr("y", yT + 14).attr("font-size", 13.5)
       .attr("font-weight", 700).attr("fill", P.text)
       .text(`total ≤ ${fmt(total)} nodes per updated node`);
 
@@ -52,7 +55,7 @@
     } else {
       note = "unbounded: one hub in the neighborhood and the batch loads its whole crowd";
     }
-    g.append("text").attr("x", 380).attr("y", 282).attr("text-anchor", "middle")
+    g.append("text").attr("x", 380).attr("y", yNote).attr("text-anchor", "middle")
       .attr("font-size", 13).attr("font-weight", 600).attr("fill", f === Infinity ? P.accentDark : P.green)
       .text(note);
   }

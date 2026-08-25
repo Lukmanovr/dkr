@@ -106,7 +106,9 @@ sp.append(f'  <path d="M 225 {y_rand_top} L 650 {y_rand_top} L 650 {y_temp_top -
           f'stroke="{ACC}" stroke-width="2" fill="none" stroke-dasharray="6 4" marker-end="url(#w14sp-arr)"/>')
 sp.append(f'  <defs><marker id="w14sp-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
           f'<path d="M 0 0 L 10 5 L 0 10 z" fill="{ACC}"/></marker></defs>')
-sp.append(f'  <text x="435" y="{y_rand_top - 10}" text-anchor="middle" font-family="{SANS}" font-size="14" font-weight="700" fill="{ACC}">&#xD7;1.77 — the random split nearly doubles the score</text>')
+# label sits just BELOW the bracket line: clear of the header and the 0.346
+# value label (audit: top zone was crowded), still visually attached to it
+sp.append(f'  <text x="435" y="{y_rand_top + 17}" text-anchor="middle" font-family="{SANS}" font-size="14" font-weight="700" fill="{ACC}">&#xD7;1.77 — the random split nearly doubles the score</text>')
 sp.append(f'''  <g font-family="{SANS}">
     <rect x="70" y="330" width="620" height="30" rx="15" fill="{ACC}"/>
     <text x="380" y="350" text-anchor="middle" font-size="13" font-weight="700" fill="{BG}">Recall@20 is not a property of the model — it is a property of the model AND the protocol</text>
@@ -123,14 +125,20 @@ for k, val in BARS:
     cx = 190 + k * 150
     h = round(val * 1100)
     col = TEAL if k else PURPLE
+    # K=0's value label gets extra clearance from the popularity dashed line
+    # (audit: 0.1562 sat too close to it)
+    vy = 264 - h if k == 0 else 272 - h
     ld.append(f'  <rect x="{cx - 55}" y="{288 - h}" width="110" height="{h}" rx="8" fill="{col}" opacity="0.85"/>')
-    ld.append(f'  <text x="{cx}" y="{272 - h}" text-anchor="middle" font-family="{MONO}" font-size="14" font-weight="700" fill="{TEXT}">{val:.4f}</text>')
+    ld.append(f'  <text x="{cx}" y="{vy}" text-anchor="middle" font-family="{MONO}" font-size="14" font-weight="700" fill="{TEXT}">{val:.4f}</text>')
     ld.append(f'  <text x="{cx}" y="{312}" text-anchor="middle" font-family="{SANS}" font-size="13" font-weight="700" fill="{col}">K = {k}{" (= BPR-MF)" if k == 0 else ""}</text>')
     ld.append(f'  <text x="{cx}" y="{331}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{MUTED}">{SECS[k]} s</text>')
 ypop = 288 - round(POP_T * 1100)
 ld.append(f'  <line x1="132" y1="{ypop}" x2="700" y2="{ypop}" stroke="{ACC}" stroke-width="2" stroke-dasharray="7 5"/>')
-ld.append(f'  <text x="126" y="{ypop - 2}" text-anchor="end" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{ACC}">popularity</text>')
-ld.append(f'  <text x="126" y="{ypop + 14}" text-anchor="end" font-family="{MONO}" font-size="12.5" font-weight="700" fill="{ACC}">{POP_T:.4f}</text>')
+# stacked label sits clear of the edge with a solid leader tying it to the
+# dashed line's start (audit: was cramped / read like an axis tick)
+ld.append(f'  <line x1="121" y1="{ypop}" x2="130" y2="{ypop}" stroke="{ACC}" stroke-width="2"/>')
+ld.append(f'  <text x="118" y="{ypop - 3}" text-anchor="end" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{ACC}">popularity</text>')
+ld.append(f'  <text x="118" y="{ypop + 15}" text-anchor="end" font-family="{MONO}" font-size="12.5" font-weight="700" fill="{ACC}">{POP_T:.4f}</text>')
 ld.append(f'''  <g font-family="{SANS}">
     <rect x="70" y="346" width="620" height="30" rx="15" fill="{ACC}"/>
     <text x="380" y="366" text-anchor="middle" font-size="13" font-weight="700" fill="{BG}">the co-consumption signal lives in the graph: K=0 loses to POPULARITY; each layer climbs past it</text>

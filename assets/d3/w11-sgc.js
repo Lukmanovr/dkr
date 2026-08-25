@@ -48,7 +48,7 @@
     EDGES.forEach(([a, b]) => {
       g.append("line").attr("x1", POS[a][0]).attr("y1", POS[a][1])
         .attr("x2", POS[b][0]).attr("y2", POS[b][1])
-        .attr("stroke", P.muted).attr("stroke-width", 0.8).attr("opacity", 0.3);
+        .attr("stroke", P.muted).attr("stroke-width", 1.1).attr("opacity", 0.45);
     });
     let correct = 0;
     for (let v = 0; v < N; v++) {
@@ -58,7 +58,7 @@
       if (Math.sign(x[v] || 1) === truth) correct += 1;
       g.append("circle").attr("cx", POS[v][0]).attr("cy", POS[v][1])
         .attr("r", 6 + 6 * Math.abs(val)).attr("fill", col)
-        .attr("opacity", 0.35 + 0.6 * Math.abs(val));
+        .attr("opacity", 0.5 + 0.45 * Math.abs(val));
     }
     g.append("text").attr("x", 380).attr("y", 24).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted)

@@ -67,15 +67,15 @@
       if (v !== SRC) {
         g.append("text").attr("x", POS[v][0]).attr("y", POS[v][1] - 6)
           .attr("text-anchor", "middle").attr("font-family", "'JetBrains Mono', monospace")
-          .attr("font-size", 12).attr("fill", P.text).text(att[v].toFixed(2));
+          .attr("font-size", 12.5).attr("fill", P.text).text(att[v].toFixed(2));
       }
     }
     g.append("text").attr("x", POS[SRC][0]).attr("y", POS[SRC][1] + 25)
-      .attr("text-anchor", "middle").attr("font-size", 12).attr("font-weight", 700)
+      .attr("text-anchor", "middle").attr("font-size", 13).attr("font-weight", 700)
       .attr("fill", P.bg).text("★");
-    // bias profile mini-chart
-    g.append("text").attr("x", 620).attr("y", 250).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted).text("b[dist] profile");
+    // bias profile mini-chart (label sits ABOVE the inset so no bar can reach it)
+    g.append("text").attr("x", 626).attr("y", 220).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted).text("b[dist] profile");
     bias.slice(0, 6).forEach((bv, d) => {
       g.append("rect").attr("x", 560 + d * 22).attr("y", 290 - 8 * (bv + 3.5))
         .attr("width", 18).attr("height", 8 * (bv + 3.5)).attr("fill", "#7c5cd6").attr("opacity", 0.7);
@@ -85,9 +85,6 @@
       : prof === "flat"
       ? "flat prior: attention sees a bag of atoms — the graph has left the building"
       : "an inverted prior attends far first — the anti-oversquashing specialist no MPNN can be";
-    g.append("text").attr("x", 320).attr("y", 296).attr("text-anchor", "start")
-      .attr("font-size", 13).attr("font-weight", 600).attr("fill", P.accentDark)
-      .text("");
     g.append("text").attr("x", 380).attr("y", 314).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("font-weight", 600).attr("fill", P.accentDark).text(verdict);
   }

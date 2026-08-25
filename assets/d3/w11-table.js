@@ -18,8 +18,11 @@
 
   function render() {
     const P = U.pal();
+    // method identity colors, shared with fig-w11-methods / fig-w11-table:
+    // full-batch accent · sampling teal · partition purple · precompute gold
+    // (names stay in text color for AA; the hue rides on a 12px chip)
     const COLS = { "full-batch GCN": P.accent, "sampled SAGE (f=10)": P.blue,
-                   "Cluster-GCN (random parts)": "#7c5cd6", "SGC (K=2 precompute)": P.green };
+                   "Cluster-GCN (random parts)": P.purple, "SGC (K=2 precompute)": P.yellow };
     const svg = U.svgIn("w11-tb-svg", 760, 310);
     svg.attr("font-family", "'Source Sans 3', sans-serif");
     const g = svg.append("g");
@@ -32,25 +35,40 @@
         ? "the products stress test: memory × 14.5 (node ratio) — who survives an 8 GB card?"
         : "measured on ogbn-arxiv — sorted by " + (sortBy === "acc" ? "accuracy" : sortBy === "time" ? "epoch time" : "memory"));
 
+    const AX = 430, TX = 550, MX = 706;   // right edges of the value columns
+    g.append("g").attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.muted)
+      .call((h) => {
+        h.append("text").attr("x", 60).attr("y", 46).text("method");
+        h.append("text").attr("x", AX).attr("y", 46).attr("text-anchor", "end").text("test acc");
+        h.append("text").attr("x", TX).attr("y", 46).attr("text-anchor", "end").text("s / epoch");
+        h.append("text").attr("x", MX).attr("y", 46).attr("text-anchor", "end").text("training peak");
+      });
+
     rows.forEach(([name, acc, spe, mem, note, resident], i) => {
-      const y = 62 + i * 52;
+      const y = 74 + i * 52;
       const m = products && resident ? mem * SCALE : products ? Math.round(mem * (name.startsWith("SGC") ? 1 : SCALE)) : mem;
       const fits = m < 8192;
-      g.append("text").attr("x", 60).attr("y", y).attr("font-size", 13)
-        .attr("font-weight", 700).attr("fill", COLS[name]).text(name);
-      g.append("text").attr("x", 60).attr("y", y + 18).attr("font-size", 11.5 < 12 ? 12 : 12)
+      g.append("rect").attr("x", 60).attr("y", y - 11).attr("width", 12).attr("height", 12)
+        .attr("rx", 3).attr("fill", COLS[name]);
+      g.append("text").attr("x", 80).attr("y", y).attr("font-size", 13)
+        .attr("font-weight", 700).attr("fill", P.text).text(name);
+      g.append("text").attr("x", 80).attr("y", y + 18).attr("font-size", 12.5)
         .attr("fill", P.muted).text(note);
-      g.append("text").attr("x", 330).attr("y", y + 8)
+      g.append("text").attr("x", AX).attr("y", y + 8).attr("text-anchor", "end")
         .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12.5)
-        .attr("fill", P.text).text(`acc ${acc.toFixed(3)}`);
-      g.append("text").attr("x", 440).attr("y", y + 8)
+        .attr("fill", P.text).text(acc.toFixed(3));
+      g.append("text").attr("x", TX).attr("y", y + 8).attr("text-anchor", "end")
         .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12.5)
-        .attr("fill", P.text).text(`${spe} s/ep`);
+        .attr("fill", P.text).text(spe);
       const memtxt = m >= 1024 ? (m / 1024).toFixed(1) + " GB" : Math.round(m) + " MB";
-      g.append("text").attr("x", 560).attr("y", y + 8)
+      g.append("text").attr("x", MX).attr("y", y + 8).attr("text-anchor", "end")
         .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12.5)
         .attr("font-weight", 700).attr("fill", products ? (fits ? P.green : "#cf4a30") : P.text)
         .text(memtxt + (products ? (fits ? "  ✓ fits" : "  ✗ OOM") : ""));
+      if (i < rows.length - 1) {
+        g.append("line").attr("x1", 60).attr("x2", MX).attr("y1", y + 30).attr("y2", y + 30)
+          .attr("stroke", P.muted).attr("stroke-width", 0.6).attr("opacity", 0.3);
+      }
     });
     g.append("text").attr("x", 380).attr("y", 296).attr("text-anchor", "middle")
       .attr("font-size", 13).attr("font-weight", 600).attr("fill", P.accentDark)

@@ -8,7 +8,10 @@ subtitle: "Week 13 · RWSE by hand and at scale, the CSL crack, the honest ladde
 **≈ 10 minutes of compute · CPU-friendly; GPU shaves the ZINC runs**
 
 The [Week 13 lecture](../lectures/13-transformers.qmd), executed with your
-own hands:
+own hands — you build the working parts of Graphormer
+([Ying et al., 2021](https://arxiv.org/abs/2106.05234)) and GraphGPS
+([Rampášek et al., 2022](https://arxiv.org/abs/2205.12454)) from
+hand-checkable pieces:
 
 1. **RWSE from the definition** (exercise 1): your implementation must hit
    the lecture's hand table on the triangle-with-tail *exactly* — including

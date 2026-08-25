@@ -35,7 +35,7 @@
           g.append("line").attr("x1", px(D.z[a][0])).attr("y1", py(D.z[a][1]))
             .attr("x2", px(D.z[b][0])).attr("y2", py(D.z[b][1]))
             .attr("stroke", real ? P.green : P.accent)
-            .attr("stroke-width", real ? 1.6 : 1.2).attr("opacity", real ? 0.55 : 0.5);
+            .attr("stroke-width", real ? 1.6 : 1.7).attr("opacity", real ? 0.55 : 0.65);
         }
       }
     }
@@ -46,7 +46,7 @@
     const missed = D.edges.length - tp;
     g.append("text").attr("x", 380).attr("y", 24).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted)
-      .text(`the karate club, as its VGAE sees it — decode: edge wherever σ(z·z) > ${thr.toFixed(2)}`);
+      .text(`the karate club, as its VGAE sees it — decode: edge wherever sigmoid(z·z) > ${thr.toFixed(2)}`);
     g.append("text").attr("x", 380).attr("y", 300).attr("text-anchor", "middle")
       .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12.5)
       .attr("fill", P.text)

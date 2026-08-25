@@ -2,7 +2,7 @@
 <div class="interactive-container" id="w12-vg-widget">
   <div class="fig-label">Interactive · A real VGAE latent, decoded</div>
   <div class="widget-controls">
-    <span style="font-size:0.85rem">σ(z·z) threshold:</span>
+    <span style="font-size:0.85rem">sigmoid(z·z) threshold:</span>
     <button class="pill-btn" data-t="0.5" type="button">0.50</button>
     <button class="pill-btn" data-t="0.6" type="button">0.60</button>
     <button class="pill-btn active" data-t="0.7" type="button">0.70</button>
@@ -21,7 +21,9 @@
   and watch the trade announce itself: recovered edges fall, invented edges fall
   faster. The factions separate in latent space because edges pull endpoints
   together — Week 3's embedding story, now with a probabilistic decoder and a KL
-  leash. What the dot product can never express, Week 4 already told you: ask it
+  leash. The node-on-node pile-up in the upper cluster is real, not a rendering
+  bug: overlapping nodes are genuinely collapsed latents, which is itself a
+  lesson about two dimensions. What the dot product can never express, Week 4 already told you: ask it
   for an asymmetric relation and read Q-and-A below.</p>
 </div>
 ```

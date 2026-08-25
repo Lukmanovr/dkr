@@ -29,10 +29,20 @@ CELLS = [
 
 **Week 11 · [lecture](https://lukmanovr.github.io/dkr/lectures/11-scaling.html) · ≈ 10 min of compute (GPU helps; everything also runs on free-tier CPU)**
 
-You measure the neighborhood explosion on ogbn-arxiv and match the lecture's
-numbers on the same seeds; build the CSR fanout sampler with your own hands;
-derive SGC and beat the epoch-time column; and assemble the measured
-accuracy/time table that decides deployments.
+Full-batch GNN training holds the whole graph in GPU memory at once, and on
+real graphs it stops working: this lab is about the two escapes production
+systems actually run. **Neighbor sampling**, introduced with GraphSAGE
+([Hamilton et al., 2017](https://arxiv.org/abs/1706.02216)), bounds each
+node's computation tree by drawing at most *f* neighbors per hop, so memory
+scales with the batch instead of the graph. **Precompute-and-decouple**,
+distilled to its purest form in SGC
+([Wu et al., 2019](https://arxiv.org/abs/1902.07153)), deletes the
+nonlinearity so that all propagation collapses into one offline sparse
+product, leaving a logistic regression to train. You will measure the
+neighborhood explosion on ogbn-arxiv and match the lecture's numbers on the
+same seeds; build the CSR fanout sampler with your own hands; derive SGC and
+beat the epoch-time column; and assemble the measured accuracy/time table
+that decides deployments.
 
 ### Goals
 1. Count L-hop neighborhoods on a real graph and reproduce 18 / 4,577 / 22,663.
@@ -142,6 +152,28 @@ print("exercise 1 ✓ — the explosion is not a metaphor; you just counted it")
 The contract: for a batch of target nodes, draw ≤ f neighbors each, collect
 the drawn edges in batch-local indices, and return the deduplicated union.
 Every production sampler is this function with better engineering.
+
+**Algorithm — one block of neighbor sampling (CSR)** *(the lecture's
+Algorithm 1; you are implementing it line for line)*
+
+**Input:** CSR arrays `ptr`, `dst_sorted`; batch targets B; fanout f; seeded RNG.
+**Output:** deduplicated union U; local edge list E_B; positions of B in U.
+
+1. S ← ∅ — the drawn (source, target-position) pairs
+2. **for** each target v_i in B **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;N ← `dst_sorted[ptr[v_i] : ptr[v_i+1]]`
+4. &nbsp;&nbsp;&nbsp;&nbsp;**if** |N| > f **then** draw f uniform samples from N **else** keep all of N
+5. &nbsp;&nbsp;&nbsp;&nbsp;add (u, i) to S for every drawn neighbor u
+6. **end for**
+7. U ← unique(B ∪ {u : (u, i) ∈ S}), with inverse map π (global ID → local index)
+8. E_B ← {(π(u), i) : (u, i) ∈ S};  pos ← π(B)
+9. **return** U, E_B, pos
+
+Step 7 is the remap — the fiddly step everyone gets wrong once, and the one
+the first assert below checks (`uniq[pos] == batch`). `torch.unique(...,
+return_inverse=True)` hands you π for free. Draw with `torch.randint(...,
+generator=gen)` — with replacement, deliberately simple — and note the
+determinism assert: same seed, same sample, no exceptions.
 """),
 
     todo("""def sample_block(batch_nodes, fanout, gen):
@@ -263,6 +295,25 @@ print("sampler training ✓ — bounded memory, and you felt every second the pi
 The lecture's collapse: $\\hat A (\\hat A X W_0) W_1 = (\\hat A^2 X) W$.
 Implement the precompute with sparse ops; a logistic regression then races
 full-batch GCN.
+
+**Algorithm — SGC: propagate once, then train a linear model**
+*([Wu et al., 2019](https://arxiv.org/abs/1902.07153))*
+
+**Input:** adjacency A, features X, depth K, labels on the train split.
+**Output:** classifier weights W.
+
+1. Â ← D̃^{-1/2} (A + I) D̃^{-1/2}  — sparse, built once
+2. **for** k = 1 … K **do** X ← Â X (sparse–dense multiply) **end for** — offline, once
+3. cache X_K ← X; discard the graph
+4. **for** each epoch **do**
+5. &nbsp;&nbsp;&nbsp;&nbsp;gradient step on cross-entropy of softmax(X_K[train] · W)
+6. **end for**
+7. **return** W  — inference is X_K · W: no edges consulted
+
+Steps 1–3 are `sgc_features` (your exercise); steps 4–7 are the provided
+classifier loop. Step 2 costs O(K·E·d), paid once — the graph's entire role
+in training, prepaid — which is why the assert below demands your epochs be
+at least 5× cheaper than a full-batch GCN's.
 """),
 
     todo("""def sgc_features(K):
@@ -426,8 +477,10 @@ task-dependence — be specific).
 2. **SIGN-lite.** Concatenate Â X and Â²X and rerun the classifier — does the
    two-operator view beat SGC's one?
 3. **Poor-man's Cluster-GCN.** Random 40-way partition, intra-cluster GCN
-   steps (the lecture's recipe). Verify the 1/k edge-retention formula and
-   reproduce ≈0.628.
+   steps — the lecture's "Cluster-GCN: partition, then train" algorithm
+   with the uniform-random partitioner
+   ([Chiang et al., 2019](https://arxiv.org/abs/1905.07953)). Verify the
+   1/k edge-retention formula and reproduce ≈0.628.
 4. **The friendship paradox, measured.** Compare the mean degree of nodes vs
    the mean degree of *neighbors* on arxiv. Explain the explosion's 9× gap.
 

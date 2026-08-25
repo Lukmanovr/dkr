@@ -80,7 +80,11 @@ CELLS = [
 You build the four-bucket split and its auditor; reproduce the heuristic floor
 to the third decimal; implement VGAE's variational core; implement SEAL's
 labeling twice — honestly and leakily — and watch the leak score below a coin;
-and train a graph generator judged by your own statistics.
+and train a graph generator judged by your own statistics. The three learned
+methods are VGAE ([Kipf & Welling, 2016](https://arxiv.org/abs/1611.07308)),
+SEAL ([Zhang & Chen, 2018](https://arxiv.org/abs/1802.09691)), and GraphRNN
+([You et al., 2018](https://arxiv.org/abs/1802.08773)) — each in its budget,
+CPU-honest form.
 
 ### Goals
 1. Build a proper LP split and the auditor that certifies it.
@@ -239,7 +243,20 @@ print("exercise 2 \\u2713 — the floor, reproduced to the third decimal")"""),
     md("""## 3 · VGAE's variational core  *(exercise 3)*
 
 The encoder is provided; you supply the two pieces that make it variational:
-the reparameterized sample and the closed-form KL.
+the reparameterized sample and the closed-form KL
+([Kipf & Welling, 2016](https://arxiv.org/abs/1611.07308)). Code against the
+spec, not the vibe — the harness below runs this algorithm; **you implement
+steps 2 and 5**:
+
+**Algorithm · one VGAE training step**
+**Input:** features `X`; message graph; supervision positives `P`. **Output:** one gradient step on the ELBO.
+
+1. `mu, logvar` ← GCN(`X`, message graph) — two heads over a shared layer
+2. **reparameterize:** `eps` ~ N(0, I); `z` ← `mu + sigma * eps` with `sigma = exp(logvar / 2)`  *(your `reparameterize`)*
+3. sample |`P`| negative non-edges, positives excluded
+4. `recon` ← BCE of `z_a·z_b`: positives → 1, negatives → 0
+5. **KL:** mean over nodes of `-1/2 * sum_j (1 + logvar - mu^2 - exp(logvar))`, scaled by `1/N`  *(your `kl_term`)*
+6. backpropagate `recon + KL`; optimizer step — at evaluation, score with `mu` only (no sampling)
 """),
 
     todo("""class Encoder(torch.nn.Module):
@@ -368,6 +385,19 @@ print("exercise 3 \\u2713 — eighteen points over the floor, variational plumbi
 You implement the labeling function with a `leak` switch. The harness trains
 BOTH variants: your leak-free labels must clear 0.85, and the leaky ones must
 score **below 0.5** — this week's 0.363, reproduced as a passing test.
+
+**Algorithm · SEAL labeling** ([Zhang & Chen, 2018](https://arxiv.org/abs/1802.09691)), for a candidate pair `(a, b)`:
+**Input:** message-graph adjacency sets `adj`; candidate `(a, b)`. **Output:** a labeled subgraph a GNN can score.
+
+1. `adj_a` ← `adj[a] - {b}`; `adj_b` ← `adj[b] - {a}` — remove the candidate edge from the adjacency sets
+2. extract the enclosing subgraph: `{a, b}` plus their neighbors, minus the edge `(a, b)` itself
+3. **for** each node `v`: `d_a, d_b` ∈ {0 = the endpoint itself, 1 = adjacent, 2 = else}, read from `adj_a` / `adj_b`
+4. feature `x_v` ← one-hot of `(d_a, d_b)` over the 9 combinations
+5. a small GIN classifies the labeled subgraph, pooled to one logit
+
+`leak=True` means exactly "skip step 1": the labels read the *raw* adjacency,
+the candidate edge leaves its `(0,1)` fingerprint on training positives only,
+and the sabotage assert below fails as a violated spec line, not a mystery.
 """),
 
     todo("""def node_labels(nodes, a, b, leak=False):

@@ -14,11 +14,15 @@ own hands on MovieLens-100k:
    certified by one machine-checkable assert — sizes exactly
    80,000/1,519/1,344, and exactly **66** of 943 users surviving to be
    evaluated honestly.
-2. **LightGCN's propagation** (exercise 2): your `propagate` must
+2. **LightGCN's propagation**
+   ([He et al., 2020](https://arxiv.org/abs/2002.02126); exercise 2):
+   your `propagate` must
    reproduce the lecture widget's hand numbers on the 7-node toy graph —
    u2 holding exactly 0.250 of u1's signal at K=2, u3 hearing exactly
    0.0625 at K=4, layer-mean readout verified.
-3. **BPR and the ladder** (exercise 3): the pairwise loss with its
+3. **BPR and the ladder**
+   ([Rendle et al., 2009](https://arxiv.org/abs/1205.2618); exercise 3):
+   the pairwise loss with its
    hand-checkable tie point (log 2 exactly), then K=0 and K=3 trained
    into measured bands — with the popularity baseline computed alongside,
    because on this split it beats K=0, and finding that yourself is the

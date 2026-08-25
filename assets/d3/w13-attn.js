@@ -51,26 +51,26 @@
 
     if (attn) {
       for (let v = 1; v < N; v++) {
-        g.append("line").attr("x1", POS[SRC][0]).attr("y1", POS[SRC][1] + 20)
-          .attr("x2", POS[v][0]).attr("y2", POS[v][1] + 20)
+        g.append("line").attr("x1", POS[SRC][0]).attr("y1", POS[SRC][1] + 8)
+          .attr("x2", POS[v][0]).attr("y2", POS[v][1] + 8)
           .attr("stroke", "#7c5cd6").attr("stroke-width", 1.4).attr("opacity", 0.5);
       }
     }
     EDGES.forEach(([a, b]) => {
-      g.append("line").attr("x1", POS[a][0]).attr("y1", POS[a][1] + 20)
-        .attr("x2", POS[b][0]).attr("y2", POS[b][1] + 20)
+      g.append("line").attr("x1", POS[a][0]).attr("y1", POS[a][1] + 8)
+        .attr("x2", POS[b][0]).attr("y2", POS[b][1] + 8)
         .attr("stroke", P.muted).attr("stroke-width", 1.5)
         .attr("opacity", attn ? 0.2 : 0.5);
     });
     for (let v = 0; v < N; v++) {
       const hot = attn ? true : dist[v] < Infinity;
-      g.append("circle").attr("cx", POS[v][0]).attr("cy", POS[v][1] + 20)
+      g.append("circle").attr("cx", POS[v][0]).attr("cy", POS[v][1] + 8)
         .attr("r", v === SRC ? 12 : 8)
         .attr("fill", v === SRC ? P.accent : attn ? "#7c5cd6" : P.blue)
         .attr("opacity", hot ? 0.95 : 0.25);
     }
-    g.append("text").attr("x", POS[SRC][0]).attr("y", POS[SRC][1] + 25)
-      .attr("text-anchor", "middle").attr("font-size", 12).attr("font-weight", 700)
+    g.append("text").attr("x", POS[SRC][0]).attr("y", POS[SRC][1] + 13)
+      .attr("text-anchor", "middle").attr("font-size", 13).attr("font-weight", 700)
       .attr("fill", P.bg).text("★");
     const label = attn ? "one attention layer: everyone, immediately"
       : `${L} message-passing layer${L > 1 ? "s" : ""}: ${reached}/12 nodes reachable`;

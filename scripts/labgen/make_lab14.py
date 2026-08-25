@@ -179,6 +179,13 @@ measured bands with the popularity baseline watching; and then run the
 week's signature experiment — the same model on a random split — to
 measure the protocol inflation with your own hands.
 
+The model is LightGCN ([He et al., 2020](https://arxiv.org/abs/2002.02126)),
+a GCN stripped to degree-normalized propagation plus a layer-mean readout —
+the ablation-honest recommender that deleted its way to the top. The loss is
+Bayesian Personalized Ranking ([Rendle et al., 2009](https://arxiv.org/abs/1205.2618)),
+which only ever asserts the comparison the data supports: the observed item
+over a sampled unobserved one.
+
 ### Goals
 1. Temporal split with machine-checkable wall; sizes 80000/1519/1344;
    66 surviving test users.
@@ -238,7 +245,23 @@ AND post-wall interactions on train-seen items)? Commit to a number."""),
 The model is three deletions and one mean. Before trusting it with 100,000
 interactions, make it reproduce the lecture widget's hand numbers on the
 7-node toy graph — ground truth a human can hold (the normalized adjacency
-builder is given; the propagation is yours)."""),
+builder is given; the propagation is yours).
+
+**Algorithm — LightGCN propagation with layer-mean readout** (the spec
+`propagate` implements; the lecture's Algorithm "LightGCN with BPR",
+inner loop):
+
+**Input:** tables $P^{(0)}$ (users), $Q^{(0)}$ (items); sparse operators
+`A_ui`, `A_iu`; depth $K$.
+**Output:** final $P, Q$; the list of per-layer pairs.
+
+1. layers $\\leftarrow [(P^{(0)}, Q^{(0)})]$
+2. **for** $k = 1 \\dots K$ **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;$P^{(k)} \\leftarrow$ `A_ui` $\\cdot\\, Q^{(k-1)}$ and $Q^{(k)} \\leftarrow$ `A_iu` $\\cdot\\, P^{(k-1)}$ —
+   **both from the previous pair** (the trap: never feed the just-updated $Q^{(k)}$ into $P^{(k)}$)
+4. &nbsp;&nbsp;&nbsp;&nbsp;append $(P^{(k)}, Q^{(k)})$ to layers
+5. **end for**
+6. **return** the MEAN over all $K{+}1$ layers ($k{=}0$ included) — and the layers"""),
 
     code("""def build_norm_adj(edges, n_u, n_i):
     \"\"\"Symmetric-normalized bipartite propagation matrices (sparse torch):
@@ -264,7 +287,23 @@ tell positive from negative sits at exactly log 2). Then the harness (given:
 training loop, early stopping on validation Recall@20, the ranking
 evaluator that masks train items) runs your propagation and your loss at
 K=0 and K=3, with the one-line popularity baseline computed alongside,
-because the lecture said always."""),
+because the lecture said always.
+
+**Algorithm — one BPR training epoch** (the outer loop of the lecture's
+Algorithm "LightGCN with BPR"; the given `train_lightgcn` runs it around
+your `bpr_loss`):
+
+**Input:** train pairs $T$; tables $P^{(0)}, Q^{(0)}$; depth $K$; L2
+strength $\\lambda$.
+**Output:** trained tables; best-validation scores.
+
+1. **for** each batch of observed pairs $(u, i) \\subset T$ **do**
+2. &nbsp;&nbsp;&nbsp;&nbsp;sample one unobserved item $j$ per pair
+3. &nbsp;&nbsp;&nbsp;&nbsp;$P, Q \\leftarrow$ `propagate`$(P^{(0)}, Q^{(0)}, K)$
+4. &nbsp;&nbsp;&nbsp;&nbsp;$\\ell \\leftarrow -\\mathrm{mean}\\,\\log\\sigma\\big(P_u \\cdot (Q_i - Q_j)\\big) + \\lambda\\lVert\\Theta\\rVert^2$ — your `bpr_loss`, plus L2
+5. &nbsp;&nbsp;&nbsp;&nbsp;gradient step — the only parameters are $P^{(0)}, Q^{(0)}$
+6. **end for**
+7. every 20 epochs: validation Recall@20; keep the best checkpoint; stop early"""),
 
     todo(BPR_SOL, BPR_STUB),
 

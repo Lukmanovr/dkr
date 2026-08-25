@@ -40,9 +40,16 @@
   function computeBatch() {
     const rng = mulberry32(seed);
     const targets = [];
+    // min circular-index gap of 2 keeps target circles (r=11) from touching
+    // on the layout ring (adjacent ring slots are ~22 px apart at the sides)
+    const clash = (v) => targets.some((t) => {
+      const d = Math.abs(t - v);
+      return Math.min(d, N - d) < 2;
+    });
+    let guard = 0;
     while (targets.length < 4) {
       const v = Math.floor(rng() * N);
-      if (!targets.includes(v)) targets.push(v);
+      if (!targets.includes(v) && (!clash(v) || ++guard > 200)) targets.push(v);
     }
     if (mode === "full") {
       return { targets, nodes: new Set(Array.from({ length: N }, (_, i) => i)),
@@ -113,7 +120,7 @@
       .attr("font-weight", 700).attr("fill", P.accentDark)
       .text(`loaded: ${nodes.size}/34 nodes · ${edges.size}/78 edges`);
     g.append("text").attr("x", 380).attr("y", 326).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text(mode === "cluster" ? "note the lost between-cluster edges — Cluster-GCN's bias, visible"
             : mode === "sample" ? "reseed: different neighbors each time — sampling's variance, visible"
             : "the memory bill of exactness");

@@ -251,6 +251,13 @@ provably cannot; you wire the encoding into a real molecule pipeline and run
 the ladder at your own budget; and you build the GPS global channel, where a
 pair of asserts turns the padding-mask bug into a number.
 
+The methods are this decade's graph-transformer canon: structural encodings
+and attention biases from Graphormer
+([Ying et al., 2021](https://arxiv.org/abs/2106.05234)) and the parallel
+local + global block from GraphGPS
+([Rampášek et al., 2022](https://arxiv.org/abs/2205.12454)) — both built
+here from parts you can verify by hand.
+
 ### Goals
 1. `rwse_diag` matching the triangle-with-tail hand table at $10^{-9}$.
 2. Separate CSL(11,2) from CSL(11,3) at $k=3$: 0.09375 vs exactly 0.
@@ -295,6 +302,22 @@ The definition is three lines of math: $M = D^{-1}A$, take powers, read the
 diagonal. Your implementation must reproduce the lecture's hand table on the
 triangle-with-tail **exactly** — this is Checklist-G ground truth a human can
 hold, and it is what makes every later use of `rwse_diag` trustworthy.
+
+**Algorithm (RWSE precompute)** — the spec you are coding against
+(the lecture's Algorithm 1):
+
+> **Input:** adjacency $A$ ($n \\times n$); walk length $K$.
+> **Output:** $R \\in \\mathbb{R}^{n \\times K}$ with $R[v, k] = (M^k)_{vv}$.
+>
+> 1. $d_v \\leftarrow \\max(\\sum_u A_{vu}, 1)$ for every node (clip so
+>    isolated nodes divide by one, not zero)
+> 2. $M \\leftarrow \\mathrm{diag}(d)^{-1} A$ — row-normalize
+> 3. $P \\leftarrow I$
+> 4. **for** $k = 1 \\dots K$ **do**
+> 5. &nbsp;&nbsp;&nbsp;&nbsp;$P \\leftarrow P M$
+> 6. &nbsp;&nbsp;&nbsp;&nbsp;column $k$ of $R \\leftarrow \\mathrm{diag}(P)$
+> 7. **end for**
+> 8. **return** $R$
 
 **Predict before you run:** what must entry $R[3, k{=}3]$ (the tail node's
 3-step return) be, and what graph fact forces it? Commit before executing."""),
@@ -466,10 +489,29 @@ molecule to the batch's largest; attention will happily read the phantom
 atoms unless `key_padding_mask` says otherwise; the model still trains,
 merely worse, and nothing crashes.
 
-The harness below prices the bug: it runs one molecule alone, then batched
-next to a bigger molecule (phantom padding rows appear), and demands your
-real outputs not move; then it flips `sabotage_mask=True` and demands they
-DO move.
+**Algorithm (one GraphGPS layer)** — the spec `Block.forward` already
+follows; steps 2–4 are the `global_channel` you write (the lecture's
+Algorithm 2):
+
+> **Input:** node features $X$; edges $E$ with features; batch assignment.
+> **Output:** updated features $X''$.
+>
+> 1. $X_{loc} \\leftarrow \\mathrm{GINE}(X, E)$ — the local channel
+> 2. $(\\tilde X, \\mathrm{mask}) \\leftarrow$ `to_dense_batch` $(X)$ — pad
+>    each graph to the batch max; mask is True on REAL nodes
+> 3. $X_{glob} \\leftarrow \\mathrm{MHA}(\\tilde X, \\tilde X, \\tilde X,\\;$
+>    `key_padding_mask` $= \\lnot\\mathrm{mask})$ — **the inversion**:
+>    `key_padding_mask` wants True on PADDING
+> 4. $X_{glob} \\leftarrow X_{glob}[\\mathrm{mask}]$ — drop the padding rows
+> 5. $X' \\leftarrow \\mathrm{LN}(X + X_{loc} + X_{glob})$ — shared residual
+> 6. $X'' \\leftarrow \\mathrm{LN}(X' + \\mathrm{FFN}(X'))$
+> 7. **return** $X''$
+
+Step 3's inversion is the tripwire: skip it and attention reads phantom
+atoms. The harness below prices the bug: it runs one molecule alone, then
+batched next to a bigger molecule (phantom padding rows appear), and
+demands your real outputs not move; then it flips `sabotage_mask=True` and
+demands they DO move.
 
 **Predict before you run:** roughly how large will the sabotage diff be,
 given outputs are LayerNormed (so O(1) scale)?"""),
