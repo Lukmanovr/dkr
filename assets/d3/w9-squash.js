@@ -69,11 +69,13 @@
     Object.keys(POS).forEach((v) => {
       const [x, y] = POS[v];
       const frac = S[v] / vmax;
+      // fade only the FILL; the full-opacity stroke keeps faded nodes findable in dark
       g.append("circle").attr("cx", x).attr("cy", y + 40).attr("r", 9 + 10 * Math.sqrt(frac))
-        .attr("fill", P.accent).attr("opacity", 0.22 + 0.78 * frac);
-      const yoff = y < 150 ? -20 : 32;
-      g.append("text").attr("x", x).attr("y", y + 40 + yoff).attr("text-anchor", "middle")
-        .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12)
+        .attr("fill", P.accent).attr("fill-opacity", 0.22 + 0.78 * frac)
+        .attr("stroke", P.accent).attr("stroke-width", 1.2);
+      const [dx, dy] = LABEL_OFF[v] || [0, y < 150 ? -20 : 32];
+      g.append("text").attr("x", x + dx).attr("y", y + 40 + dy).attr("text-anchor", "middle")
+        .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12.5)
         .attr("fill", P.text).text(fmt(S[v]));
     });
     g.append("text").attr("x", POS[SRC][0]).attr("y", POS[SRC][1] + 45)

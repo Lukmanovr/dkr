@@ -82,8 +82,8 @@ seriously in §6.
 
 ## The object: schemas, instances, and what projections destroy
 
-This week's central object deserves the course's formal treatment, because
-everything downstream is parameterized by it.
+The week's central object first, formally — everything downstream is
+parameterized by it.
 
 ::: {#def-w10-hetero .definition name="Heterogeneous graph and schema"}
 A **heterogeneous graph** is a graph plus a type system: a set of node types
@@ -207,9 +207,9 @@ h'_{\text{untyped}}(P_1) \;=\; 1 \;+\; \tfrac12 \cdot \tfrac{1+2+3+2}{4} \;=\; \
 \qquad \text{vs.} \qquad h'_{\text{typed}}(P_1) = \mathbf{5.25}
 $$ {#eq-w10-collapse}
 
-where — the leading $1$ is the self term ($W_0 h_{P_1} = 1 \cdot 1$), the
-shared weight $W = \tfrac12$ replaces all three typed weights, and the mean
-runs over all four neighbors $\{A_1, A_2, P_2, V\}$ regardless of relation.
+where — the leading $1$ is the self term, the shared $W = \tfrac12$ replaces
+all three typed weights, and the mean runs over all four neighbors
+regardless of relation.
 The number matters less than what died on
 the way to it: in the untyped layer there is *no parameter whose job is to say
 citations matter more than venues*. Not "harder to learn" — nonexistent. Typed
@@ -246,9 +246,9 @@ matrix ($|E_r|$ counts the edges of relation $r$, $d$ is the hidden width).
 When parameters are basis-decomposed (§4, below), line 5 is unchanged except
 that each $W_r$ is first assembled as $\sum_b a_{rb} V_b$. Lab 10's
 `rgcn_update` is lines 1–9 with scalar weights and $\sigma$ set to the
-identity; the DBLP model you will train is the same template with a learned
-SAGE aggregator playing line 5 per edge type and the sum across relations
-kept. Play the fader yourself:
+identity; the DBLP model is the same template with a SAGE aggregator
+playing line 5 per edge type, sum across relations kept. Play the fader
+yourself:
 
 {{< include ../assets/d3/w10-typed.html >}}
 
@@ -285,9 +285,9 @@ h'(A_2) \;=\; \underbrace{1 \cdot 2}_{\text{self}} \;+\;
 \;=\; 2 + 1 \;=\; \mathbf{3}
 $$ {#eq-w10-selfcheck}
 
-where — the self term is $W_0 = 1$ times $A_2$'s own feature $2$; the inverse
-channel carries weight $\tfrac12$ and the mean of its papers' features
-$\{1, 3\}$; no other channel touches an author in this instance. An author
+where — the weights are the ledger's ($W_0 = 1$,
+$w_{\texttt{writes}^{-1}} = \tfrac12$), and no other channel touches an
+author in this instance. An author
 is, to this layer, their own identity plus the average of what they write —
 which reads like a job description because that is what typed aggregation
 is, a learned job description per relation.
@@ -317,8 +317,8 @@ where —
 - $R$ is the number of relation types; each runs two directed channels
   (hence $2R$), and the $+1$ is the self-loop;
 - $d$ is the hidden width, so every weight matrix holds $d^2$ entries;
-- the worked instance is FB15k-237's 237 relations at a modest $d = 100$ —
-  per layer, before a single entity embedding.
+- the worked instance is FB15k-237's — per layer, before a single entity
+  embedding.
 
 Compare: the entire lookup table
 of Week 4 was $14{,}541 \times 100 \approx 1.45$M. The encoder that was
@@ -375,10 +375,9 @@ P_{\text{basis}} \;=\;
 \;=\; 300{,}000 + 14{,}220 + 10{,}000 \;=\; \mathbf{324{,}220}
 $$ {#eq-w10-basis}
 
-where — $B = 30$ bases at FB15k-237's $R = 237$ and $d = 100$, the three
-terms exactly as the previous paragraph assembled them: **14.7× fewer** than
-@eq-w10-bill, with the per-relation identity carried entirely by the
-length-30 coefficient
+where — $B = 30$ bases at FB15k-237's $R = 237$ and $d = 100$:
+**14.7× fewer** than @eq-w10-bill, with the per-relation identity carried
+entirely by the length-30 coefficient
 vector $a_r$. Stop on that object for a moment, because you have seen it
 before: a small dense vector, one per relation, learned end-to-end, encoding
 how the relation behaves — $a_r$ *is a relation embedding*, in precisely
@@ -400,9 +399,8 @@ P_{\text{block}} \;=\; 2R \cdot \tfrac{d^2}{10} \;+\; d^2
 \;=\; 474{,}000 + 10{,}000 \;=\; \mathbf{484{,}000}
 $$ {#eq-w10-blocks}
 
-where — the $\tfrac{d^2}{10}$ per channel is the ten diagonal blocks' total
-($10 \times (d/10)^2 = 1{,}000$ entries at $d = 100$), and the trailing
-$d^2$ is, again, the undecomposed self-loop. Between the extremes, sharing
+where — $\tfrac{d^2}{10}$ is the ten diagonal blocks' total per channel and
+the trailing $d^2$ the undecomposed self-loop. Between the extremes, sharing
 nothing across relations.
 
 {{< include ../assets/figures/fig-w10-params.html >}}
@@ -513,8 +511,7 @@ encoder $\mathrm{enc}$; margin $\gamma$; epoch budget.
 :::
 
 Line 3 is the entire cost asymmetry between the pipelines — the anatomy a
-few paragraphs below prices it exactly. Line 5 is Lab 4's margin ranking
-loss with DistMult's trilinear score, unchanged. Lines 9–13 are Week 4's
+few paragraphs below prices it exactly. Lines 9–13 are Week 4's
 filtered ranking verbatim, so both pipelines answer the same 2,000 sampled
 questions; Lab 10 hands you lines 1–8 as provided code and asks you to
 write the referee, lines 9–13.
@@ -549,7 +546,7 @@ matching every GNN encoder, a finding published under the title *"You CAN
 Teach an Old Dog New Tricks"* ([Ruffinelli et al., 2020](https://openreview.net/forum?id=BkxSmlBFvr)).
 
 *"The benchmark is unrepresentative"* — closer, and worth making precise
-with the week's last definition.
+with a definition.
 
 ::: {#def-w10-trans .definition name="Transductive vs. inductive completion"}
 A completion benchmark is **transductive** when every test entity also
@@ -1033,27 +1030,25 @@ epistemic ones, and confusing the two wastes GPU-months.
 **Notions introduced this week**
 
 - **heterogeneous graph & schema** (@def-w10-hetero) — a graph plus a type
-  system; the schema is the data model, the instance its population.
+  system; schema = data model, instance = its population.
 - **metapath** (@def-w10-metapath) — a typed walk recipe; each recipe
-  manufactures a different homogeneous graph from the same data.
-- **basis decomposition** (@def-w10-basis) — every relation's weight as a
-  mixture of $B$ shared bases; the coefficient vector $a_r$ is a relation
-  embedding in disguise.
+  manufactures a different graph.
+- **basis decomposition** (@def-w10-basis) — relation weights as mixtures of
+  $B$ shared bases; $a_r$ is a relation embedding in disguise.
 - **meta-relation** (@def-w10-metarel) — the ⟨source type, edge type, target
-  type⟩ triple that indexes HGT's attention.
-- **transductive vs. inductive completion** (@def-w10-trans) — whether test
-  entities were seen in training; decides whether a lookup may even compete.
-- **inverse channels** — the flipped edge list with relation types offset by
-  $R$; forget it and you build an information diode.
-- **per-relation normalization** — $c_{v,r}$ in @eq-w10-rgcn: average within
-  each channel, so no relation wins by count alone.
-- **encoder–decoder KG completion** (@alg-w10-showdown) — Week 4's decoder
-  with a learned encoder in front; pays exactly when entities have something
-  to share.
-- **block-diagonal decomposition** (@eq-w10-blocks) — the opposite bet to
-  bases: independent relations, low-rank interactions.
-- **semantic attention** — HAN's second stage: learned, human-readable
-  weights over the metapath menu.
+  type⟩ triple indexing HGT's attention.
+- **transductive vs. inductive completion** (@def-w10-trans) — were test
+  entities seen in training; decides whether a lookup may compete.
+- **inverse channels** — the flipped edge list, types offset by $R$;
+  forgetting it builds an information diode.
+- **per-relation normalization** — $c_{v,r}$ in @eq-w10-rgcn: no relation
+  wins by count alone.
+- **encoder–decoder KG completion** (@alg-w10-showdown) — a learned encoder
+  before Week 4's decoder; pays when entities have something to share.
+- **block-diagonal decomposition** (@eq-w10-blocks) — the opposite bet:
+  independent relations, low-rank interactions.
+- **semantic attention** — HAN's second stage: readable learned weights over
+  the metapath menu.
 :::
 
 ## Where this leaves us

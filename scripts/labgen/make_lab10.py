@@ -35,6 +35,12 @@ inverse-channel construction that every R-GCN implementation silently depends on
 and reproduce the encoder-vs-lookup showdown on FB15k-237 with Lab 4's exact
 protocol — landing within tolerance of the lecture's table.
 
+The method under test is R-GCN — relational message passing with one weight per
+typed channel, introduced by [Schlichtkrull et al., 2018](https://arxiv.org/abs/1703.06103)
+— and the skepticism you will apply to it is the benchmark discipline of the HGB
+study, [Lv et al., 2021](https://arxiv.org/abs/2112.14936): typed machinery is a
+claim, and claims get measured against matched baselines.
+
 ### Goals
 1. Compute typed updates and parameter counts by hand, asserted to the lecture.
 2. Train a heterogeneous GNN on DBLP and measure what the typed graph is worth.
@@ -68,6 +74,25 @@ if DEV.type != "cuda":
 Two functions: the typed scalar update (the lecture's mixing desk) and the
 parameter counters (the lecture's bill). The asserts hold you to every number
 on those two figures.
+
+You are implementing the lecture's Algorithm (One R-GCN Layer), scalar-for-scalar:
+
+> **One R-GCN layer** — **Input:** features $h_u$ for all nodes; relations with
+> inverse channels; weights $w_\\text{self}, \\{w_r\\}$. **Output:** updated $h'_v$.
+>
+> 1. **for** each node $v$ **do**
+> 2. &nbsp;&nbsp;&nbsp;&nbsp;$m \\leftarrow w_\\text{self} \\cdot h_v$  (the self-channel)
+> 3. &nbsp;&nbsp;&nbsp;&nbsp;**for** each relation $r$ with $N_r(v) \\neq \\varnothing$ **do**
+> 4. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$m \\leftarrow m + w_r \\cdot \\text{mean}\\{h_u : u \\in N_r(v)\\}$
+> 5. &nbsp;&nbsp;&nbsp;&nbsp;**end for**
+> 6. &nbsp;&nbsp;&nbsp;&nbsp;$h'_v \\leftarrow m$  (σ = identity in this scalar version)
+> 7. **end for**
+>
+> Mean WITHIN the channel first, the channel's weight second — that ordering is
+> the whole point (three co-authors cannot outvote one citation), and it is what
+> the 5.25-vs-2.00 assert checks.
+
+`rgcn_update` below computes lines 1–7 for a single node.
 """),
 
     todo("""def rgcn_update(h_self, channels, w_self=1.0):
@@ -151,7 +176,7 @@ assert round(params_full(237, 100) / params_basis(237, 100, 30), 1) == 14.7
 assert params_full(24, 200) == 1_960_000 and params_basis(24, 200, 30) == 1_241_440
 print("exercise 1 ✓ — typed 5.25 vs untyped 2.00; the 4.75M bill and its 14.7× discount")"""),
 
-    md("""## 2 · DBLP: what the typed graph is worth  *(exercise 2)*
+    md("""## 2 · DBLP: what the typed graph is worth  *(exercise 2 — HeteroConv, one SAGEConv per edge type)*
 
 The lecture measured it (MLP 79.0 ± 0.5 → typed GNN 84.0 ± 0.7, three seeds);
 here you build the typed model and reproduce the gap with one seed. The MLP
@@ -387,6 +412,29 @@ encoder swapped in. Your part is the referee: `evaluate` computes filtered MRR
 and Hits@10 over a sampled set of test facts, both directions. Under SMOKE the
 models barely train (1 epoch, 200 facts); run full before submitting (5 epochs
 each, 1,000 facts — ≈ 5 min with a GPU).
+
+Both pipelines run the lecture's encoder-agnostic training loop — the
+encoder–decoder template of [Schlichtkrull et al., 2018](https://arxiv.org/abs/1703.06103)
+under Lab 4's protocol. You code against this spec, not a vibe:
+
+> **Encoder-agnostic KG completion** — **Input:** train triples $T$; entity
+> table $E$; relation table $R$; encoder (lookup: $Z = E$; R-GCN: one typed
+> pass over ALL edges); margin $\\gamma$; epochs. **Output:** trained $E, R$;
+> filtered MRR / Hits@10.
+>
+> 1. **for** each epoch, **for** each batch $B \\subset T$ **do**
+> 2. &nbsp;&nbsp;&nbsp;&nbsp;$Z \\leftarrow \\text{enc}(E)$
+> 3. &nbsp;&nbsp;&nbsp;&nbsp;$\\tilde B \\leftarrow$ corrupt one side of each triple uniformly
+> 4. &nbsp;&nbsp;&nbsp;&nbsp;$\\ell \\leftarrow \\text{mean ReLU}(\\gamma - s(B) + s(\\tilde B))$, $s(h,r,t) = \\langle Z_h, R_r, Z_t \\rangle$
+> 5. &nbsp;&nbsp;&nbsp;&nbsp;gradient step on $\\ell$
+> 6. **end for**
+> 7. **for** each sampled test fact, BOTH directions: score all candidates,
+>    set known-true answers (except the target) to $-10^9$, record the rank
+> 8. **return** mean reciprocal rank; fraction of ranks $\\le 10$
+>
+> Lines 1–6 are the provided trainers; lines 7–8 are your `evaluate`. Line 2 is
+> the entire cost asymmetry: the lookup's encoder is indexing (free), the
+> R-GCN's is a full-graph propagation per gradient step.
 
 **Predict before you run:** the lecture's table says which pipeline wins at
 this budget. By how much, and in which relation categories, is your call.
