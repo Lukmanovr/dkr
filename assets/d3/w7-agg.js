@@ -57,8 +57,9 @@
       .attr("font-size", 12.5).attr("fill", P.muted)
       .text("click a node to flip its color · +/− to resize · can you make two different multisets that fool ALL three?");
 
-    drawSet(g, A, 90, 62, "N(a):", P);
-    drawSet(g, B, 90, 102, "N(b):", P);
+    // builder centered: label + up to 6 nodes + controls sit in the middle band
+    drawSet(g, A, 258, 62, "N(a):", P);
+    drawSet(g, B, 258, 102, "N(b):", P);
 
     const a = vecs(A), b = vecs(B);
     const rows = [["mean", a.mean, b.mean], ["max", a.mx, b.mx], ["sum", a.sum, b.sum]];
@@ -74,7 +75,7 @@
       g.append("text").attr("x", 150).attr("y", y).attr("font-size", 13)
         .attr("font-family", "'JetBrains Mono', monospace").attr("fill", P.text)
         .text(`${fmt(va)}   vs   ${fmt(vb)}`);
-      g.append("text").attr("x", 462).attr("y", y).attr("font-size", 12)
+      g.append("text").attr("x", 462).attr("y", y).attr("font-size", 12.5)
         .attr("fill", P.muted)
         .text(same ? "confused — a and b look identical"
                    : "separated — the difference survives");

@@ -34,7 +34,11 @@ You implement WL refinement from scratch and drive it over the lecture's blind
 pairs; verify the ceiling theorem on an *untrained* GIN (no weights needed — that
 is the theorem's point); put feature augmentations through the two-question trial;
 build the CSL stress-test family; and measure oversquashing on the barbell to the
-same three decimals as the lecture.
+same three decimals as the lecture. The two papers this lab reproduces:
+[Xu et al., 2019 — *How Powerful are Graph Neural Networks?*](https://arxiv.org/abs/1810.00826)
+(the ceiling and GIN) and
+[Alon & Yahav, 2021 — *On the Bottleneck of Graph Neural Networks*](https://arxiv.org/abs/2006.05205)
+(oversquashing).
 
 ### Goals
 1. Implement WL color refinement and reproduce every verdict from the lecture.
@@ -70,6 +74,23 @@ P5P2 = nx.disjoint_union(nx.path_graph(5), nx.path_graph(2))"""),
 The definition from the lecture, as ~10 lines of Python. The one subtlety the
 asserts will catch if you miss it: the color table must be **shared across both
 graphs** — a fresh color means "a signature never seen in either graph".
+
+> **Algorithm · WL comparison with a shared color table**
+>
+> **Input:** graphs G1, G2; rounds T. &nbsp; **Output:** per-round histogram pair.
+>
+> 1. c(v) ← 0 for every node of *both* graphs
+> 2. **for** round t = 1 … T **do**
+> 3. &nbsp;&nbsp;&nbsp;&nbsp;for each node v: sig(v) ← (c(v), sorted multiset of neighbor colors)
+> 4. &nbsp;&nbsp;&nbsp;&nbsp;build ONE table over both graphs' signatures: new sig → fresh color
+> 5. &nbsp;&nbsp;&nbsp;&nbsp;c(v) ← table[sig(v)] for every node of both graphs
+> 6. &nbsp;&nbsp;&nbsp;&nbsp;h1, h2 ← color counts of G1, G2
+> 7. **end for**
+> 8. **return** (h1, h2) — equal dicts at every round ⇒ WL abstains
+>
+> Step 4 is the subtlety: one table spanning both graphs means *same signature,
+> same color, everywhere* — six nodes of color 3 vs six of color 4 is a
+> difference, not a match. A per-graph table silently erases it.
 """),
 
     todo("""def wl_histograms(G1, G2, rounds):
@@ -367,6 +388,23 @@ $\\mathrm{CSL}(11, s)$: 11 nodes in a ring, edges to distance 1 and distance
 $s$. Build the family, verify the lecture's three claims, then crack the pair
 with the random-walk return probabilities you can also compute by hand
 ($6/64$ vs $0$ at three steps — count the triangles).
+
+One term the asserts use: CSL graphs are **vertex-transitive** — some symmetry
+of the graph maps any node to any other, so every node "looks the same" and WL
+can never split the node set.
+
+> **Algorithm · Random-walk return features (RWPE)**
+>
+> **Input:** graph G with adjacency A; steps kmax. &nbsp;
+> **Output:** feature vector r(v) ∈ R^kmax per node.
+>
+> 1. M ← D⁻¹A &nbsp;&nbsp;*(the random-walk operator, Week 2)*
+> 2. P ← I
+> 3. **for** k = 1 … kmax **do**
+> 4. &nbsp;&nbsp;&nbsp;&nbsp;P ← P·M
+> 5. &nbsp;&nbsp;&nbsp;&nbsp;r_k(v) ← P[v, v] for every v &nbsp;&nbsp;*(prob. a k-step walk returns)*
+> 6. **end for**
+> 7. **return** r(v) = (r_1(v), …, r_kmax(v)) — isomorphic copies agree
 """),
 
     todo("""def csl(n, s):
@@ -544,8 +582,10 @@ print("   the lecture's figure, reproduced from your own matrix powers")"""),
    Laplacian eigenvector as a feature — then flip its sign on one copy and watch
    the honesty test fail. Repair with `abs()` and re-run both trials.
 4. **Curvature spotting.** Compute effective resistance (`nx.resistance_distance`)
-   between the barbell's bridgeheads and within a clique. How does the ratio
-   compare with your sensitivity ratio?
+   between the barbell's bridgeheads and within a clique — *effective
+   resistance*: view every edge as a 1Ω resistor; the resistance between two
+   nodes is low when many parallel paths connect them, high across a lone
+   bridge. How does the ratio compare with your sensitivity ratio?
 
 ## 7 · Reflection (answer in this cell, 2–4 sentences each)
 

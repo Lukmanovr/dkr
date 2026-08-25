@@ -7,12 +7,14 @@
 (function () {
   "use strict";
   const U = window.DKR;
+  // one hue per PIPELINE (gold = lookup, teal = R-GCN encoder); the 15-epoch
+  // budget is the same hue at a pale tint, so color never does two jobs
   const ROWS = [
     ["TransE (lookup)", 5, "7 s", 0.178, 0.301, "gold"],
     ["DistMult (lookup)", 5, "7 s", 0.179, 0.311, "gold"],
-    ["DistMult (lookup)", 15, "22 s", 0.145, 0.281, "muted"],
+    ["DistMult (lookup)", 15, "22 s", 0.145, 0.281, "gold"],
     ["R-GCN → DistMult", 5, "156 s", 0.126, 0.257, "teal"],
-    ["R-GCN → DistMult", 15, "1143 s", 0.122, 0.257, "muted"],
+    ["R-GCN → DistMult", 15, "1143 s", 0.122, 0.257, "teal"],
   ];
   const CATS = [["1-1", 0.196, 22], ["1-N", 0.152, 264], ["N-1", 0.313, 864], ["N-N", 0.139, 2850]];
 
@@ -23,12 +25,12 @@
     const svg = U.svgIn("w10-sd-svg", 760, 330);
     svg.attr("font-family", "'Source Sans 3', sans-serif");
     const g = svg.append("g");
-    const colOf = { gold: P.yellow, teal: P.blue, muted: P.muted };
+    const colOf = { gold: P.yellow, teal: P.blue };
 
     if (view === "budget") {
       g.append("text").attr("x", 380).attr("y", 24).attr("text-anchor", "middle")
         .attr("font-size", 12.5).attr("fill", P.muted)
-        .text("same loss, same eval, our hardware — filtered MRR (bar) and Hits@10, with the wall-clock bill");
+        .text("same loss, same eval, our hardware — bar = filtered MRR · hue = pipeline, pale = 15-epoch run");
       ROWS.forEach(([name, ep, secs, mrr, h10, ckey], i) => {
         const y = 60 + i * 46;
         const w = 340 * mrr / 0.2;
@@ -36,9 +38,10 @@
           .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.text)
           .text(name);
         g.append("text").attr("x", 175).attr("y", y + 24).attr("text-anchor", "end")
-          .attr("font-size", 12).attr("fill", P.muted).text(ep + " ep · " + secs);
+          .attr("font-size", 12.5).attr("fill", P.muted).text(ep + " ep · " + secs);
         g.append("rect").attr("x", 188).attr("y", y - 4).attr("width", w).attr("height", 20)
-          .attr("rx", 5).attr("fill", colOf[ckey]).attr("opacity", 0.85);
+          .attr("rx", 5).attr("fill", colOf[ckey]).attr("opacity", ep === 15 ? 0.38 : 0.85)
+          .attr("stroke", ep === 15 ? colOf[ckey] : "none").attr("stroke-width", 1.4);
         g.append("text").attr("x", 188 + w + 8).attr("y", y + 11)
           .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 12.5)
           .attr("fill", P.text).text(`MRR ${mrr.toFixed(3)} · H@10 ${h10.toFixed(3)}`);
@@ -47,7 +50,7 @@
         .attr("font-size", 13).attr("font-weight", 600).attr("fill", P.accentDark)
         .text("the lookup wins at every budget, at 1/22nd the compute — and more epochs helped NEITHER pipeline");
       g.append("text").attr("x", 380).attr("y", 320).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("fill", P.muted)
+        .attr("font-size", 12.5).attr("fill", P.muted)
         .text("well-tuned literature numbers (100+ epochs, tuned losses) reach MRR ≈ 0.30–0.34 — also led by lookups");
     } else {
       g.append("text").attr("x", 380).attr("y", 24).attr("text-anchor", "middle")
@@ -69,7 +72,7 @@
         .attr("font-size", 13).attr("font-weight", 600).attr("fill", P.accentDark)
         .text("N-1 queries (many heads, one true tail) are easy; N-N — 71% of the test set — is where MRR goes to die");
       g.append("text").attr("x", 380).attr("y", 316).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("fill", P.muted)
+        .attr("font-size", 12.5).attr("fill", P.muted)
         .text("categories from train-set head/tail fan-out, threshold 1.5 — the TransE paper's own recipe");
     }
   }

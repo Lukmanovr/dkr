@@ -79,14 +79,15 @@
       g.append("circle").attr("cx", x).attr("cy", y).attr("r", inS ? 11 : 7)
         .attr("fill", inS ? P.accent : P.muted).attr("opacity", inS ? 0.95 : 0.45);
       g.append("text").attr("x", x).attr("y", y + 4).attr("text-anchor", "middle")
-        .attr("font-size", 11.5 < 12 ? 12 : 12).attr("font-weight", 700).attr("fill", "#fff")
+        .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", "#fff")
         .text(inS ? DEG[v] : "");
     });
     g.append("circle").attr("cx", cx0).attr("cy", cy0).attr("r", 16).attr("fill", P.yellow);
     g.append("text").attr("x", cx0).attr("y", cy0 + 5).attr("text-anchor", "middle")
       .attr("font-size", 13).attr("font-weight", 700).attr("fill", "#5c4508").text(center);
 
-    g.append("text").attr("x", cx0).attr("y", 296).attr("text-anchor", "middle")
+    // full-width bottom caption line — fills the band under both columns
+    g.append("text").attr("x", 380).attr("y", 306).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted)
       .text(`node ${center}: ${nbrs.length} neighbors — sampling ${Math.min(K, nbrs.length)} (numbers = their degrees)`);
 
@@ -103,14 +104,14 @@
       [`cost this hop: ${Math.min(K, nbrs.length)} msgs, not ${nbrs.length}`, P.muted, 400],
     ];
     rows.forEach(([txt, color, w], i) => {
-      g.append("text").attr("x", 430).attr("y", 92 + i * 30)
+      g.append("text").attr("x", 430).attr("y", 104 + i * 34)
         .attr("font-size", 13).attr("font-weight", w).attr("fill", color).text(txt);
     });
     const verdict = K >= nbrs.length
       ? "K ≥ degree: no noise — and no savings"
       : sd < 0.65 ? "cheap AND steady — the bargain holds"
       : "noisy — average over epochs, or raise K";
-    g.append("text").attr("x", 430).attr("y", 92 + 4 * 30 + 4)
+    g.append("text").attr("x", 430).attr("y", 104 + 4 * 34 + 6)
       .attr("font-size", 12.5).attr("font-weight", 600).attr("fill", P.green).text(verdict);
   }
 

@@ -125,7 +125,7 @@
       .text(`attends to own key: ${correct}/5`);
     for (let q = 0; q < NQ; q++) {
       g.append("text").attr("x", x0 - 8).attr("y", y0 + q * C + C / 2 + 4).attr("text-anchor", "end")
-        .attr("font-size", 12).attr("fill", P.muted).text("q" + q);
+        .attr("font-size", 12.5).attr("fill", P.muted).text("q" + q);
       const am = M[q].indexOf(Math.max(...M[q]));
       for (let k = 0; k < NQ; k++) {
         const v = M[q][k];
@@ -134,13 +134,13 @@
           .attr("fill", color).attr("opacity", 0.08 + 0.85 * v)
           .attr("stroke", k === am ? P.text : "none").attr("stroke-width", 2);
         g.append("text").attr("x", x0 + k * C + C / 2 + 15).attr("y", y0 + q * C + C / 2 + 4)
-          .attr("text-anchor", "middle").attr("font-size", 12)
+          .attr("text-anchor", "middle").attr("font-size", 12.5)
           .attr("fill", v > 0.45 ? "#fff" : P.muted).text(v > 0.045 ? String(Math.min(99, Math.round(v * 100))) : "·");
       }
     }
     for (let k = 0; k < NQ; k++) {
       g.append("text").attr("x", x0 + k * C + C / 2 + 15).attr("y", y0 + NQ * C + 16)
-        .attr("text-anchor", "middle").attr("font-size", 12).attr("fill", P.muted).text("k" + k);
+        .attr("text-anchor", "middle").attr("font-size", 12.5).attr("fill", P.muted).text("k" + k);
     }
   }
 
@@ -158,8 +158,8 @@
       .attr("font-size", 13).attr("font-weight", 600).attr("fill", P.text)
       .text("GAT's argmax column is (nearly) the same in every row — static attention, the theorem in pixels");
     g.append("text").attr("x", 380).attr("y", 314).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
-      .text("the fix is one line: move the nonlinearity inside — score = aᵀLeakyReLU(W[h‖h′]) instead of LeakyReLU(aᵀ[Wh‖Wh′])");
+      .attr("font-size", 12.5).attr("fill", P.muted)
+      .text("the one-line fix: nonlinearity inside — score = aᵀLeakyReLU(W[h‖h′]), not LeakyReLU(aᵀ[Wh‖Wh′])");
   }
 
   document.getElementById("w7-gt-retrain").addEventListener("click", () => {

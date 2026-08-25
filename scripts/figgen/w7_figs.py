@@ -47,20 +47,25 @@ for x, name, color, sub, opts in slots:
     <text x="{x + 100}" y="143" text-anchor="middle" font-size="12" fill="var(--dkr-muted, #6e6e7a)">{opts}</text>
   </g>''')
 rows = [
-    ("GCN (Wk 6)", "W·h(u) / √(d̂u d̂v)", "sum (pre-normalized)", "no self-term; self-loop in Â", "var(--dkr-muted, #8e8e9a)"),
-    ("GraphSAGE", "h(u), sampled subset", "mean · max-pool · LSTM", "CONCAT(self, agg) → linear", "var(--dkr-blue, #0f8377)"),
-    ("GAT", "W·h(u)", "softmax-attention mean", "weighted sum incl. self-attention", "var(--dkr-accent, #d9603b)"),
-    ("GIN", "h(u), untouched", "sum — keep the multiset", "MLP((1+ε)·self + sum)", "var(--dkr-green, #199473)"),
+    ("GCN (Wk 6)", "W·h(u) / √(d(u)·d(v))", "sum (pre-normalized)", "no self-term; self-loop in Â"),
+    ("GraphSAGE", "h(u), sampled subset", "mean · max-pool · LSTM", "CONCAT(self, agg) → linear"),
+    ("GAT", "W·h(u)", "softmax-attention mean", "weighted sum incl. self-attention"),
+    ("GIN", "h(u), untouched", "sum — keep the multiset", "MLP((1+ε)·self + sum)"),
 ]
 y0 = 186
-mp.append(f'  <g font-family="{SANS}" font-size="12.5" font-weight="700" fill="var(--dkr-muted, #6e6e7a)">'
-          f'<text x="30" y="{y0}">model</text><text x="200" y="{y0}">message</text>'
-          f'<text x="400" y="{y0}">aggregate</text><text x="562" y="{y0}">update</text></g>')
-for i, (mname, msg, agg, upd, color) in enumerate(rows):
+# column headers wear the slot colors — the message/aggregate/update columns are
+# the MSG/AGG/UPDATE cards, made explicit (model labels stay neutral: one palette,
+# one job)
+mp.append(f'  <g font-family="{SANS}" font-size="12.5" font-weight="700">'
+          f'<text x="30" y="{y0}" fill="var(--dkr-muted, #6e6e7a)">model</text>'
+          f'<text x="200" y="{y0}" fill="var(--dkr-accent, #d9603b)">message</text>'
+          f'<text x="400" y="{y0}" fill="var(--dkr-green, #199473)">aggregate</text>'
+          f'<text x="562" y="{y0}" fill="#7c5cd6">update</text></g>')
+for i, (mname, msg, agg, upd) in enumerate(rows):
     yy = y0 + 26 + i * 34
     if i % 2 == 0:
         mp.append(f'  <rect x="20" y="{yy - 17}" width="720" height="32" fill="var(--dkr-muted, #8e8e9a)" opacity="0.07"/>')
-    mp.append(f'  <text x="30" y="{yy}" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{color}">{mname}</text>')
+    mp.append(f'  <text x="30" y="{yy}" font-family="{SANS}" font-size="12.5" font-weight="700" fill="var(--dkr-text, #1c1c21)">{mname}</text>')
     for x, txt in ((200, msg), (400, agg), (562, upd)):
         mp.append(f'  <text x="{x}" y="{yy}" font-family="{SANS}" font-size="12" fill="var(--dkr-text, #1c1c21)">{txt}</text>')
 mp.append(f'''  <g font-family="{SANS}">
@@ -88,7 +93,8 @@ def aggs(ms):
 def vec(v):
     return f"({v[0]:.2g}, {v[1]:.2g})"
 
-agf = [f'  <text x="380" y="22" text-anchor="middle" font-family="{SANS}" font-size="13" fill="var(--dkr-muted, #6e6e7a)">two neighborhoods per case (teal/gold = one-hot features) — every number computed; ✗ = the aggregator cannot tell them apart</text>']
+agf = [f'  <text x="380" y="20" text-anchor="middle" font-family="{SANS}" font-size="13" fill="var(--dkr-muted, #6e6e7a)">two neighborhoods a / b per case (teal/gold = one-hot features) — every number computed;</text>',
+       f'  <text x="380" y="38" text-anchor="middle" font-family="{SANS}" font-size="13" fill="var(--dkr-muted, #6e6e7a)">✗ = the aggregator cannot tell a from b · ✓ = it separates them</text>']
 verdicts = []
 for ci, (label, A, B) in enumerate(CASES):
     ox = 20 + ci * 245
@@ -97,10 +103,11 @@ for ci, (label, A, B) in enumerate(CASES):
     vm, vx, vs = np.allclose(mA, mB), np.allclose(xA, xB), np.allclose(sA, sB)
     verdicts.append((vm, vx, vs))
     # draw the two multisets as dots
-    agf.append(f'  <text x="{ox + 110}" y="52" text-anchor="middle" font-family="{MONO}" font-size="12.5" font-weight="700" fill="var(--dkr-text, #1c1c21)">{label}</text>')
+    agf.append(f'  <text x="{ox + 110}" y="60" text-anchor="middle" font-family="{MONO}" font-size="12.5" font-weight="700" fill="var(--dkr-text, #1c1c21)">{label}</text>')
     for row, ms in ((0, A), (1, B)):
-        yy = 76 + row * 34
+        yy = 82 + row * 34
         x0 = ox + 110 - 13 * len(ms)
+        agf.append(f'  <text x="{ox + 38}" y="{yy + 4}" text-anchor="end" font-family="{MONO}" font-size="12.5" font-weight="700" fill="var(--dkr-muted, #6e6e7a)">{"a:" if row == 0 else "b:"}</text>')
         for i, f in enumerate(ms):
             col = "var(--dkr-blue, #0f8377)" if f[0] == 1 else "var(--dkr-yellow, #d9a62e)"
             agf.append(f'  <circle cx="{x0 + 26 * i + 10}" cy="{yy}" r="9" fill="{col}"/>')
@@ -170,6 +177,8 @@ for v in (0, 0.5, 1.0):
 for k in range(0, K_MAX + 1, 2):
     ov.append(f'  <text x="{px(k)}" y="{py(0) + 20}" text-anchor="middle" font-family="{MONO}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">{k}</text>')
 ov.append(f'  <text x="{px(K_MAX / 2)}" y="{py(0) + 42}" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="var(--dkr-text, #1c1c21)">propagation steps k (≈ network depth)</text>')
+# y-axis title (rotated), naming the plotted quantity at the axis itself
+ov.append(f'  <text transform="rotate(-90 34 {py(0.5):.0f})" x="34" y="{py(0.5):.0f}" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="var(--dkr-text, #1c1c21)">mean pairwise cosine</text>')
 
 styles = {"plain": ("var(--dkr-accent, #d9603b)", "plain:  x ← Âx"),
           "residual": ("#7c5cd6", "residual:  x ← ½x + ½Âx"),
@@ -180,10 +189,13 @@ for name, vals in curves.items():
     ov.append(f'  <polyline points="{pts}" fill="none" stroke="{color}" stroke-width="2.6"/>')
     for k in range(0, K_MAX + 1, 2):
         ov.append(f'  <circle cx="{px(k):.1f}" cy="{py(vals[k]):.1f}" r="3.5" fill="{color}"/>')
-leg_y = 78
+    # mark the k = 12 endpoint with its computed value, right of the plot
+    ov.append(f'  <text x="{px(K_MAX) + 8:.1f}" y="{py(vals[-1]) + 4:.1f}" font-family="{MONO}" font-size="12" font-weight="700" fill="{color}">{vals[-1]:.2f}</text>')
+# legend in the lower right, clear of all three curves (they rise left-to-right)
+leg_x, leg_y = 396, py(0.32)
 for i, (name, (color, label)) in enumerate(styles.items()):
-    ov.append(f'  <line x1="{PX0 + 20}" y1="{leg_y + i * 22}" x2="{PX0 + 48}" y2="{leg_y + i * 22}" stroke="{color}" stroke-width="3"/>')
-    ov.append(f'  <text x="{PX0 + 56}" y="{leg_y + i * 22 + 4}" font-family="{MONO}" font-size="12" fill="var(--dkr-text, #1c1c21)">{label}</text>')
+    ov.append(f'  <line x1="{leg_x}" y1="{leg_y + i * 22:.1f}" x2="{leg_x + 28}" y2="{leg_y + i * 22:.1f}" stroke="{color}" stroke-width="3"/>')
+    ov.append(f'  <text x="{leg_x + 36}" y="{leg_y + i * 22 + 4:.1f}" font-family="{MONO}" font-size="12" fill="var(--dkr-text, #1c1c21)">{label}</text>')
 ov.append(f'''  <g font-family="{SANS}">
     <rect x="75" y="368" width="610" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
     <text x="380" y="388" text-anchor="middle" font-size="13" font-weight="700" fill="var(--dkr-bg, #fff)">by k = 12: plain {curves['plain'][-1]:.2f} (everyone identical) · residual {curves['residual'][-1]:.2f} (delayed) · restart {curves['restart'][-1]:.2f} (held)</text>
@@ -194,7 +206,12 @@ write("fig-w7-oversmoothing", "\n".join(ov),
 
 
 # ═══════════════════════════ the design-space map ══════════════════════════
-ds = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" fill="var(--dkr-muted, #6e6e7a)">the knobs of a message-passing architecture (schematic; verdicts from the 315,000-configuration study)</text>']
+ds = [f'  <text x="290" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" fill="var(--dkr-muted, #6e6e7a)">the knobs of a message-passing net (verdicts: the 315,000-config study)</text>',
+      # verdict key: two chips matching the per-row dots
+      f'  <circle cx="590" cy="20" r="5" fill="var(--dkr-green, #199473)"/>',
+      f'  <text x="599" y="24" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">consistent</text>',
+      f'  <circle cx="676" cy="20" r="5" fill="var(--dkr-yellow, #d9a62e)"/>',
+      f'  <text x="685" y="24" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #6e6e7a)">task-dep.</text>']
 dims = [
     ("layer type", "GCN · SAGE · GAT · GIN", "task-dependent — no universal winner"),
     ("depth", "2 · 4 · 6 · 8+", "task-dependent; deep needs skips"),
@@ -216,7 +233,7 @@ for i, (dim, opts, verdict) in enumerate(dims):
   </g>''')
 ds.append(f'''  <g font-family="{SANS}">
     <rect x="45" y="{56 + 6 * 52}" width="670" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
-    <text x="380" y="{56 + 6 * 52 + 20}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--dkr-bg, #fff)">≈ 10⁵ combinations — which is why the week ends with a method, not another model</text>
+    <text x="380" y="{56 + 6 * 52 + 20}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--dkr-bg, #fff)">≈ 100,000 combinations — which is why the week ends with a method, not another model</text>
   </g>''')
 write("fig-w7-design", "\n".join(ds),
       "Six design dimensions of message-passing networks with their options and the 2020 design-space study's verdict on each: skip connections and batch normalization help consistently, most other choices are task-dependent",

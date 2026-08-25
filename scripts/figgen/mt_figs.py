@@ -74,32 +74,55 @@ assert np.allclose(M @ fix, fix), "fixed point (2/5, 2/5, 1/5)"
 print("Q4 verified: r1=(1/2,1/3,1/6) · r2=(1/3,1/2,1/6) · fixed point (2/5,2/5,1/5)")
 
 
-def arrow(x1, y1, x2, y2, bend=0.25):
+def arrow_arc(x1, y1, x2, y2, bend):
+    """Curved directed edge, trimmed at both ends so the tail leaves the source
+    rim and the head lands clear of the target rim."""
     mx, my = (x1 + x2) / 2, (y1 + y2) / 2
     nxv, nyv = -(y2 - y1), (x2 - x1)
-    ln = (nxv ** 2 + nyv ** 2) ** 0.5
     cx, cy = mx + bend * nxv, my + bend * nyv
-    # shorten toward the target so the head clears the node circle
-    tx, ty = x2 + (cx - x2) / ((abs(cx - x2) ** 2 + abs(cy - y2) ** 2) ** 0.5 or 1) * 24, \
-             y2 + (cy - y2) / ((abs(cx - x2) ** 2 + abs(cy - y2) ** 2) ** 0.5 or 1) * 24
-    return (f'  <path d="M {x1} {y1} Q {cx} {cy} {tx} {ty}" fill="none" '
+
+    def toward(px, py, qx, qy, dist):
+        d = ((qx - px) ** 2 + (qy - py) ** 2) ** 0.5 or 1
+        return px + (qx - px) / d * dist, py + (qy - py) / d * dist
+
+    sx, sy = toward(x1, y1, cx, cy, 20)     # start just outside the source rim
+    tx, ty = toward(x2, y2, cx, cy, 24)     # head clears the target rim
+    return (f'  <path d="M {sx:.1f} {sy:.1f} Q {cx:.1f} {cy:.1f} {tx:.1f} {ty:.1f}" fill="none" '
             f'stroke="var(--dkr-muted, #8e8e9a)" stroke-width="2" marker-end="url(#mt-arr)"/>')
 
 
-PP = {"X": (180, 150), "Y": (430, 80), "Z": (560, 210)}
+def arrow_lane(x1, y1, x2, y2, offset):
+    """Straight directed edge shifted `offset` px perpendicular to the segment —
+    two opposite lanes make an X↔Y pair read as two roads, not one line."""
+    dx, dy = x2 - x1, y2 - y1
+    ln = (dx ** 2 + dy ** 2) ** 0.5
+    ux, uy = dx / ln, dy / ln
+    nx_, ny_ = -uy, ux
+    ax, ay = x1 + nx_ * offset, y1 + ny_ * offset
+    bx, by = x2 + nx_ * offset, y2 + ny_ * offset
+    sx, sy = ax + ux * 16, ay + uy * 16     # trim: lane passes 13 px off-center,
+    tx, ty = bx - ux * 16, by - uy * 16     # 16 px along-track clears an r=17 node
+    return (f'  <path d="M {sx:.1f} {sy:.1f} L {tx:.1f} {ty:.1f}" fill="none" '
+            f'stroke="var(--dkr-muted, #8e8e9a)" stroke-width="2" marker-end="url(#mt-arr)"/>')
+
+
+# wide symmetric triangle; the X↔Y two-cycle is drawn as two offset lanes and
+# every arrowhead lands on its own sector of the target's rim — direction is
+# the exam content, so the geometry must read at a glance
+PP = {"X": (170, 135), "Y": (570, 70), "Z": (570, 235)}
 pr = ['''  <defs><marker id="mt-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
     <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--dkr-muted, #8e8e9a)"/></marker></defs>''']
 pr.append(f'  <text x="380" y="30" text-anchor="middle" font-family="{SANS}" font-size="13" '
           f'fill="var(--dkr-muted, #6e6e7a)">directed, unweighted — a link passes importance to the page it points at</text>')
-pr.append(arrow(*PP["X"], *PP["Y"], bend=0.10))
-pr.append(arrow(*PP["Y"], *PP["X"], bend=0.10))
-pr.append(arrow(*PP["Y"], *PP["Z"], bend=-0.12))
-pr.append(arrow(*PP["Z"], *PP["X"], bend=0.14))
+pr.append(arrow_lane(*PP["X"], *PP["Y"], offset=13))    # X→Y: lower lane
+pr.append(arrow_lane(*PP["Y"], *PP["X"], offset=13))    # Y→X: upper lane (same side flips with direction)
+pr.append(arrow_arc(*PP["Y"], *PP["Z"], bend=-0.16))    # Y→Z: bows right, outside
+pr.append(arrow_arc(*PP["Z"], *PP["X"], bend=-0.30))    # Z→X: bows under, head lands low on X
 for lbl, (x, y) in PP.items():
     pr.append(node(x, y, lbl, color="var(--dkr-accent, #d9603b)"))
 write("fig-mt-pagerank", "\n".join(pr),
       "A three-node directed graph: X points to Y, Y points back to X and on to Z, and Z points to X",
-      height=270)
+      height=310)
 
 
 # ════════════════ Q6/Q17: two triangles vs one hexagon (WL-blind pair) ═════
@@ -121,9 +144,11 @@ print("Q6 verified: WL histograms equal for C3∪C3 vs C6 at every round; graphs
 wl = [f'  <text x="380" y="30" text-anchor="middle" font-family="{SANS}" font-size="13" '
       f'fill="var(--dkr-muted, #6e6e7a)">every node in both graphs has degree 2 — six nodes each, no labels</text>']
 import math
-tri1 = [(130 + 55 * math.cos(a), 150 + 55 * math.sin(a)) for a in
+# cy 164 (not 150): a triangle's bounding box is asymmetric about its center,
+# so 164 puts the triangles' optical midline level with the hexagon's
+tri1 = [(130 + 55 * math.cos(a), 164 + 55 * math.sin(a)) for a in
         (-math.pi / 2, math.pi / 6, 5 * math.pi / 6)]
-tri2 = [(300 + 55 * math.cos(a), 150 + 55 * math.sin(a)) for a in
+tri2 = [(300 + 55 * math.cos(a), 164 + 55 * math.sin(a)) for a in
         (-math.pi / 2, math.pi / 6, 5 * math.pi / 6)]
 hexn = [(590 + 62 * math.cos(a), 150 + 62 * math.sin(a)) for a in
         (math.pi / 6 + k * math.pi / 3 for k in range(6))]

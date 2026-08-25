@@ -31,7 +31,8 @@ floor, as you will measure today, is about a point. A newcomer opening the
 proceedings could be forgiven for despair — surely nobody can learn six hundred
 architectures, and surely not all six hundred can be the state of the art.
 
-Nobody needs to. In 2017, the *Neural Message Passing* paper made an observation that
+Nobody needs to. In 2017, the *Neural Message Passing* paper
+([Gilmer et al., 2017](https://arxiv.org/abs/1704.01212)) made an observation that
 deflated and organized the entire zoo at once: almost every one of those
 architectures is the **same algorithm** — collect messages from neighbors, aggregate
 them, update yourself — with different choices plugged into three slots. Learn the
@@ -94,7 +95,8 @@ noise, practiced on a real grid you can explore right now.
   aggregators.
 - **From ML**: softmax, attention as weighted averaging (no transformer background
   needed — we build attention from scratch), batch normalization at the level of
-  "normalizes activations".
+  "normalizes activations", and recurrent nets at the level of "a sequence model
+  with internal state" (LSTM/GRU — one appears as a cautionary tale in §2, one in Q1).
 :::
 
 ## 1. The template: three slots
@@ -105,13 +107,27 @@ architecture in this lecture becomes a configuration:
 $$
 \mathbf{h}_v^{(k+1)} \;=\; \phi\Bigl(\mathbf{h}_v^{(k)},\;
 \rho\bigl\{\psi(\mathbf{h}_u^{(k)}, \mathbf{h}_v^{(k)}, \mathbf{e}_{uv}) : u \in \mathcal{N}(v)\bigr\}\Bigr)
-$$
+$$ {#eq-w07-template}
 
-— a **message function** $\psi$ (what each neighbor sends, possibly depending on the
-receiver and the edge), an **aggregator** $\rho$ (how the *multiset* of messages is
-squashed into one vector — it must accept any number of messages in any order, which
-is where Week 1's permutation demand lives), and an **update** $\phi$ (how the node's
-own state meets the aggregated neighborhood). Stack $K$ layers and information flows
+where — $\mathbf{h}_v^{(k)}$ is node $v$'s representation after $k$ layers
+($\mathbf{h}_v^{(0)} = \mathbf{x}_v$, the input features); $\mathcal{N}(v)$ is $v$'s
+neighbor set; $\mathbf{e}_{uv}$ is the **edge feature vector** of $(u, v)$, when the
+graph carries edge features (a bond type, a relation label — absent, the argument is
+simply dropped); and $\psi$, $\rho$, $\phi$ are the three learnable slots the
+definition names. The braces are *multiset* braces: the aggregator sees every
+message, with multiplicity, in no particular order.
+
+::: {#def-w07-template .definition name="Message-passing template (MPNN)"}
+A **message-passing layer** is any map of the form @eq-w07-template, specified by
+three choices: a **message function** $\psi$ (what each neighbor sends, possibly
+depending on the receiver and the edge), an **aggregator** $\rho$ (how the multiset
+of messages is squashed into one vector — it must accept any number of messages in
+any order, which is where Week 1's permutation demand lives), and an **update**
+$\phi$ (how the node's own state meets the aggregated neighborhood). Every
+architecture in this lecture is named by how it fills the three slots.
+:::
+
+Stack $K$ layers and information flows
 $K$ hops, exactly as in the GCN — that part does not change all lecture.
 
 {{< include ../assets/figures/fig-w7-mpnn.html >}}
@@ -135,32 +151,40 @@ lines that had converged without noticing — spectral convolutions (Week 6's
 lineage), molecular fingerprint networks in chemistry, gated recurrent graph nets,
 and interaction networks in physics simulation — and the MPNN paper's contribution
 was largely *taxonomy*: showing one table where the community saw many methods.
-DeepMind's "graph networks" formulation the next year generalized the same template
-to edge- and global-level states; the software followed the taxonomy (PyTorch
-Geometric and DGL are both, at heart, template engines over `edge_index`); and the
-architecture flood of 2018–2020 is best read as a community sweeping the template's
-slots. This is the same historiographic pattern you saw in Week 3 (every embedding a
-factorization) and Week 4 (every scorer a geometry): a field's maturity moment is
-the arrival of the table, and after today you hold all three tables.
+DeepMind's "graph networks" formulation
+([Battaglia et al., 2018](https://arxiv.org/abs/1806.01261)) the next year
+generalized the same template to edge- and global-level states.
+
+The software followed the taxonomy (PyTorch Geometric and DGL are both, at heart,
+template engines over `edge_index`), and the architecture flood of 2018–2020 is best
+read as a community sweeping the template's slots. This is the same historiographic
+pattern you saw in Week 3 (every embedding a factorization) and Week 4 (every scorer
+a geometry): a field's maturity moment is the arrival of the table, and after today
+you hold all three tables.
 
 One more piece of orientation: why did the field need anything beyond the GCN at all?
-Three concrete pressures, each of which you have already met. **Scale** — Week 6's Q7
-computed a full-batch GCN pass on ogbn-products; the arithmetic worked, but it
-assumed *every neighbor of every node* participates in every layer, and on
-heavy-tailed graphs (Week 1) hubs make the cost of exact neighborhoods both huge and
-wildly uneven. **Inductivity** — the GCN as we trained it computes on a fixed graph;
-Week 3's transductive wall (new node, no answer) was cracked but not fully broken,
-because training assumed the test graph was present. **Expressiveness and fit** —
-Week 6 §6 exhibited graphs the GCN provably cannot distinguish and neighborhoods
-(heterophilous ones) where its fixed averaging actively hurts. Sampling, attention,
-and sum-aggregation are the respective answers, and each is one slot's worth of
-change.
+Three concrete pressures, each of which you have already met:
+
+- **Scale.** Week 6's Q7 computed a full-batch GCN pass on ogbn-products; the
+  arithmetic worked, but it assumed *every neighbor of every node* participates in
+  every layer, and on heavy-tailed graphs (Week 1) hubs make the cost of exact
+  neighborhoods both huge and wildly uneven.
+- **Inductivity.** The GCN as we trained it computes on a fixed graph; Week 3's
+  transductive wall (new node, no answer) was cracked but not fully broken, because
+  training assumed the test graph was present.
+- **Expressiveness and fit.** Week 6 §6 exhibited graphs the GCN provably cannot
+  distinguish and neighborhoods (heterophilous ones) where its fixed averaging
+  actively hurts.
+
+Sampling, attention, and sum-aggregation are the respective answers, and each is one
+slot's worth of change.
 
 ## 2. GraphSAGE: sample, aggregate, and finally go inductive
 
-GraphSAGE (2017) — from the same Stanford group and the same year as the GCN, but
-aimed at industrial scale from its first page — makes two independent moves, and it
-pays to hold them apart because practitioners routinely adopt one without the other.
+GraphSAGE ([Hamilton et al., 2017](https://arxiv.org/abs/1706.02216)) — from the
+same Stanford group and the same year as the GCN, but aimed at industrial scale from
+its first page — makes two independent moves, and it pays to hold them apart because
+practitioners routinely adopt one without the other.
 
 **Move one: a different update.** Instead of mixing self and neighborhood through one
 shared transformation (the GCN's self-loop trick), SAGE keeps them separate and
@@ -168,8 +192,16 @@ concatenates:
 
 $$
 \mathbf{h}_v^{(k+1)} = \sigma\Bigl(\mathbf{W}^{(k)} \cdot
-\bigl[\mathbf{h}_v^{(k)} \,\|\, \rho\{\mathbf{h}_u^{(k)} : u \in \mathcal{N}_s(v)\}\bigr]\Bigr).
-$$
+\bigl[\mathbf{h}_v^{(k)} \,\|\, \rho\{\mathbf{h}_u^{(k)} : u \in \mathcal{N}_s(v)\}\bigr]\Bigr)
+$$ {#eq-w07-sage}
+
+where — $\|$ is vector concatenation; $\mathbf{W}^{(k)}$ is the layer's weight
+matrix, acting on the concatenated pair (so its left half transforms "what I am" and
+its right half "what surrounds me" — equivalently, two separate matrices
+$\mathbf{W}_{\text{self}}$ and $\mathbf{W}_{\text{nbr}}$ whose outputs are added);
+$\rho$ is the chosen aggregator (a menu below); $\sigma$ a nonlinearity; and
+$\mathcal{N}_s(v)$ is a **fixed-size sampled subset** of $\mathcal{N}(v)$ — move
+two, a page from now, is entirely about that subscript $s$.
 
 The concatenation looks like bookkeeping and is actually a design statement: the
 model can now learn *different* transformations for "what I am" and "what surrounds
@@ -216,20 +248,53 @@ is 256 independent examples. In graph training, a batch of 256 *target nodes* is
 enough to compute anything — layer $K$ needs their sampled neighbors, layer $K{-}1$
 needs the neighbors' neighbors, and so on: the batch is really a **computation
 subgraph**, built backwards from the targets, containing every node any layer will
-touch. With fan-outs $(25, 10)$ for a 2-layer model, 256 targets can pull in tens of
-thousands of supporting nodes — which is fine (that was the point: it is *bounded*,
-where exact neighborhoods were not), but it explains two phenomena that surprise
-everyone once: GNN minibatches are enormous relative to their target count, and
-shallow models are disproportionately cheap. It also explains a serving trick worth
-knowing: at inference time you can drop sampling entirely and compute exact
-layer-by-layer passes over the full graph (no gradients, so memory is manageable) —
-train stochastic, serve exact, and the train/serve mismatch is one more reason
-sampled training's noise-tolerance matters.
+touch. Hamilton et al.'s Algorithm 1 is exactly this procedure; here it is in the
+separated-weights form you will implement in Lab 7:
 
-**The aggregator menu.** SAGE shipped with three $\rho$ options: **mean** (the
-default, GCN-adjacent), **max-pooling** (transform each neighbor with a small MLP,
-take coordinatewise max — "is any neighbor strongly X?"), and **LSTM** (run the
-neighbors through a sequence model). The LSTM aggregator deserves a moment of
+::: {#alg-w07-sage-minibatch .algorithm name="GraphSAGE Minibatch Forward"}
+Computes $K$-layer embeddings for a batch of target nodes from sampled
+neighborhoods, at a cost bounded by the fan-outs.
+
+**Input:** target nodes $B \subseteq V$; fan-outs $s_1, \dots, s_K$; features $\mathbf{x}$; weights $\mathbf{W}^{(k)}_{\text{self}}, \mathbf{W}^{(k)}_{\text{nbr}}$ for $k = 1, \dots, K$. **Output:** embeddings $\mathbf{h}_v^{(K)}$ for all $v \in B$.
+
+1. $B_K \leftarrow B$
+2. **for** $k = K, \dots, 1$ **do** &emsp;(build the computation subgraph backwards)
+3. &nbsp;&nbsp;&nbsp;&nbsp;**for** each $v \in B_k$: draw $\mathcal{N}_s(v) \subseteq \mathcal{N}(v)$ with $|\mathcal{N}_s(v)| = s_k$
+4. &nbsp;&nbsp;&nbsp;&nbsp;$B_{k-1} \leftarrow B_k \cup \bigcup_{v \in B_k} \mathcal{N}_s(v)$
+5. **end for**
+6. $\mathbf{h}_v^{(0)} \leftarrow \mathbf{x}_v$ for all $v \in B_0$
+7. **for** $k = 1, \dots, K$ **do** &emsp;(now run the layers forwards)
+8. &nbsp;&nbsp;&nbsp;&nbsp;**for** each $v \in B_k$ **do**
+9. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$\mathbf{m} \leftarrow \operatorname{mean}\{\mathbf{h}_u^{(k-1)} : u \in \mathcal{N}_s(v)\}$
+10. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$\mathbf{h}_v^{(k)} \leftarrow \sigma\bigl(\mathbf{W}^{(k)}_{\text{self}} \mathbf{h}_v^{(k-1)} + \mathbf{W}^{(k)}_{\text{nbr}}\, \mathbf{m}\bigr)$
+11. &nbsp;&nbsp;&nbsp;&nbsp;**end for**
+12. **end for**
+13. **return** $\{\mathbf{h}_v^{(K)} : v \in B\}$
+:::
+
+Lines 2–5 are why GNN minibatches are enormous relative to their target count: with
+fan-outs $(25, 10)$ for a 2-layer model, 256 targets can pull in tens of thousands
+of supporting nodes — which is fine (that was the point: the pull is *bounded* by
+$\prod_k s_k$ per target, where exact neighborhoods were not bounded at all), and it
+is also why shallow models are disproportionately cheap. Line 10 is @eq-w07-sage
+with the concatenation multiplied out — the exact `lin_self` + `lin_nbr` pair of Lab
+7's `MessagePassing` exercise, so the algorithm you just read is the code you will
+write.
+
+The backward-built subgraph also explains a serving trick worth knowing: at
+inference time you can drop sampling entirely and compute exact layer-by-layer
+passes over the full graph (no gradients, so memory is manageable) — train
+stochastic, serve exact, and the train/serve mismatch is one more reason sampled
+training's noise-tolerance matters.
+
+**The aggregator menu.** SAGE shipped with three $\rho$ options:
+
+- **mean** — the default, GCN-adjacent: average the sampled neighbors.
+- **max-pooling** — transform each neighbor with a small MLP, take coordinatewise
+  max: "is any neighbor strongly X?"
+- **LSTM** — run the neighbors through a sequence model.
+
+The LSTM aggregator deserves a moment of
 critical reading practice, three sections before we do it to GAT: an LSTM consumes a
 *sequence*, but a neighborhood is a *set* — so SAGE feeds neighbors in random order
 and hopes the LSTM learns approximate order-invariance. It scored well on benchmarks;
@@ -252,10 +317,21 @@ leaderboard). One architecture family, two opposite failure regimes, both predic
 by counting.
 
 **The inductive payoff.** Here is the sentence Week 3 has been waiting four weeks
-for. Because every SAGE parameter lives in the *functions* ($\mathbf{W}$s and
+for, promoted at last to the formal status it earns today:
+
+::: {#def-w07-inductive .definition name="Inductive vs. transductive model"}
+A graph model is **transductive** if its predictions are defined only for the nodes
+present at training time — Week 3's lookup tables, where the embedding *is* the
+parameter. It is **inductive** if it defines a function that can be evaluated on any
+graph over the same feature space: new nodes, new edges, an entirely new graph —
+embed them by running the forward pass. The test to apply: ask where the parameters
+live. Per-node parameters ⇒ transductive; parameters only in shared functions ⇒
+inductive.
+:::
+
+Because every SAGE parameter lives in the *functions* ($\mathbf{W}$s and
 aggregators) and none in a per-node table, a trained SAGE model is a program you can
-run on **any graph with the same feature space**: new nodes, new edges, an entirely
-new graph — embed them by running the forward pass. The original paper's flagship
+run on **any graph with the same feature space**. The original paper's flagship
 experiment trained on one protein–protein interaction graph and predicted on
 *different organisms' graphs*; the modern deployment pattern — train weekly, serve
 continuously on a growing graph — is only possible in this regime. Week 3's wall #2
@@ -266,18 +342,33 @@ critique of the lookup table, answered by one architectural decision.)
 ## 3. GAT: attention, derived and then interrogated
 
 If neighbors should not count equally, let the model decide how much each counts.
-GAT (2018) — arriving the year attention was eating natural language processing, and
-importing the idea with graph-shaped adjustments — computes, for each edge $(u, v)$,
-an **attention coefficient**:
+GAT ([Veličković et al., 2018](https://arxiv.org/abs/1710.10903)) — arriving the
+year attention was eating natural language processing, and importing the idea with
+graph-shaped adjustments — changes exactly one slot:
+
+::: {#def-w07-gat .definition name="GAT attention layer"}
+A **GAT layer** computes, for each edge $(u, v)$, an **attention coefficient**, then
+aggregates neighbors with those learned weights:
 
 $$
 e_{vu} = \text{LeakyReLU}\bigl(\mathbf{a}^\top [\mathbf{W}\mathbf{h}_v \,\|\, \mathbf{W}\mathbf{h}_u]\bigr),
 \qquad
 \alpha_{vu} = \frac{\exp(e_{vu})}{\sum_{u' \in \mathcal{N}(v) \cup \{v\}} \exp(e_{vu'})},
-$$
+\qquad
+\mathbf{h}_v' = \sigma\Bigl(\sum_{u} \alpha_{vu}\, \mathbf{W}\mathbf{h}_u\Bigr).
+$$ {#eq-w07-gat}
 
-then aggregates with those weights: $\mathbf{h}_v' = \sigma(\sum_u \alpha_{vu}
-\mathbf{W}\mathbf{h}_u)$. In template terms: $\psi$ is the shared linear map, $\rho$
+Read it as three moves: score every edge ($e$), let the scores compete ($\alpha$ —
+a softmax over the neighborhood, self included), average with the winners'
+weights ($\mathbf{h}'$).
+:::
+
+where — $\mathbf{W} \in \mathbb{R}^{d' \times d}$ is the shared linear map applied
+to every node; $\mathbf{a} \in \mathbb{R}^{2d'}$ is the learned **attention vector**
+that scores a (receiver, sender) pair; $\|$ is concatenation; LeakyReLU is
+$\max(x, 0.2x)$ (leaky so that negative scores keep a gradient); and the softmax
+runs over $\mathcal{N}(v) \cup \{v\}$, so the node attends to itself alongside its
+neighbors. In template terms: $\psi$ is the shared linear map, $\rho$
 is a *learned-weighted* mean, $\phi$ is the nonlinearity — one slot changed, and the
 change is that aggregation weights now depend on *content*, not just on degree
 bookkeeping as the GCN's $1/\sqrt{\hat d_u \hat d_v}$ did.
@@ -300,8 +391,17 @@ neighbor-selection criteria, plus a variance-reduction effect that makes trainin
 tangibly more stable.
 
 Now the critical reading, because GAT is this course's designated case study in
-*reading a famous architecture skeptically*. Look at the score formula again and
-split the pre-activation: $e_{vu} = \text{LReLU}(\underbrace{\mathbf{a}_1^\top \mathbf{W}\mathbf{h}_v}_{\text{receiver term}} + \underbrace{\mathbf{a}_2^\top \mathbf{W}\mathbf{h}_u}_{\text{sender term}})$.
+*reading a famous architecture skeptically*. Look at the score formula in
+@eq-w07-gat again and split the pre-activation:
+
+$$
+e_{vu} = \text{LReLU}\bigl(\underbrace{\mathbf{a}_1^\top \mathbf{W}\mathbf{h}_v}_{\text{receiver term}} + \underbrace{\mathbf{a}_2^\top \mathbf{W}\mathbf{h}_u}_{\text{sender term}}\bigr)
+$$ {#eq-w07-split}
+
+where — $\mathbf{a}_1, \mathbf{a}_2 \in \mathbb{R}^{d'}$ are simply the first and
+second halves of the attention vector $\mathbf{a}$, and LReLU abbreviates LeakyReLU.
+Nothing new was introduced: the concatenation in @eq-w07-gat *is* this sum. But the
+split exposes everything —
 
 ::: {#prp-static .proposition name="GAT's attention is static"}
 For a fixed receiver $v$, the ranking of senders $u$ by $e_{vu}$ is determined by the
@@ -320,11 +420,18 @@ globally-best sender. A "dictionary lookup" pattern (receiver $i$ peaks on sende
 $i$) requires $n$ different orderings; GAT has one. $\square$
 </details>
 
-The repair — GATv2 (2022) — is a single line: apply the nonlinearity *before* the
-attention vector, $e_{vu} = \mathbf{a}^\top \text{LReLU}(\mathbf{W}[\mathbf{h}_v \| \mathbf{h}_u])$,
-so receiver and sender interact inside the nonlinearity and the separation argument
-dies. Watch the proposition and its repair happen — both models trained live, same
-task, same seed:
+The repair — GATv2 ([Brody et al., 2022](https://arxiv.org/abs/2105.14491)) — is a
+single line: apply the nonlinearity *before* the attention vector,
+
+$$
+e_{vu} = \mathbf{a}^\top\, \text{LReLU}\bigl(\mathbf{W} [\mathbf{h}_v \,\|\, \mathbf{h}_u]\bigr)
+$$ {#eq-w07-gatv2}
+
+where — $\mathbf{W}$ now multiplies the *concatenated* pair (mixing receiver and
+sender before the nonlinearity acts) and $\mathbf{a} \in \mathbb{R}^{d'}$ scores the
+mixed vector. Receiver and sender interact inside the nonlinearity, the score no
+longer splits as @eq-w07-split, and the separation argument dies. Watch the
+proposition and its repair happen — both models trained live, same task, same seed:
 
 {{< include ../assets/d3/w7-gat.html >}}
 
@@ -337,21 +444,26 @@ equations* and constructing the minimal failing task — the exact skill objecti
 names, demonstrated at the level where it earned a publication.
 
 Four working notes complete the attention picture, each one line of code in the lab
-and one sentence of judgment here. **Cost:** attention computes one score per edge
-per head — $O(mHd)$ — so it scales exactly as well as sparsity allows and exactly as
-badly as hubs demand; combined with sampling it inherits SAGE's bargain unchanged.
-**Edge features:** the score has an obvious third input slot —
-$e_{vu} = f(\mathbf{h}_v, \mathbf{h}_u, \mathbf{e}_{vu})$ — and attention is the most
-natural place in the whole template to inject edge attributes (bond types in Week
-13's molecules, relation types in Week 10's heterogeneous graphs both enter here).
-**Attention dropout:** randomly zeroing attention coefficients during training is
-GAT's own regularizer, and it composes with (rather than replaces) DropEdge — one
-drops *scores*, the other drops *structure*. **When to expect a win:** attention
-earns its parameters where neighbor *relevance genuinely varies* — heterophilous
-fringes, noisy edges from LLM extraction (Week 5's precision failures arriving as
-graph input!), multi-relational data — and tends to tie with mean aggregation where
-homophily is strong and edges are curated, which the measured grid in §6 will
-confirm on Cora with error bars.
+and one sentence of judgment here.
+
+1. **Cost.** Attention computes one score per edge per head — $O(mHd)$, with $m$
+   the number of edges and $H$ the number of heads — so it scales exactly as well as
+   sparsity allows and exactly as badly as hubs demand; combined with sampling it
+   inherits SAGE's bargain unchanged.
+2. **Edge features.** The score has an obvious third input slot —
+   $e_{vu} = f(\mathbf{h}_v, \mathbf{h}_u, \mathbf{e}_{vu})$ — and attention is the
+   most natural place in the whole template to inject edge attributes (bond types in
+   Week 13's molecules, relation types in Week 10's heterogeneous graphs both enter
+   here).
+3. **Attention dropout.** Randomly zeroing attention coefficients during training is
+   GAT's own regularizer, and it composes with (rather than replaces) DropEdge — one
+   drops *scores*, the other drops *structure*.
+4. **When to expect a win.** Attention earns its parameters where neighbor
+   *relevance genuinely varies* — heterophilous fringes, noisy edges from LLM
+   extraction (Week 5's precision failures arriving as graph input!),
+   multi-relational data — and tends to tie with mean aggregation where homophily is
+   strong and edges are curated, which the measured grid in §6 will confirm on Cora
+   with error bars.
 
 ## 4. GIN and the aggregator question
 
@@ -385,25 +497,33 @@ previews a Week 9 subtlety:
 
 {{< include ../assets/d3/w7-agg.html >}}
 
-**GIN** (2019) — the Graph Isomorphism Network, and the name is a thesis statement:
+**GIN** ([Xu et al., 2019](https://arxiv.org/abs/1810.00826)) — the Graph
+Isomorphism Network, and the name is a thesis statement:
 this is the architecture designed backwards from the question "what would it take to
 match WL?" rather than forwards from a benchmark. It takes the proposition seriously
 in all three slots:
 
+::: {#def-w07-gin .definition name="GIN layer"}
 $$
 \mathbf{h}_v^{(k+1)} = \text{MLP}^{(k)}\Bigl((1 + \varepsilon^{(k)})\,\mathbf{h}_v^{(k)} + \sum_{u \in \mathcal{N}(v)} \mathbf{h}_u^{(k)}\Bigr)
-$$
+$$ {#eq-w07-gin}
 
-— sum aggregation (keep the multiset), a learnable $\varepsilon$ scaling the
-self-term (keep "me" distinguishable from "one more neighbor like me"), and an MLP
-(not a single linear layer) as the update, because injective set functions
-composed with weak function approximators stop being injective. One honest asterisk on the proposition, which is also the answer key to the
+where — $\text{MLP}^{(k)}$ is a multi-layer perceptron (at least one hidden layer)
+and $\varepsilon^{(k)}$ a learnable scalar. Each design choice answers the
+proposition: **sum** aggregation (keep the multiset), the $\varepsilon$-scaled
+self-term (keep "me" distinguishable from "one more neighbor like me"), and an
+**MLP** — not a single linear layer — as the update, because injective set
+functions composed with weak function approximators stop being injective.
+:::
+
+One honest asterisk on the proposition, which is also the answer key to the
 widget's standing challenge. The clean statements hold for *one-hot* (more
 generally, countable) features; with arbitrary real-valued features, scalar sums can
 collide ($\{1, 3\}$ and $\{2, 2\}$ sum identically — if you found that in the widget,
 you found the asterisk), and injectivity must be *manufactured*: first embed each
 element through a learned function, then sum — which is precisely why GIN's update
-wraps the sum in an MLP, and why the underlying DeepSets result says every
+wraps the sum in an MLP, and why the underlying DeepSets result
+([Zaheer et al., 2017](https://arxiv.org/abs/1703.06114)) says every
 well-behaved permutation-invariant set function has exactly this
 embed-sum-transform shape. The engineering reading: sum is not magic, *sum after a
 learned embedding* is — and the MLP is not decoration but the load-bearing half of
@@ -440,18 +560,39 @@ By twelve propagations, plain averaging has made the karate club's members nearl
 indistinguishable — mean pairwise cosine 0.96 — which is
 <span class="term" data-def="Oversmoothing: the tendency of deep message-passing networks to drive all node representations toward a common value, as repeated neighborhood averaging converges to the dominant (constant-ish) eigenvector. The reason naive deep GNNs underperform shallow ones.">**oversmoothing**</span>
 in one number. The repairs in the figure are the repairs in the literature.
-**Residual connections** ($\mathbf{h}^{(k+1)} = \mathbf{h}^{(k)} + f(\mathbf{h}^{(k)})$)
-mix each layer's output with its input — spectrally, they shift every eigenvalue
+
+**Residual connections** mix each layer's output with its input:
+
+$$
+\mathbf{h}^{(k+1)} = \mathbf{h}^{(k)} + f\bigl(\mathbf{h}^{(k)}\bigr)
+$$ {#eq-w07-residual}
+
+where — $f$ is the whole message-passing layer (message, aggregate, update) and the
+addition is elementwise, so each layer now learns a *correction* to its input rather
+than a replacement. Spectrally, residuals shift every eigenvalue
 toward 1, slowing the decay; in optimization terms they give gradients a highway
 past the smoothing operators. The figure shows them *delaying* collapse rather than
 preventing it — an honest account you will confirm with accuracy numbers in §6.
-**Restart/initial-residual connections** (mixing a fraction of the *layer-zero*
-features into every layer — the design inside APPNP and GCNII) go further: the
+
+**Restart (initial-residual) connections** — the design inside APPNP
+([Gasteiger et al., 2019](https://arxiv.org/abs/1810.05997)) and GCNII
+([Chen et al., 2020](https://arxiv.org/abs/2007.02133)) — go further, mixing a
+fixed fraction of the *layer-zero* features into every layer:
+
+$$
+\mathbf{h}^{(k+1)} = \alpha\, \mathbf{h}^{(0)} + (1 - \alpha)\, \hat{\mathbf{A}}\, \mathbf{h}^{(k)}
+$$ {#eq-w07-restart}
+
+where — $\mathbf{h}^{(0)}$ is the layer-zero representation (the input features,
+possibly once-transformed), $\alpha \in (0, 1)$ is the restart fraction (0.1 in the
+figure), and $\hat{\mathbf{A}}$ is Week 6's normalized propagation operator. The
 figure's green curve plateaus, because a fixed dose of the original signal
-re-enters at every depth. If that trick smells familiar, it should: it is
-PageRank's teleport, resurrected as an architecture (the same $\alpha$, the same
-fixed point, Week 2 paying dividends again). **Jumping knowledge** attacks the
-problem from the side: run all $K$ layers, keep every layer's representation, and
+re-enters at every depth. If that trick smells familiar, it should: @eq-w07-restart
+is PageRank's teleport, resurrected as an architecture (the same $\alpha$, the same
+fixed point, Week 2 paying dividends again).
+
+**Jumping knowledge** ([Xu et al., 2018](https://arxiv.org/abs/1806.03536)) attacks
+the problem from the side: run all $K$ layers, keep every layer's representation, and
 let the final readout combine them (concat, max, or attention over depths) — so
 each node effectively *chooses its own depth*, hub nodes reading shallow and
 peripheral nodes reading deep.
@@ -462,9 +603,12 @@ the generic deep-learning medicine applies: **BatchNorm** (normalize each featur
 across the batch; the design-space study's most consistently helpful normalization),
 **LayerNorm** (normalize within each node's vector; indifferent to batch composition,
 standard in attention stacks). One norm is graph-specific and worth knowing by name:
-**PairNorm** keeps the *pairwise distance* between node representations at a constant
+**PairNorm** ([Zhao & Akoglu, 2020](https://arxiv.org/abs/1909.12223)) keeps the
+*pairwise distance* between node representations at a constant
 level across layers — it is an anti-oversmoothing device by construction, useful
-when you must go deep without restart tricks. A graph-specific subtlety hides inside
+when you must go deep without restart tricks.
+
+A graph-specific subtlety hides inside
 the generic medicine too: with sampled minibatches, BatchNorm's "batch" is a
 computation subgraph whose composition changes every step — its statistics are
 noisier than in image training and biased toward whatever neighborhood mix the
@@ -475,7 +619,8 @@ its factor count honest — extending it with a ±BatchNorm axis is Lab 7's desi
 stretch, and the design-space study's verdict gives you the prior to bet against.
 
 **Failure: memorizing edges.** Small graphs, big models: the network learns *this
-adjacency* rather than a function of neighborhoods. **DropEdge** removes a random
+adjacency* rather than a function of neighborhoods. **DropEdge**
+([Rong et al., 2020](https://arxiv.org/abs/1907.10903)) removes a random
 fraction of edges each epoch — data augmentation on structure. It also, incidentally,
 thins the propagation operator (fewer edges per layer means slower mixing), so it
 doubles as a mild oversmoothing brake — one mechanism, two effects, and the reason
@@ -484,8 +629,8 @@ is *not*: feature dropout — the two compose, and ablating them separately is a
 stretch goal.
 
 The design space, assembled — with the verdicts of the field's one systematic sweep
-(You, Ying & Leskovec's 315,000-configuration study, this week's optional reading)
-attached:
+([You, Ying & Leskovec, 2020](https://arxiv.org/abs/2011.08843) — the
+315,000-configuration study, this week's optional reading) attached:
 
 {{< include ../assets/figures/fig-w7-design.html >}}
 
@@ -505,8 +650,9 @@ instrument is the **controlled ablation** — and it is a *method*, with rules:
    normalization; never two. A 2×2×2 grid of single changes beats eight bespoke
    "improved models" because every comparison in it is interpretable.
 2. **Multiple seeds, always.** GNN training on small graphs is noisy — the measured
-   grid below contains a configuration with $\sigma = 19.5$ accuracy points across
-   seeds. A single-seed comparison on Cora is astrology.
+   grid below contains a configuration with a sample s.d. of 19.5 accuracy points
+   across seeds ("s.d." here and throughout §6, to keep $\sigma$ for activation
+   functions). A single-seed comparison on Cora is astrology.
 3. **Error bars decide.** A delta smaller than roughly two standard deviations is
    "within noise", and saying so out loud is a professional skill, not a
    disappointment.
@@ -516,8 +662,36 @@ instrument is the **controlled ablation** — and it is a *method*, with rules:
    numbers in the table. "Residuals matter at depth" is legal only if the table
    contains depth-with and depth-without columns.
 
-Here is a real grid — sixteen configurations, three seeds each, measured with the
-exact protocol Lab 7 hands you — and it teaches more than any architecture section:
+The five rules compress into a procedure — the course's protocol, and the one every
+number in the rest of this lecture was produced by. Lab 7 hands it to you as code:
+its `run()` executes lines 3–4, its `summarize()` is line 6.
+
+::: {#alg-w07-ablation .algorithm name="One-Factor Ablation with Seeds and Error Bars"}
+Produces a table of mean ± s.d. scores over a factor grid, and claims that cite it.
+
+**Input:** factor grid $F = F_1 \times \cdots \times F_j$; seed set $S$; a fixed budget (splits, epochs, early-stop rule, tuning effort). **Output:** table $c \mapsto (\text{mean} \pm \text{s.d.})$ test accuracy; claims citing cells.
+
+1. **for** each configuration $c \in F$ **do**
+2. &nbsp;&nbsp;&nbsp;&nbsp;**for** each seed $s \in S$ **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;initialize model($c$) with seed $s$; train under the fixed budget
+4. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;record test accuracy at the best-*validation* epoch
+5. &nbsp;&nbsp;&nbsp;&nbsp;**end for**
+6. &nbsp;&nbsp;&nbsp;&nbsp;table[$c$] $\leftarrow$ (mean, sample s.d.) over the seeds $S$
+7. **end for**
+8. **for** each claim: state the sentence, the cells, the scope
+9. declare any delta below $2 \times$ s.d. "within noise"
+10. **return** the table and the claims
+:::
+
+Note what the procedure refuses to permit: no configuration gets extra tuning (line
+3's *fixed* budget is rule 4 as an instruction, not an aspiration), no run reports
+its last epoch (line 4 evaluates where validation peaked — anything else measures
+patience, not accuracy), and no comparison escapes its error bars (line 9). The cost
+is the grid size times seeds; the return is that every sentence you write afterwards
+traces to a cell.
+
+Here is a real grid — sixteen configurations, three seeds each, measured with
+exactly this protocol — and it teaches more than any architecture section:
 
 {{< include ../assets/d3/w7-ablation.html >}}
 
@@ -526,27 +700,35 @@ worth saying plainly — every value in it came from actual training runs under 
 stated protocol, because a lecture that preaches error bars owes you its own. The
 grid took about eight minutes of laptop compute, which is itself a finding: the
 price of knowing instead of believing, for a question this size, is one coffee. The
-findings you should extract, stated as an ablation report's conclusions: **(1)** the
-2-layer GCN baseline is the single best cell (81.0 ± 0.6) — on this dataset, with
-this budget, no fancy architecture beats boring, which is Cora's famous lesson and
-the reason serious papers moved to harder benchmarks; **(2)** at depth 4, residual
-connections are not an optimization but a resurrection — GAT goes from 26.2 ± 9.8
-(a crash, with seed-to-seed chaos) to 80.5 ± 1.0, a **+54-point** swing from one
-skip connection, while GIN's 44.2 ± 19.5 is a model gambling; **(3)** at depth 2,
-residuals change nothing anywhere (every delta within noise) — the repair is real
-*and* conditional, which is exactly what §5's mechanism story predicts: there is no
-depth to rescue; **(4)** several celebrated architecture differences (GCN vs SAGE at
-depth 2: 81.0 vs 79.8, overlapping error bars) are smaller than the noise floor —
-sentence-length claims in papers routinely rest on smaller gaps. And the meta-lesson
+findings you should extract, stated as an ablation report's conclusions:
+
+1. **The boring baseline wins.** The 2-layer GCN is the single best cell
+   (81.0 ± 0.6) — on this dataset, with this budget, no fancy architecture beats
+   boring, which is Cora's famous lesson and the reason serious papers moved to
+   harder benchmarks.
+2. **At depth 4, residuals are a resurrection, not an optimization.** GAT goes from
+   26.2 ± 9.8 (a crash, with seed-to-seed chaos) to 80.5 ± 1.0 — a **+54-point**
+   swing from one skip connection — while GIN's 44.2 ± 19.5 is a model gambling.
+3. **At depth 2, residuals change nothing anywhere** (every delta within noise) —
+   the repair is real *and* conditional, which is exactly what §5's mechanism story
+   predicts: there is no depth to rescue.
+4. **Celebrated architecture differences sit under the noise floor.** GCN vs SAGE
+   at depth 2: 81.0 vs 79.8, overlapping error bars — and sentence-length claims in
+   papers routinely rest on smaller gaps.
+
+And the meta-lesson
 over all four: *none of these findings could be stated from a single run of a single
 model*, which is the entire case for the method.
 
 And because an ablation is only as good as its write-up, the reporting template —
 which Lab 7 grades against, and which serves unchanged in industry design docs and
-paper rebuttals alike. A claims paragraph has three moves per claim: **the sentence**
-("residual connections are necessary at depth 4"), **the cells** ("GAT: 26.2 ± 9.8 →
-80.5 ± 1.0; GIN: 44.2 ± 19.5 → 75.2 ± 1.3"), and **the scope** ("Cora, this
-protocol; untested beyond depth 4"). Three disciplines around it: report every cell
+paper rebuttals alike. A claims paragraph has three moves per claim:
+
+- **The sentence.** "Residual connections are necessary at depth 4."
+- **The cells.** "GAT: 26.2 ± 9.8 → 80.5 ± 1.0; GIN: 44.2 ± 19.5 → 75.2 ± 1.3."
+- **The scope.** "Cora, this protocol; untested beyond depth 4."
+
+Three disciplines around it: report every cell
 you ran (a table with holes invites the suspicion it deserves); state the protocol
 once, completely (splits, budget, stopping rule, seeds) so the grid is reproducible
 from the paragraph; and write the negative findings with the same care ("SAGE vs GCN:
@@ -749,6 +931,21 @@ shortcut on molecule size, so add a size-stratified analysis; and rule 4 violati
 one-week study run this way beats a month of architecture shopping, which is the
 lecture's closing claim in operational form.
 </details>
+
+::: {.notions}
+**Notions introduced this week**
+
+- **Message-passing template** (@def-w07-template, @eq-w07-template) — message $\psi$ / aggregate $\rho$ / update $\phi$; every architecture is a way of filling the slots.
+- **GraphSAGE layer** (@eq-w07-sage) — separate self/neighbor transforms, concatenated; sampled neighborhoods $\mathcal{N}_s(v)$.
+- **Computation subgraph / minibatch forward** (@alg-w07-sage-minibatch) — the batch built backwards from the targets; cost bounded by the fan-outs.
+- **Inductive vs. transductive** (@def-w07-inductive) — parameters in shared functions vs. per-node tables; Week 3's wall, formally demolished.
+- **GAT attention** (@def-w07-gat, @eq-w07-gat) — learned, content-dependent neighbor weights; multi-head = channels.
+- **Static attention** (@prp-static, @eq-w07-split) — GAT's score splits into receiver + sender terms, forcing one sender ranking for all receivers; GATv2 (@eq-w07-gatv2) reorders one line to fix it.
+- **Aggregator expressiveness** (@prp-agg) — sum keeps counts, mean keeps proportions, max keeps presence.
+- **GIN layer** (@def-w07-gin, @eq-w07-gin) — sum + $\varepsilon$-scaled self-term + MLP: the WL-matching design.
+- **Oversmoothing repairs** (@eq-w07-residual, @eq-w07-restart) — residuals delay collapse; restart connections (PageRank's teleport reborn) hold it; jumping knowledge lets nodes choose their depth.
+- **Controlled ablation** (@alg-w07-ablation) — one factor, multiple seeds, fixed budget, error bars; claims cite cells, deltas under 2 s.d. are "within noise".
+:::
 
 ## Where this leaves us
 

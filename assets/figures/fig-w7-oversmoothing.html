@@ -18,6 +18,7 @@
   <text x="556.6666666666667" y="320" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="12" fill="var(--dkr-muted, #6e6e7a)">10</text>
   <text x="650.0" y="320" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="12" fill="var(--dkr-muted, #6e6e7a)">12</text>
   <text x="370.0" y="342" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12.5" fill="var(--dkr-text, #1c1c21)">propagation steps k (≈ network depth)</text>
+  <text transform="rotate(-90 34 180)" x="34" y="180" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="12.5" fill="var(--dkr-text, #1c1c21)">mean pairwise cosine</text>
   <polyline points="90.0,300.9 136.7,219.6 183.3,175.9 230.0,136.5 276.7,119.3 323.3,106.3 370.0,97.2 416.7,90.0 463.3,84.3 510.0,79.6 556.7,75.9 603.3,72.9 650.0,70.4" fill="none" stroke="var(--dkr-accent, #d9603b)" stroke-width="2.6"/>
   <circle cx="90.0" cy="300.9" r="3.5" fill="var(--dkr-accent, #d9603b)"/>
   <circle cx="183.3" cy="175.9" r="3.5" fill="var(--dkr-accent, #d9603b)"/>
@@ -26,6 +27,7 @@
   <circle cx="463.3" cy="84.3" r="3.5" fill="var(--dkr-accent, #d9603b)"/>
   <circle cx="556.7" cy="75.9" r="3.5" fill="var(--dkr-accent, #d9603b)"/>
   <circle cx="650.0" cy="70.4" r="3.5" fill="var(--dkr-accent, #d9603b)"/>
+  <text x="658.0" y="74.4" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700" fill="var(--dkr-accent, #d9603b)">0.96</text>
   <polyline points="90.0,300.9 136.7,280.5 183.3,249.9 230.0,217.7 276.7,189.1 323.3,166.2 370.0,148.6 416.7,135.2 463.3,124.9 510.0,116.7 556.7,110.1 603.3,104.5 650.0,99.7" fill="none" stroke="#7c5cd6" stroke-width="2.6"/>
   <circle cx="90.0" cy="300.9" r="3.5" fill="#7c5cd6"/>
   <circle cx="183.3" cy="249.9" r="3.5" fill="#7c5cd6"/>
@@ -34,6 +36,7 @@
   <circle cx="463.3" cy="124.9" r="3.5" fill="#7c5cd6"/>
   <circle cx="556.7" cy="110.1" r="3.5" fill="#7c5cd6"/>
   <circle cx="650.0" cy="99.7" r="3.5" fill="#7c5cd6"/>
+  <text x="658.0" y="103.7" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700" fill="#7c5cd6">0.83</text>
   <polyline points="90.0,300.9 136.7,229.4 183.3,209.3 230.0,177.4 276.7,168.0 323.3,159.6 370.0,155.3 416.7,152.0 463.3,149.8 510.0,148.2 556.7,147.0 603.3,146.0 650.0,145.3" fill="none" stroke="var(--dkr-green, #199473)" stroke-width="2.6"/>
   <circle cx="90.0" cy="300.9" r="3.5" fill="var(--dkr-green, #199473)"/>
   <circle cx="183.3" cy="209.3" r="3.5" fill="var(--dkr-green, #199473)"/>
@@ -42,12 +45,13 @@
   <circle cx="463.3" cy="149.8" r="3.5" fill="var(--dkr-green, #199473)"/>
   <circle cx="556.7" cy="147.0" r="3.5" fill="var(--dkr-green, #199473)"/>
   <circle cx="650.0" cy="145.3" r="3.5" fill="var(--dkr-green, #199473)"/>
-  <line x1="110" y1="78" x2="138" y2="78" stroke="var(--dkr-accent, #d9603b)" stroke-width="3"/>
-  <text x="146" y="82" font-family="'JetBrains Mono', monospace" font-size="12" fill="var(--dkr-text, #1c1c21)">plain:  x ← Âx</text>
-  <line x1="110" y1="100" x2="138" y2="100" stroke="#7c5cd6" stroke-width="3"/>
-  <text x="146" y="104" font-family="'JetBrains Mono', monospace" font-size="12" fill="var(--dkr-text, #1c1c21)">residual:  x ← ½x + ½Âx</text>
-  <line x1="110" y1="122" x2="138" y2="122" stroke="var(--dkr-green, #199473)" stroke-width="3"/>
-  <text x="146" y="126" font-family="'JetBrains Mono', monospace" font-size="12" fill="var(--dkr-text, #1c1c21)">restart:  x ← 0.1·x₀ + 0.9·Âx</text>
+  <text x="658.0" y="149.3" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700" fill="var(--dkr-green, #199473)">0.64</text>
+  <line x1="396" y1="223.2" x2="424" y2="223.2" stroke="var(--dkr-accent, #d9603b)" stroke-width="3"/>
+  <text x="432" y="227.2" font-family="'JetBrains Mono', monospace" font-size="12" fill="var(--dkr-text, #1c1c21)">plain:  x ← Âx</text>
+  <line x1="396" y1="245.2" x2="424" y2="245.2" stroke="#7c5cd6" stroke-width="3"/>
+  <text x="432" y="249.2" font-family="'JetBrains Mono', monospace" font-size="12" fill="var(--dkr-text, #1c1c21)">residual:  x ← ½x + ½Âx</text>
+  <line x1="396" y1="267.2" x2="424" y2="267.2" stroke="var(--dkr-green, #199473)" stroke-width="3"/>
+  <text x="432" y="271.2" font-family="'JetBrains Mono', monospace" font-size="12" fill="var(--dkr-text, #1c1c21)">restart:  x ← 0.1·x₀ + 0.9·Âx</text>
   <g font-family="'Source Sans 3', sans-serif">
     <rect x="75" y="368" width="610" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
     <text x="380" y="388" text-anchor="middle" font-size="13" font-weight="700" fill="var(--dkr-bg, #fff)">by k = 12: plain 0.96 (everyone identical) · residual 0.83 (delayed) · restart 0.64 (held)</text>

@@ -62,7 +62,7 @@ print(f"params verified: full {full:,} · basis-30 {basis:,} ({full / basis:.1f}
 
 
 # ══════════════ figure 1: the heterogeneous academic graph ═════════════════
-def node(g, x, y, label, color, r=15, fs=12, txtcol=None):
+def node(g, x, y, label, color, r=15, fs=12.5, txtcol=None):
     g.append(f'  <circle cx="{x}" cy="{y}" r="{r}" fill="{color}"/>')
     g.append(f'  <text x="{x}" y="{y + 4}" text-anchor="middle" font-family="{SANS}" '
              f'font-size="{max(fs, 11)}" font-weight="700" fill="{txtcol or BG}">{label}</text>')
@@ -70,8 +70,9 @@ def node(g, x, y, label, color, r=15, fs=12, txtcol=None):
 
 het = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" fill="{MUTED}">'
        f'left: the schema (types and allowed edges) · right: one instance — the same nodes your papers live in</text>']
-# schema panel
-het.append(f'  <rect x="14" y="44" width="316" height="240" rx="12" fill="{MUTED}" opacity="0.06"/>')
+# schema panel — matching cards on BOTH panels so neither floats
+het.append(f'  <rect x="14" y="44" width="316" height="252" rx="12" fill="{MUTED}" opacity="0.06"/>')
+het.append(f'  <rect x="366" y="44" width="380" height="252" rx="12" fill="{MUTED}" opacity="0.06"/>')
 for x, y, lbl, c in [(110, 90, "author", GOLD), (110, 180, "paper", TEAL), (250, 180, "venue", ACC), (250, 90, "term", PURPLE)]:
     het.append(f'  <rect x="{x - 48}" y="{y - 20}" width="96" height="40" rx="10" fill="{c}" opacity="0.14"/>')
     het.append(f'  <rect x="{x - 48}" y="{y - 20}" width="96" height="40" rx="10" fill="none" stroke="{c}" stroke-width="2"/>')
@@ -84,12 +85,14 @@ for x1, y1, x2, y2, lbl, lx, ly in [
     if lbl or True:
         het.append(f'  <line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{MUTED}" stroke-width="1.8" marker-end="url(#w10-arr)"/>')
     if lbl:
-        het.append(f'  <text x="{lx}" y="{ly}" text-anchor="middle" font-family="{MONO}" font-size="12" fill="{MUTED}">{lbl}</text>')
+        het.append(f'  <text x="{lx}" y="{ly}" text-anchor="middle" font-family="{MONO}" font-size="12.5" fill="{MUTED}">{lbl}</text>')
 het.append(f'  <path d="M 62 180 C 30 150 30 120 62 96" fill="none" stroke="{MUTED}" stroke-width="1.8" marker-end="url(#w10-arr)"/>')
-het.append(f'  <text x="38" y="118" text-anchor="middle" font-family="{MONO}" font-size="12" fill="{MUTED}">cites</text>')
-het.append(f'  <text x="180" y="272" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{MUTED}">4 node types · 4 edge types (+ inverses)</text>')
+# halo (paint-order stroke) lifts the label off its own arc
+het.append(f'  <text x="38" y="112" text-anchor="middle" font-family="{MONO}" font-size="12.5" fill="{MUTED}" '
+           f'paint-order="stroke" stroke="{BG}" stroke-width="4">cites</text>')
+het.append(f'  <text x="172" y="284" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="{MUTED}">4 node types · 4 edge types (+ inverses)</text>')
 # instance panel — the toy used in every computation this week
-POS = {"A1": (450, 90), "A2": (560, 90), "P1": (470, 180), "P2": (590, 180), "V": (530, 258)}
+POS = {"A1": (450, 84), "A2": (560, 84), "P1": (470, 174), "P2": (590, 174), "V": (530, 246)}
 FEAT = {"A1": 1, "A2": 2, "P1": 1, "P2": 3, "V": 2}
 COL = {"A1": GOLD, "A2": GOLD, "P1": TEAL, "P2": TEAL, "V": ACC}
 EDGES = [("A1", "P1", "writes"), ("A2", "P1", "writes"), ("A2", "P2", "writes"),
@@ -107,11 +110,18 @@ for a, b, rel in EDGES:
     het.append(f'  <line x1="{sx:.0f}" y1="{sy:.0f}" x2="{ex:.0f}" y2="{ey:.0f}" stroke="{col}" stroke-width="2"{dash} marker-end="url(#w10-arr)"/>')
 for v, (x, y) in POS.items():
     node(het, x, y, v, COL[v])
-    het.append(f'  <text x="{x + 24}" y="{y - 10}" font-family="{MONO}" font-size="12" fill="{MUTED}">h={FEAT[v]}</text>')
-het.append(f'  <g font-family="{SANS}" font-size="12">'
-           f'<text x="420" y="292" fill="{GREEN}">— writes</text>'
-           f'<text x="500" y="292" fill="{PURPLE}">-- cites</text>'
-           f'<text x="570" y="292" fill="{ACC}">— published_in</text></g>')
+    if v == "P1":
+        # P1's upper-right is a three-arrowhead junction — label goes to the
+        # free lower-left corner with a short leader, matching A1/A2/P2/V calm
+        het.append(f'  <line x1="{x - 11}" y1="{y + 11}" x2="{x - 20}" y2="{y + 20}" stroke="{MUTED}" stroke-width="1"/>')
+        het.append(f'  <text x="{x - 23}" y="{y + 28}" text-anchor="end" font-family="{MONO}" font-size="12.5" fill="{MUTED}">h={FEAT[v]}</text>')
+    else:
+        het.append(f'  <text x="{x + 24}" y="{y - 10}" font-family="{MONO}" font-size="12.5" fill="{MUTED}">h={FEAT[v]}</text>')
+# legend centered under the instance, inside its card
+het.append(f'  <g font-family="{SANS}" font-size="12.5">'
+           f'<text x="440" y="284" fill="{GREEN}">— writes</text>'
+           f'<text x="515" y="284" fill="{PURPLE}">-- cites</text>'
+           f'<text x="583" y="284" fill="{ACC}">— published_in</text></g>')
 write("fig-w10-hetero", "\n".join(het),
       "The heterogeneous academic graph: a schema panel with author, paper, venue, and term types connected by writes, published_in, mentions, and cites edges; and a five-node instance with scalar features used in this week's hand computations",
       height=310)
@@ -169,23 +179,25 @@ pm.append(f'  <line x1="{X0}" y1="{Y0}" x2="{X1}" y2="{Y0}" stroke="{MUTED}" str
 pm.append(f'  <line x1="{X0}" y1="{Y0}" x2="{X0}" y2="{Y1 - 10}" stroke="{MUTED}" stroke-width="1.4"/>')
 for n, lbl in [(1e5, "100k"), (1e6, "1M"), (1e7, "10M")]:
     pm.append(f'  <line x1="{X0 - 4}" y1="{py(n):.0f}" x2="{X1}" y2="{py(n):.0f}" stroke="{MUTED}" stroke-width="0.6" opacity="0.35"/>')
-    pm.append(f'  <text x="{X0 - 10}" y="{py(n) + 4:.0f}" text-anchor="end" font-family="{MONO}" font-size="12" fill="{MUTED}">{lbl}</text>')
+    pm.append(f'  <text x="{X0 - 10}" y="{py(n) + 4:.0f}" text-anchor="end" font-family="{MONO}" font-size="12.5" fill="{MUTED}">{lbl}</text>')
 for r in (100, 237, 400):
-    pm.append(f'  <text x="{px(r):.0f}" y="{Y0 + 18}" text-anchor="middle" font-family="{MONO}" font-size="12" fill="{MUTED}">{r}</text>')
+    pm.append(f'  <text x="{px(r):.0f}" y="{Y0 + 18}" text-anchor="middle" font-family="{MONO}" font-size="12.5" fill="{MUTED}">{r}</text>')
+# the x-axis carries a name, not just ticks
+pm.append(f'  <text x="{X0 + 4}" y="{Y0 + 18}" font-family="{SANS}" font-size="12.5" font-style="italic" fill="{MUTED}">relations R</text>')
 curves = [
     ("full: (2R+1)·d²", lambda r: (2 * r + 1) * d * d, ACC),
     ("block-10: 2R·d²/10 + d²", lambda r: (2 * r) * (d * d // 10) + d * d, PURPLE),
     ("basis-30: 30·d² + 2R·30 + d²", lambda r: 30 * d * d + 2 * r * 30 + d * d, GREEN),
 ]
 for lbl, fn, col in curves:
-    pts = " ".join(f"{px(r):.0f},{py(fn(r)):.1f}" for r in range(10, RMAX + 1, 10))
+    pts = " ".join(f"{px(r):.0f},{py(fn(r)):.1f}" for r in range(15, RMAX + 1, 5))
     pm.append(f'  <polyline points="{pts}" fill="none" stroke="{col}" stroke-width="2.4"/>')
-pm.append(f'  <text x="{px(410):.0f}" y="{py((2 * 430 + 1) * d * d) - 8:.0f}" font-family="{SANS}" font-size="12" font-weight="700" fill="{ACC}">full: (2R+1)&#xB7;d&#xB2;</text>')
-pm.append(f'  <text x="{px(410):.0f}" y="{py((2 * 410) * (d * d // 10) + d * d) - 8:.0f}" font-family="{SANS}" font-size="12" font-weight="700" fill="{PURPLE}">block-diagonal (10)</text>')
-pm.append(f'  <text x="{px(410):.0f}" y="{py(30 * d * d + 2 * 410 * 30 + d * d) + 18:.0f}" font-family="{SANS}" font-size="12" font-weight="700" fill="{GREEN}">basis (B=30)</text>')
+pm.append(f'  <text x="{px(410):.0f}" y="{py((2 * 430 + 1) * d * d) - 8:.0f}" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{ACC}">full: (2R+1)&#xB7;d&#xB2;</text>')
+pm.append(f'  <text x="{px(410):.0f}" y="{py((2 * 410) * (d * d // 10) + d * d) - 8:.0f}" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{PURPLE}">block-diag (10)</text>')
+pm.append(f'  <text x="{px(410):.0f}" y="{py(30 * d * d + 2 * 410 * 30 + d * d) + 18:.0f}" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{GREEN}">basis (B=30)</text>')
 xf = px(237)
 pm.append(f'  <line x1="{xf:.0f}" y1="{Y0}" x2="{xf:.0f}" y2="{Y1}" stroke="{MUTED}" stroke-width="1.2" stroke-dasharray="4 3"/>')
-pm.append(f'  <text x="{xf:.0f}" y="{Y1 - 14}" text-anchor="middle" font-family="{SANS}" font-size="12" font-weight="700" fill="{TEXT}">FB15k-237</text>')
+pm.append(f'  <text x="{xf:.0f}" y="{Y1 - 14}" text-anchor="middle" font-family="{SANS}" font-size="12.5" font-weight="700" fill="{TEXT}">FB15k-237</text>')
 pm.append(f'''  <g font-family="{SANS}">
     <rect x="70" y="288" width="620" height="30" rx="15" fill="{GREEN}"/>
     <text x="380" y="308" text-anchor="middle" font-size="13" font-weight="700" fill="{BG}">at 237 relations: full 4.75M/layer &#x2192; basis-30 0.32M — 14.7&#xD7; fewer parameters, one design idea</text>

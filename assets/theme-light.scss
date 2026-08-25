@@ -433,3 +433,19 @@ div.algorithm {
 }
 .katex-display::-webkit-scrollbar { height: 5px; }
 div.algorithm { overflow-x: auto; }
+
+// -- Mobile equation numbers: reserve space for KaTeX's absolutely-positioned
+// \tag so it cannot land on the math (instructor phone report 2026-08-25).
+@media (max-width: 700px) {
+  // Let KaTeX wrap display equations at its natural break points instead of
+  // forcing one nowrap line (which slid content under the equation number),
+  // and let the number flow inline after the math rather than floating.
+  // !important: katex.css loads after the theme and re-asserts nowrap/absolute
+  .katex-display > .katex,
+  .katex-display .katex-html { white-space: normal !important; }
+  .katex-display .katex-tag, .katex-display .tag {
+    position: static !important;
+    display: inline !important;
+    padding-left: 0.7em;
+  }
+}

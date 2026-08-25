@@ -33,6 +33,11 @@ PyG's `MessagePassing` template so the framework stops being magic, reproduce th
 lecture's measured ablation grid — 16 configurations, 3 seeds, error bars — and end
 by scaling two contenders to ogbn-arxiv, where Cora's lessons start to bend.
 
+The three architectures you will handle are the field's canonical trio: GraphSAGE
+([Hamilton et al., 2017](https://arxiv.org/abs/1706.02216)), GAT
+([Veličković et al., 2018](https://arxiv.org/abs/1710.10903)), and GIN
+([Xu et al., 2019](https://arxiv.org/abs/1810.00826)).
+
 ### Goals
 1. Hand-compute SAGE, GIN, and GAT updates and assert them against the formulas.
 2. Implement a SAGE layer from `MessagePassing` and match it to the hand math.
@@ -162,6 +167,22 @@ Prove it to yourself by building SAGE-mean from the base class and matching it, 
 six decimals, against the same computation done with dense matrices.
 """),
 
+    md("""**Algorithm · SAGE-mean layer via the `MessagePassing` template**
+
+**Input:** node features `x` (n × d); `edge_index` (2 × m, messages flow j → i).
+**Output:** updated features (n × d′).
+
+1. `message(x_j)`: each edge carries the **sender's** features, untouched — `x_j`.
+2. **aggregate**: the base class scatters messages by receiver and applies
+   `aggr="mean"` (declared in `__init__`) — you write no code for this step.
+3. `forward(x, edge_index)`: `agg = self.propagate(edge_index, x=x)`, then
+   **return** `lin_self(x) + lin_nbr(agg)`.
+
+This is the lecture's SAGE equation with the concatenation multiplied out
+(`W·[h ‖ m] = W_self·h + W_nbr·m`) — the same split the minibatch algorithm
+(lecture §2) uses in its line 10. Code against this spec, not a vibe.
+"""),
+
     todo("""class MiniSAGE(MessagePassing):
     \"\"\"SAGE-mean, from the template: h'_v = W_self h_v + W_nbr · mean_{u∈N(v)} h_u.
     (No activation — we test the linear algebra.)\"\"\"
@@ -209,10 +230,14 @@ print("exercise 2 ✓ — the template is now something you have built, not some
         self.lin_self = torch.nn.Linear(in_dim, out_dim, bias=False)
         self.lin_nbr = torch.nn.Linear(in_dim, out_dim, bias=False)
 
-    # TODO: forward(x, edge_index): agg = self.propagate(edge_index, x=x);
-    #       return lin_self(x) + lin_nbr(agg).
-    #       message(x_j): return x_j  — the sender's features, untouched.
-    raise NotImplementedError("implement forward() and message()")
+    def forward(self, x, edge_index):
+        # TODO: agg = self.propagate(edge_index, x=x);
+        #       return lin_self(x) + lin_nbr(agg).
+        raise NotImplementedError("implement forward()")
+
+    def message(self, x_j):
+        # TODO: return the sender's features, untouched.
+        raise NotImplementedError("implement message()")
 
 
 # a 4-node path 0-1-2-3, 2-dim features; both edge directions
@@ -310,7 +335,31 @@ into the mean ± std table that claims are made of.
 
 Under SMOKE the grid shrinks (2 architectures × 2 seeds, few epochs); run the full
 16 × 3 grid before submitting — it is ≈ 8 minutes on CPU, less on a GPU runtime.
+
+**Predict before you run:** sixteen cells — {GCN, SAGE, GAT, GIN} × {2, 4 layers} ×
+{±residual}. Which single cell wins? Which crashes hardest? Write both guesses down
+now; the lecture's §6 discussion is spoilers, your prediction is the pedagogy.
 """ ),
+
+    md("""**Algorithm · The ablation protocol** *(the lecture §6 algorithm
+"One-Factor Ablation with Seeds and Error Bars", as the spec for `run()` and
+`summarize()`)*
+
+**Input:** factor grid F = architectures × depths × {±residual}; seeds S = {0, 1, 2};
+a fixed budget (public split, ≤ 200 epochs, patience 30, no per-cell tuning).
+**Output:** table config → mean ± sample s.d. test accuracy; claims citing cells.
+
+1. **for** each configuration c in F:
+2. &nbsp;&nbsp;&nbsp;&nbsp;**for** each seed s in S:
+3. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;initialize model(c) with seed s; train under the fixed budget
+4. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;record test accuracy at the best-**validation** epoch  *(= `run()`)*
+5. &nbsp;&nbsp;&nbsp;&nbsp;table[c] ← (mean, sample s.d.) over S  *(= `summarize()`)*
+6. **for** each claim: state the sentence, the cells, the scope
+7. declare any delta below 2 × s.d. "within noise"
+
+One factor at a time, every cell reported, negative findings written with the same
+care — the claims paragraph below is graded against exactly this vocabulary.
+"""),
 
     todo("""data = Planetoid(root="data/Planetoid", name="Cora")[0].to(DEV)
 
@@ -499,7 +548,9 @@ Using ONLY your table above, write 2–4 claims in the lecture's three-move form
 
     md("""## 5 · What changes at 60× Cora  *(exercise 5 — ogbn-arxiv)*
 
-ogbn-arxiv: 169,343 papers, 1.16M citations, a **time-based split** (train on
+ogbn-arxiv — from the Open Graph Benchmark suite
+([Hu et al., 2020](https://arxiv.org/abs/2005.00687)): 169,343 papers, 1.16M
+citations, a **time-based split** (train on
 pre-2017 papers, validate on 2017, test on 2018+ — the honest split discipline from
 Week 1, institutionalized). The download is ~80 MB on first run.
 
@@ -510,6 +561,8 @@ hold at 60× the size, under a time split, with 40 classes?
     todo("""from ogb.nodeproppred import PygNodePropPredDataset
 
 # ogb 1.3.6 predates torch>=2.6's weights_only load default; the cache is OGB's own file
+# (do NOT copy this pattern elsewhere — it disables a safety check globally while it
+#  is in effect; we restore torch.load immediately after the one trusted load)
 _load = torch.load
 torch.load = lambda *a, **k: _load(*a, **{**k, "weights_only": False})
 arxiv = PygNodePropPredDataset("ogbn-arxiv", root="data/ogb")
@@ -587,6 +640,8 @@ print("note the val-vs-test gap: the future is harder than the past — that IS 
          stub="""from ogb.nodeproppred import PygNodePropPredDataset
 
 # ogb 1.3.6 predates torch>=2.6's weights_only load default; the cache is OGB's own file
+# (do NOT copy this pattern elsewhere — it disables a safety check globally while it
+#  is in effect; we restore torch.load immediately after the one trusted load)
 _load = torch.load
 torch.load = lambda *a, **k: _load(*a, **{**k, "weights_only": False})
 arxiv = PygNodePropPredDataset("ogbn-arxiv", root="data/ogb")

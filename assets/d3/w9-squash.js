@@ -33,7 +33,18 @@
     return P;
   }
 
-  const fmt = (v) => (v === 0 ? "0" : v >= 5e-3 ? v.toFixed(3) : v.toExponential(0).replace("e-", "e-"));
+  const SUPS = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³",
+                 "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+  const sup = (s) => String(s).split("").map((c) => SUPS[c] || c).join("");
+  // 6e-4 -> 6×10⁻⁴ — book notation, matching the static figure and the prose
+  const fmt = (v) => {
+    if (v === 0) return "0";
+    if (v >= 5e-3) return v.toFixed(3);
+    const [m, e] = v.toExponential(0).split("e");
+    return `${m}×10${sup(String(parseInt(e, 10)))}`;
+  };
+  // stagger the top pair of each clique so their labels never merge into one string
+  const LABEL_OFF = { 0: [-24, -20], 3: [20, -20], 8: [26, -20], 11: [-26, -20] };
 
   function render() {
     const P = U.pal();
@@ -46,7 +57,7 @@
 
     g.append("text").attr("x", 380).attr("y", 22).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted)
-      .text(`influence of the starred node after K = ${K} layers — the exact entry of Â^${K}, per node`);
+      .text(`influence of the starred node u on each node v after K = ${K} layers — the exact entries (Â${sup(K)})ᵤᵥ`);
 
     edges.forEach(([a, b]) => {
       const [x1, y1] = POS[a], [x2, y2] = POS[b];

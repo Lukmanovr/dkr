@@ -82,17 +82,62 @@ of the field*, so let us state it with the care a measuring stick deserves.
 Every node starts with the same color (or its feature value, if features exist).
 One round of refinement recolors every node $v$ by the pair
 
-$$c^{(t+1)}(v) = \mathrm{HASH}\!\left(c^{(t)}(v),\ \{\!\!\{\, c^{(t)}(u) : u \in N(v) \,\}\!\!\}\right),$$
+$$c^{(t+1)}(v) = \mathrm{HASH}\!\left(c^{(t)}(v),\ \{\!\!\{\, c^{(t)}(u) : u \in N(v) \,\}\!\!\}\right)$$ {#eq-w09-wl}
 
-where $\{\!\!\{\cdot\}\!\!\}$ is a multiset — order-free, multiplicity-aware —
-and HASH assigns each distinct pair a fresh color, consistently across *both*
-graphs being compared. Rounds repeat until the partition of nodes into color
-classes stops refining, which takes at most $n$ rounds (each round either splits
-some class or changes nothing, and there are only $n$ nodes to split). Two graphs
-are declared **WL-distinguishable** if at any round their color *histograms*
-differ; if the histograms stay identical to stability, WL abstains.
+where — $c^{(t)}(v)$ is node $v$'s color after round $t$ (round 0 is the shared
+initial color); $N(v)$ is $v$'s set of neighbors, the same object Weeks 6–7
+wrote calligraphically as $\mathcal{N}(v)$ — this week we use the theory
+literature's plain $N(v)$; $\{\!\!\{\cdot\}\!\!\}$ is a multiset — order-free,
+multiplicity-aware; and HASH assigns each distinct pair a fresh color,
+consistently across *both* graphs being compared. Rounds repeat until the
+partition of nodes into color classes stops refining, which takes at most $n$
+rounds (each round either splits some class or changes nothing, and there are
+only $n$ nodes to split).
 
-Run it yourself — the widget executes the definition above, one click per round,
+You already own the single-graph procedure: Week 2's color-refinement float
+stated it exactly as [Weisfeiler and Leman, 1968](https://www.iti.zcu.cz/wl2018/pdf/wl_paper_translation.pdf)
+conceived it, one graph plus a shared signature table. This week's use is the
+*two-graph comparison* that the shared table was built for, and it deserves its
+own listing because the sharing is the entire point:
+
+::: {#alg-w09-wl-compare .algorithm name="WL Comparison with a Shared Color Table"}
+Decides whether refinement can certify two graphs as different, by comparing
+their color histograms round by round.
+
+**Input:** graphs $G_1, G_2$; rounds $T$ (with $n$ the larger node count,
+$T \le n$ suffices). **Output:** "non-isomorphic (certified)" or "WL abstains".
+
+1. $c(v) \leftarrow 0$ for every node of *both* graphs (or the node's feature value)
+2. **for** round $t = 1 \ldots T$ **do**
+3. &nbsp;&nbsp;&nbsp;&nbsp;**for** each node $v$ of either graph: $\mathit{sig}(v) \leftarrow \bigl(c(v),\ \{\!\!\{\, c(u) : u \in N(v) \,\}\!\!\}\bigr)$
+4. &nbsp;&nbsp;&nbsp;&nbsp;build ONE table over *both* graphs' signatures: new $\mathit{sig} \mapsto$ fresh color
+5. &nbsp;&nbsp;&nbsp;&nbsp;$c(v) \leftarrow \text{table}[\mathit{sig}(v)]$ for every node of both graphs
+6. &nbsp;&nbsp;&nbsp;&nbsp;$h_1, h_2 \leftarrow$ color counts of $G_1$, $G_2$
+7. &nbsp;&nbsp;&nbsp;&nbsp;**if** $h_1 \neq h_2$ **then** **return** "non-isomorphic (certified)"
+8. **end for**
+9. **return** "WL abstains"
+:::
+
+Everything Week 2's float did per graph happens in lines 3–5; what is new is
+that line 4's table spans both graphs — same signature, same color, everywhere
+— so the histograms of line 6 are *comparable*: six nodes of color 3 versus six
+nodes of color 4 is a difference, not a match, and a per-graph table would
+silently erase it. Each round costs one pass over both edge sets, $O(m)$ with
+sorted buckets. Lab 9's exercise 1 has you implement exactly this
+(`wl_histograms`), and its assertion ladder names the shared-table mistake for
+you if you make it. Note also the asymmetry of line 7 versus line 9 — a verdict
+versus a shrug — which is worth a formal name:
+
+::: {#def-w09-wl-dist .definition name="WL-distinguishable"}
+Two graphs are **WL-distinguishable** if at some round their color *histograms*
+(computed under a shared table, @alg-w09-wl-compare) differ; if the histograms
+stay identical all the way to stability, WL **abstains**. Reading guidance: the
+definition is deliberately one-sided — distinguishable is a proved fact,
+abstention is the absence of one, and @prp-sound below is the license for that
+reading.
+:::
+
+Run it yourself — the widget executes @alg-w09-wl-compare, one click per round,
 with a color table shared across both graphs so your eyes can do the comparing:
 
 {{< include ../assets/d3/w9-wl.html >}}
@@ -110,17 +155,20 @@ Name the paths: $a\!-\!b\!-\!c\!-\!d$ and $e\!-\!f\!-\!g$ on the left;
 $p\!-\!q\!-\!r\!-\!s\!-\!t$ and $u\!-\!v$ on the right. Round 1 colors by
 degree: on both sides, four nodes get the leaf color 1 and three get the
 interior color 2 — histograms $\{4, 3\}$ and $\{4, 3\}$, no split, exactly as
-the degree-sequence argument predicted. Round 2 is where context enters. On the
-left: leaf $a$ sees $\{2\}$; interior $b$ sees $\{1, 2\}$ (a leaf and an
-interior); interior $c$ likewise; but $f$ — the middle of $P_3$ — sees $\{1,
-1\}$, *two leaves*, a signature no one else on either side can produce among
-interior nodes, because $P_5$'s interior nodes $q, r, s$ see $\{1,2\}$, $\{2,
-2\}$, $\{2, 1\}$ respectively, and $P_2$'s nodes $u, v$ are leaves seeing
-$\{1\}$ — an exclusive of the *right* side this time, since a leaf whose
-only neighbor is a leaf exists only in $P_2$. Two fresh colors appear on
-exactly one side each, the histograms diverge, and refinement has proved in two
-rounds what degrees alone never could. Notice also $r$, the center of $P_5$,
-collecting $\{2, 2\}$ — a third signature unique to the right side. The split
+the degree-sequence argument predicted. Round 2 is where context enters — trace
+every node's signature (own color, neighbor-color multiset) and watch three
+exclusives appear:
+
+| node | side | round-1 color | sees | signature exclusive to… |
+|---|---|---|---|---|
+| $a, d, e, g$ | left | 1 (leaf) | $\{2\}$ | — (both sides: $p, t$ match) |
+| $b, c$ | left | 2 (interior) | $\{1, 2\}$ | — (both sides: $q, s$ match) |
+| $f$ — middle of $P_3$ | left | 2 (interior) | $\{1, 1\}$ — *two leaves* | **left** |
+| $r$ — center of $P_5$ | right | 2 (interior) | $\{2, 2\}$ | **right** |
+| $u, v$ — all of $P_2$ | right | 1 (leaf) | $\{1\}$ — a leaf seeing a leaf | **right** |
+
+Three fresh colors appear on exactly one side each, the histograms diverge, and
+refinement has proved in two rounds what degrees alone never could. The split
 is not a lucky single collision; by round 2 the two graphs disagree in three
 color classes simultaneously. WL sees strictly further than degree, than degree
 sequences, and — as it keeps refining — than most anything cheap.
@@ -170,18 +218,25 @@ One more calibration before the theory: how blind is WL *in practice*? Far less
 than this lecture's parade of counterexamples suggests, and saying so is part of
 honest teaching. On random graphs, one round of refinement already
 individualizes almost every node — the counterexamples all live in highly
-symmetric families (regular graphs, circulants, strongly regular designs) that
+symmetric families (regular graphs, and *circulants* — rings with skip edges,
+like §5's CSL family — chief among them) that
 nature produces rarely and adversaries produce constantly. That skew explains a
 fact of history you already touched in [Lab 2](../labs/lab02.qmd): before GNNs,
-the *Weisfeiler–Leman subtree kernel* — run refinement for $h$ rounds, count
+the *Weisfeiler–Leman subtree kernel*
+([Shervashidze et al., 2011](https://jmlr.org/papers/v12/shervashidze11a.html))
+— run refinement for $h$ rounds, count
 each color, and use the concatenated color histograms as a feature vector fed
 to an SVM — was the reigning champion of graph classification, and your own
-PROTEINS classifier at 70.4% was a member of that dynasty. The kernel view is
+PROTEINS classifier at 70.4% was a member of that dynasty.
+
+The kernel view is
 worth thirty seconds of contemplation, because it makes this week's theorem
 almost obvious in hindsight: the WL kernel's feature map assigns each graph the
 census of its nodes' computation-tree shapes, a GNN's pooled readout is a
 learned, compressed function of the same census, and the fifty-year detour from
-1968 to 2019 was the field noticing that the two pipelines share an input. When
+1968 to 2019 was the field noticing that the two pipelines share an input.
+
+When
 the deep-learning wave arrived, the kernels did not lose because they saw less
 — they see *exactly* as much, that is the theorem — but because histograms
 cannot interpolate: two graphs with disjoint color sets share no features even
@@ -218,8 +273,18 @@ and that object is worth seeing raw.
 Fix a node $v$ and unroll what $K$ rounds of message passing deliver to it: at
 depth 1, its neighbors; at depth 2, their neighbors (including $v$ itself —
 messages happily flow back); at depth $K$, every walk of length $K$ ending at
-$v$. The result is the **computation tree** of $v$: root $v$, children all
-neighbors of $v$, grandchildren all neighbors of those, to depth $K$.
+$v$. [Week 6](06-gcn.qmd) gave this object its name when it proved the
+one-hop-per-layer claim; this week it carries the whole theory, so we restate
+it:
+
+::: {#def-w09-comp-tree .definition name="Computation tree"}
+The **computation tree** of node $v$ to depth $K$ is the tree rooted at $v$
+whose children are all neighbors of $v$, whose grandchildren are all neighbors
+of *those* (the parent included), and so on for $K$ levels, with leaves
+carrying the input features — equivalently, one branch per walk of length
+$\le K$ ending at $v$. Reading guidance: everything a $K$-layer message-passing
+model can ever know about $v$ is a function of this tree, and nothing else.
+:::
 
 {{< include ../assets/figures/fig-w9-trees.html >}}
 
@@ -230,7 +295,9 @@ children with the aggregator and update. The *graph* never enters except through
 the tree.
 
 Two details of the definition repay attention, because both are common sources
-of wrong intuitions. First, the children of a tree node are *all* neighbors —
+of wrong intuitions.
+
+**Detail one: walks, not paths.** The children of a tree node are *all* neighbors —
 including the one we just arrived from. The unrolling enumerates **walks**, not
 paths: a walk may shuttle $v \to u \to v \to u$ forever, and the tree dutifully
 records every shuttle. This is not sloppiness; it is fidelity. The GCN layer
@@ -239,7 +306,9 @@ $u$ in round 2, so echoes of yourself genuinely circulate, and the tree is
 honest about it. It also means tree *size* explodes even on small graphs: a
 degree-$d$ regular graph unrolls to $d^K$ leaves at depth $K$ — on the modest
 hexagon, depth 10 already means $2^{10} = 1{,}024$ leaves feeding one node's
-embedding, a number that will return with teeth in §7. Second, the tree forgets
+embedding, a number that will return with teeth in §7.
+
+**Detail two: the tree forgets who the leaves are.** The tree forgets
 exactly one thing about the graph, and it is the right thing to name precisely:
 *which* leaves are the same node. In the triangle, the two depth-2 leaves under
 different branches are literally one vertex; in the hexagon they are two. The
@@ -285,7 +354,9 @@ junction carbons of decalin and bicyclopentyl grow identical trees at every
 depth, so no depth will ever help.
 
 Chain the two propositions and the ceiling theorem falls out with almost
-embarrassing ease:
+embarrassing ease. It was proved independently, fifty-one years after the
+algorithm, by [Xu et al., 2019](https://arxiv.org/abs/1810.00826) — your
+required reading — and [Morris et al., 2019](https://arxiv.org/abs/1810.02244):
 
 ::: {#thm-ceiling .theorem name="The 1-WL ceiling (Xu et al. 2019; Morris et al. 2019)"}
 If 1-WL
@@ -296,7 +367,7 @@ pooled representations. Message passing distinguishes *at most* what 1-WL
 distinguishes.
 :::
 
-The proof is Proposition 2 applied graph-wide: same histograms means the two
+The proof is @prp-trees applied graph-wide: same histograms means the two
 graphs' nodes pair up with identical trees, identical trees force identical
 embeddings, and pooling a matching multiset gives a matching readout. Notice
 what the theorem does *not* say: it does not say GNNs are weak, or that some
@@ -311,11 +382,19 @@ The ceiling theorem is an upper bound. The natural next question: does anything
 *reach* it? Week 7 built the answer without saying so.
 
 ::: {#thm-gin .theorem name="GIN matches 1-WL"}
-A message-passing GNN whose aggregation step is
-an *injective* function of (own state, neighbor multiset) — realized by
-$h_v' = \mathrm{MLP}\big((1+\varepsilon)\,h_v + \sum_{u \in N(v)} h_u\big)$ with
-suitable embeddings — distinguishes every pair of graphs that 1-WL
-distinguishes. Mean- and max-aggregating GNNs do not: they sit strictly below.
+A message-passing GNN whose layer is an *injective* function of the pair (own
+state, neighbor multiset) distinguishes every pair of graphs that 1-WL
+distinguishes — it reaches the ceiling. GIN realizes such a layer by
+
+$$h_v^{(k+1)} = \mathrm{MLP}\!\left((1+\varepsilon)\, h_v^{(k)} + \sum_{u \in N(v)} h_u^{(k)}\right)$$ {#eq-w09-gin}
+
+where — $h_v^{(k)}$ is node $v$'s embedding after $k$ layers ($h_v^{(0)}$ = the
+input feature); $N(v)$ is $v$'s neighbor set; $\varepsilon \geq 0$ is a scalar
+— fixed irrational or learned — that keeps "self" from colliding with the
+neighbor sum; and $\mathrm{MLP}$ is a multi-layer perceptron (a fresh one per
+layer), provided the input features come from a countable space embedded
+injectively — one-hot colors suffice. Mean- and max-aggregating GNNs do not
+reach the ceiling: they sit strictly below.
 :::
 
 <details>
@@ -335,25 +414,31 @@ equals max of $\{t,g,g\}$ — the confusion cases you computed by hand in Lab 7
 are not warm-ups; they are the counterexamples in the actual proof. $\square$
 </details>
 
-Read the GIN update once more, slowly, the way you would after this proof —
-every symbol now has a job you can name. The **sum** is the injectivity
-workhorse: it alone preserves the multiset (Lab 7's hand computations were the
-lower half of this theorem, though we did not say so at the time). The
-**$(1+\varepsilon)$** is a tiny insurance policy against a specific collision:
-with $\varepsilon = 0$, a node in state $a$ whose neighbors sum to $b$ produces
-$a + b$ — indistinguishable from a node in state $b$ whose neighbors sum to
-$a$. Any irrational $\varepsilon$ (or a learned one, which is what
-`GINConv(train_eps=True)` does) breaks the tie by weighting "self" off the
-integer lattice. In practice, libraries default to $\varepsilon = 0$ — the
-collision requires a coincidence real data rarely supplies, and the measured
-difference is noise; know the theory, then notice the field shrugging at it,
-and recognize the pattern from RotatE's constraints and GCN's self-loop trick:
-theoretical necessities often ship as optional flags. The **MLP** is not
-decoration but the universal-approximation half of the argument — replace it
-with a single linear layer and injectivity of the *composite* can fail (a
-linear map can merge the very sums the aggregation kept apart), which is a
-second, subtler reading of why Week 6's one-matrix layers sit below this
-theorem. And the theorem's fine print matters in the other direction too: the
+Read @eq-w09-gin once more, slowly, the way you would after this proof —
+every symbol now has a job you can name.
+
+- **The sum** is the injectivity workhorse: it alone preserves the multiset
+  (Lab 7's hand computations were the lower half of this theorem, though we did
+  not say so at the time).
+- **The $(1+\varepsilon)$** is a tiny insurance policy against a specific
+  collision: with $\varepsilon = 0$, a node in state $a$ whose neighbors sum to
+  $b$ produces $a + b$ — indistinguishable from a node in state $b$ whose
+  neighbors sum to $a$. Any irrational $\varepsilon$ (or a learned one, which
+  is what `GINConv(train_eps=True)` does) breaks the tie by weighting "self"
+  off the integer lattice. In practice, libraries default to $\varepsilon = 0$
+  — the collision requires a coincidence real data rarely supplies, and the
+  measured difference is noise; know the theory, then notice the field
+  shrugging at it, and recognize the pattern from RotatE's constraints and
+  GCN's self-loop trick: theoretical necessities often ship as optional flags.
+- **The MLP** is not decoration but the universal-approximation half of the
+  argument (*universal approximation*: a wide-enough MLP can match any
+  continuous function to any accuracy — the classic result assumed from ML) —
+  replace it with a single linear layer and injectivity of the *composite* can
+  fail (a linear map can merge the very sums the aggregation kept apart), which
+  is a second, subtler reading of why Week 6's one-matrix layers sit below this
+  theorem.
+
+And the theorem's fine print matters in the other direction too: the
 guarantee is *existence* — suitable weights exist — not that gradient descent
 finds them, a gap the next paragraph prices in dollars.
 
@@ -362,6 +447,7 @@ the way we read every beautiful claim: against a measured table. Here is the
 uncomfortable row. In our own Cora ablation, GIN at depth 4 scored **44.2 ± 19.5**
 — the most *expressive* architecture in the grid turned in the most unstable
 result on the board, while the humble GCN, provably below the ceiling, sat at 81.
+
 No contradiction: **expressiveness is a statement about what a network *can*
 represent, not about what training *finds*, and not about what the task
 *needs*.** Cora's task is smoothing labels over a homophilous graph — a job
@@ -394,7 +480,9 @@ network Week 2's features."
 ## An atlas of the invisible
 
 What, concretely, lives above the ceiling? A tour of the blind spots, each one a
-graph pair with identical WL histograms, each hand-checkable:
+graph pair with identical WL histograms, each hand-checkable. One line of
+notation for the tour: $C_n$ is the cycle on $n$ nodes, $P_n$ the path on $n$
+nodes, and $K_n$ the complete graph — so $K_2$ is a single edge.
 
 **Cycle lengths.** The founding example: $C_3 \cup C_3$ versus $C_6$, and more
 generally $C_n \cup C_m$ versus $C_{n+m}$ — every 2-regular graph of a given
@@ -468,8 +556,9 @@ form a ladder:
 
 **Route 1: tell the nodes who they are (identity features).** Give every node a
 unique ID, or a random vector, and the anonymity assumption shatters: no two
-computation trees ever match, WL separates everything, and there are theorems
-that GNNs with random features can approximate essentially anything on graphs.
+computation trees ever match, WL separates everything, and GNNs with random
+features become provably universal approximators on graphs
+([Abboud et al., 2021](https://arxiv.org/abs/2010.01179)).
 Sounds like a free lunch; the widget below is the bill. Separating *everything*
 includes separating two relabeled copies of the *same* graph — the network can
 now memorize "node 7 is special" in training and mean nothing by it at test
@@ -482,9 +571,39 @@ triangle counts (three lines of Week 2), $k$-step random-walk return
 probabilities (Week 2's PageRank machinery pointed at itself), Laplacian
 eigenvector coordinates (Week 6's frequencies, reborn as *positional
 encodings*). Structural features are functions of the graph, so isomorphic
-copies agree — the honesty of anonymity, with strictly more sight. The RW
+copies agree — the honesty of anonymity, with strictly more sight. The
+random-walk member of that menu earns a listing, both because Lab 9 has you
+build it (`rw_return_probs`) and because, under the name RWPE
+([Dwivedi et al., 2022](https://arxiv.org/abs/2110.07875)), it has become a
+standard ingredient of graph transformers:
+
+::: {#alg-w09-rwpe .algorithm name="Random-Walk Return Features (RWPE)"}
+Computes, for every node, the probability that a $k$-step random walk starting
+there returns home — a structural signature no relabeling can disturb.
+
+**Input:** graph $G$ with adjacency matrix $\mathbf{A}$ and degree matrix
+$\mathbf{D}$; number of steps $k_{\max}$. **Output:** feature vector
+$r(v) \in \mathbb{R}^{k_{\max}}$ per node.
+
+1. $\mathbf{M} \leftarrow \mathbf{D}^{-1}\mathbf{A}$ (the random-walk operator, Week 2)
+2. $\mathbf{P} \leftarrow \mathbf{I}$
+3. **for** $k = 1 \ldots k_{\max}$ **do**
+4. &nbsp;&nbsp;&nbsp;&nbsp;$\mathbf{P} \leftarrow \mathbf{P}\mathbf{M}$
+5. &nbsp;&nbsp;&nbsp;&nbsp;$r_k(v) \leftarrow \mathbf{P}[v, v]$ for every $v$
+6. **end for**
+7. **return** $r(v) = \bigl(r_1(v), \ldots, r_{k_{\max}}(v)\bigr)$, appended to $\mathbf{x}_v$
+:::
+
+Line 5 reads the diagonal of a matrix power — the probability that a $k$-step
+walk from $v$ ends back at $v$ — so the whole computation is $k_{\max}$ sparse
+matrix multiplies, done once as preprocessing. Because every quantity is a
+function of the graph alone, two isomorphic copies get identical features:
+the honesty test passes by construction. The RW
 returns you can hand-verify on CSL ($0.094$ vs $0$ at three steps) are, almost
-verbatim, the "RWPE" positional encodings of current graph transformers; the
+verbatim, the RWPE inputs of current graph-transformer stacks
+([Rampášek et al., 2022](https://arxiv.org/abs/2205.12454)).
+
+The
 eigenvector option must handle one wrinkle you already know from Week 6: an
 eigenvector is only defined up to sign (and, in degenerate eigenspaces, up to
 rotation), so the "position" handed to node $v$ depends on choices the graph
@@ -497,7 +616,9 @@ detector, resurfacing one abstraction level higher, and it is why the
 random-walk encodings — which have no sign to flip — have quietly become the
 default choice in the graph-transformer literature: every large "graphs as
 sequences plus positional encodings" model you will meet is spending this
-paragraph's trade-offs, made industrial. The deeper pattern deserves a
+paragraph's trade-offs, made industrial.
+
+The deeper pattern deserves a
 sentence of its own: *positional encodings are the graph reasserting itself
 after the tree erased it.* WL forgot which leaves coincide; a positional
 encoding writes a summary of the erased identity back into the features, sized
@@ -523,8 +644,10 @@ alone number $10^{10}$. Higher-order GNNs (your optional reading) implement
 exactly this trade and are the reason "provably more powerful than 1-WL" papers
 tend to report results on small molecules, not on ogbn-arxiv.
 
-A fourth family deserves its paragraph even though it did not fit on the
-ladder figure: **subgraph GNNs**, the field's current favorite compromise.
+A fourth family sits *between* the ladder's rungs — the figure draws it as a
+half-rung: **subgraph GNNs**
+([Bevilacqua et al., 2022](https://arxiv.org/abs/2110.02910)), the field's
+current favorite compromise.
 Instead of enriching features or coloring tuples, run an ordinary
 message-passing GNN on a *bag of perturbed copies* of the input — delete one
 node per copy, or mark one node per copy — and aggregate the bag. Two
@@ -553,15 +676,32 @@ computation tree holds on the order of $b^K$ leaves — at $b=3$, $K=8$, over si
 thousand sources — and all of it must flow into one fixed-width vector at the
 root. Worse, the flow is not evenly bottlenecked: if the graph has a narrow cut,
 everything crossing it squeezes through a handful of edges regardless of width.
-That is **oversquashing** (Alon & Yahav, your required reading): exponentially
-many messages, polynomially many wires, and the gradient signal across the
-bottleneck attenuates until distant information is effectively unlearnable.
+The phenomenon was named and isolated by
+[Alon & Yahav, 2021](https://arxiv.org/abs/2006.05205), your required reading:
+
+::: {#def-w09-oversquash .definition name="Oversquashing"}
+**Oversquashing** is the loss of long-range signal that occurs when a receptive
+field of exponentially many sources must flow through fixed-width node vectors
+— exponentially many messages, polynomially many wires — worst at *bottleneck*
+edges, the narrow cuts everything must cross. Reading guidance: the distant
+information is reachable and representable; it is crushed *in transit*, the
+gradient across the bottleneck attenuating until distant signal is effectively
+unlearnable.
+:::
 
 You do not have to take "attenuates" on faith; it is a number, and we computed
-it. Two 5-cliques joined by a two-node path; the influence of a source node on
-every other node after $K{=}5$ layers is the entry $(\hat A^5)_{uv}$ — the exact
-linear-propagation sensitivity, kin to the Jacobian bounds in the rewiring
-literature:
+it. Define the $K$-layer **sensitivity** of target $v$ to source $u$ as
+
+$$S^{(K)}_{uv} = \left(\hat{\mathbf{A}}^K\right)_{uv}$$ {#eq-w09-sens}
+
+where — $\hat{\mathbf{A}} = \tilde{\mathbf{D}}^{-1/2}(\mathbf{A} + \mathbf{I})\tilde{\mathbf{D}}^{-1/2}$
+is Week 6's normalized propagation operator (adjacency plus self-loops,
+degree-discounted), $K$ is the number of layers, and the entry $(u, v)$ of its
+$K$-th power totals every length-$\le K$ walk between the two nodes, each
+discounted by the degrees along the way. @eq-w09-sens is the exact influence in
+a linear propagation model, kin to the Jacobian bounds in the rewiring
+literature, and Lab 9's exercise 5 builds it verbatim. Now point it at two
+5-cliques joined by a two-node path:
 
 {{< include ../assets/figures/fig-w9-squash.html >}}
 
@@ -588,14 +728,18 @@ accuracy falls off a cliff rather than degrading), and the failure survives
 unlimited training data and generous width. Because the task is synthetic, no
 rival explanation survives: the receptive field is sufficient (the tree *is*
 reachable), expressiveness is sufficient (the function is tree-computable —
-even 1-WL sees it), so what remains is the pipe. Then the punchline fix: make
+even 1-WL sees it), so what remains is the pipe.
+
+Then the punchline fix: make
 the **last layer fully adjacent** — every node exchanges one round of messages
 with every node — and performance jumps, on the synthetic task and on real
 chemistry benchmarks, for one layer's cost. That experimental shape — a
 synthetic that isolates one mechanism, an ablation that names the cure — is
 Week 7's discipline producing a theorem-grade insight without a theorem, and it
 is the reason this paper is required reading rather than the heavier formal
-follow-ups. (Those exist: the curvature line of work in your optional reading
+follow-ups.
+
+(Those exist: the curvature line of work in your optional reading
 formalizes the bottleneck via Jacobian sensitivity bounds — our
 $(\hat A^K)_{uv}$ is the linear special case — and locates squashing at
 negatively curved edges, bridges being the canonical example. The barbell you
@@ -607,7 +751,7 @@ in deep models, and their fixes point in *opposite directions*:
 | | oversmoothing | oversquashing |
 |---|---|---|
 | **what happens** | representations converge toward one dominant direction | distant signal is crushed through narrow cuts |
-| **cause** | repeated averaging: powers of $\hat A$ kill non-dominant components at rate $\|\lambda_2\|^K$ | exponential receptive field vs fixed-width vectors and bottleneck edges |
+| **cause** | repeated averaging: powers of $\hat A$ kill non-dominant components at rate $\|\lambda_2\|^K$ ($\lambda_2$: $\hat A$'s second-largest eigenvalue by magnitude, Week 6) | exponential receptive field vs fixed-width vectors and bottleneck edges |
 | **you measured it** | HW2: karate contraction rate $=$ $\|\lambda_2\|$ to two decimals | this page: $0.18$ vs $6\times10^{-4}$ across the barbell bridge |
 | **worsens when** | depth grows on a *well-connected* graph | the task needs *long-range* signal on a *narrow-cut* graph |
 | **repair** | fewer layers, residuals, restart/normalization ([Week 7's repair shop](07-gnn-design.qmd)) | rewiring, master node, fully-adjacent last layer, global attention |
@@ -623,7 +767,9 @@ property depends on two functional groups at opposite ends of a chain — the
 chemistry benchmarks where Alon & Yahav's one-layer fix produced its real-world
 gains. Program graphs, where a variable's definition and its (mis)use sit many
 syntactic hops apart. Mesh and road networks, all corridors and few shortcuts.
+
 The pattern was strong enough that the field built a dedicated benchmark suite
+([Dwivedi et al., 2022](https://arxiv.org/abs/2206.08164))
 — long-range graph tasks where local models flatline by construction — and it
 is on exactly those leaderboards that global-attention models earn their extra
 cost. Contrast Cora one final time: citation neighborhoods are shallow, the
@@ -636,7 +782,15 @@ entire point of owning the distinction.
 Weeks 6–8 gave you architectures; this week gives you the theory of their
 limits; here is the procedure that connects the two when a model underperforms
 and you must decide *why* before deciding what to change. Five checks, in order
-of cost:
+of cost — the table is the checklist, the paragraphs after it are the manual:
+
+| # | check | the cheap experiment | what it decides |
+|---|---|---|---|
+| 1 | fit before ceiling | overfit a small training subset | broken training/bugs vs a real limit |
+| 2 | the task's altitude | linear probe on the suspect structural feature | whether the ceiling is even binding |
+| 3 | cheapest fix first | append triangle counts / RW returns, retrain | feature fix vs architecture escalation |
+| 4 | separate the two walls | $(\hat A^K)_{uv}$ probe vs cosine-by-layer plot | squashing vs smoothing |
+| 5 | trees, not vibes | run WL on a suspicious input pair | whether *any* message-passing change can help |
 
 **Check the fit before the ceiling.** Can the model overfit a small training
 subset to ~100%? If not, your problem is optimization or bugs, not
@@ -690,32 +844,42 @@ historical footnote.
 
 ## Common pitfalls
 
-**Reading "same embeddings" as "same graphs."** WL and GNNs convict, never
-acquit (Proposition 1). A GNN mapping two graphs together is silence, not
+::: {.callout-warning title="Pitfall 1 · Reading “same embeddings” as “same graphs”" icon="false"}
+WL and GNNs convict, never
+acquit (@prp-sound). A GNN mapping two graphs together is silence, not
 similarity — on the sample exam, roughly a third of last year's cohort got the
 direction wrong on the equivalent question. *(The 2025 cohort took a different
 course — but the error statistic travels; it is the single most common
 theory mistake in this field's papers, too.)*
+:::
 
-**Believing expressiveness rankings are performance rankings.** GIN ≥ GCN on
+::: {.callout-warning title="Pitfall 2 · Expressiveness rankings read as performance rankings" icon="false"}
+GIN ≥ GCN on
 the ladder; GIN scored 44 to GCN's 81 on our measured Cora grid. The ladder
 orders what is *representable*; tasks, optimizers, and noise decide what is
 *learned*. Cite both numbers when someone proposes an architecture change "for
 expressiveness."
+:::
 
-**Random features as a free upgrade.** They break the ceiling *and* the
+::: {.callout-warning title="Pitfall 3 · Random features as a free upgrade" icon="false"}
+They break the ceiling *and* the
 invariance that made GNNs generalize across relabelings. If you must use them
 (some tasks warrant it), test on permuted copies of training graphs — the
 widget's pair-B check, industrialized.
+:::
 
-**Confusing unreachable with squashed.** If the target is outside the
+::: {.callout-warning title="Pitfall 4 · Confusing unreachable with squashed" icon="false"}
+If the target is outside the
 receptive field, depth fixes it; if it is inside but crushed through a cut,
 depth *worsens* it. One is a radius problem, the other a topology problem —
 the K-stepper on the barbell widget is the two-minute drill.
+:::
 
-**Fixing the wrong wall.** Residuals for a squashing model, rewiring for a
+::: {.callout-warning title="Pitfall 5 · Fixing the wrong wall" icon="false"}
+Residuals for a squashing model, rewiring for a
 smoothing one — both make things worse, per the table. No repair before
 diagnosis.
+:::
 
 ## In this week's lab
 
@@ -730,16 +894,18 @@ reproducing this page's 290× and 25× to the decimal. Everything is determinist
 
 ## Required reading
 
-- **Xu, Hu, Leskovec, Jegelka — How Powerful are Graph Neural Networks?** (ICLR
+- **[Xu, Hu, Leskovec, Jegelka — How Powerful are Graph Neural Networks?](https://arxiv.org/abs/1810.00826)** (ICLR
   2019). The ceiling and the touch: Theorem 3, Corollary 6, and Figure 2's
   one-picture summary of sum vs mean vs max. Reproduce Figure 3's pairs by hand
   — that is the self-test that matters.
-- **Alon & Yahav — On the Bottleneck of Graph Neural Networks** (ICLR 2021).
+- **[Alon & Yahav — On the Bottleneck of Graph Neural Networks](https://arxiv.org/abs/2006.05205)** (ICLR 2021).
   Oversquashing named, isolated (Tree-NeighborsMatch), and cheaply fixed;
   read it as a masterclass in diagnostic experiment design.
 
-Optional: Morris et al. (AAAI 2019) for the k-WL staircase; Li, Han & Wu (AAAI
-2018) for oversmoothing's original diagnosis; Topping et al. (ICLR 2022) for
+Optional: [Morris et al.](https://arxiv.org/abs/1810.02244) (AAAI 2019) for
+the k-WL staircase; [Li, Han & Wu](https://arxiv.org/abs/1801.07606) (AAAI
+2018) for oversmoothing's original diagnosis;
+[Topping et al.](https://arxiv.org/abs/2111.14522) (ICLR 2022) for
 oversquashing through the lens of curvature — the mathematical deep end of this
 week's pool.
 
@@ -842,6 +1008,22 @@ blind — and you learned it for the cost of one run. (A complementary probe:
 compute $(\hat A^K)_{uv}$ for task-critical distant pairs and compare against
 within-neighborhood values, as on the barbell.)
 </details>
+
+::: {.notions}
+**Notions introduced this week**
+
+- **WL color refinement, two-graph form** (@eq-w09-wl, @alg-w09-wl-compare) — recolor every node by (own color, neighbor-color multiset) under ONE table shared across both graphs; compare histograms per round.
+- **WL-distinguishable / WL abstains** (@def-w09-wl-dist) — differing histograms convict; matching histograms are silence, never sameness (@prp-sound).
+- **Computation tree** (@def-w09-comp-tree) — the depth-$K$ unrolling of a node's neighborhood: walks, not paths; leaf identity erased.
+- **Trees determine embeddings** (@prp-trees) — identical trees force identical embeddings for every weight setting; tree classes = WL colors.
+- **The 1-WL ceiling** (@thm-ceiling) — message passing distinguishes at most what 1-WL distinguishes, for any aggregator, attention, or depth.
+- **GIN / injective aggregation** (@thm-gin, @eq-w09-gin) — sum-then-MLP with the $(1+\varepsilon)$ self-term reaches the ceiling; mean and max sit below.
+- **CSL graphs** — circulant skip-link rings: 4-regular, WL-blind, provably non-isomorphic — the field's stress-test family.
+- **Structural / positional features** (@alg-w09-rwpe) — permutation-respecting quantities (triangle counts, RW returns, Laplacian coordinates) appended to features: separation without the random-ID lie.
+- **k-WL hierarchy and subgraph GNNs** — color $k$-tuples ($O(n^k)$ cost) or aggregate a bag of perturbed copies ($n$ GNN runs): the ladder's upper rungs and its half-rung.
+- **Sensitivity** (@eq-w09-sens) — $(\hat{A}^K)_{uv}$, the exact linear influence of $u$ on $v$; the number that separates unreachable (exactly 0) from squashed (tiny).
+- **Oversquashing** (@def-w09-oversquash) — exponentially many messages through polynomially many wires; antagonist of oversmoothing, with opposite cures.
+:::
 
 ## Where this leaves us
 

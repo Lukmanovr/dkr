@@ -44,9 +44,19 @@
       g.append("circle").attr("cx", x).attr("cy", y).attr("r", v === "P1" ? 20 : 15)
         .attr("fill", col).attr("stroke", v === "P1" ? P.text : "none").attr("stroke-width", 2);
       g.append("text").attr("x", x).attr("y", y + 4).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("font-weight", 700).attr("fill", P.bg).text(v);
-      g.append("text").attr("x", x + 26).attr("y", y - 10).attr("font-size", 12)
-        .attr("font-family", "'JetBrains Mono', monospace").attr("fill", P.muted).text("h=" + FEAT[v]);
+        .attr("font-size", 13).attr("font-weight", 700).attr("fill", P.bg).text(v);
+      // P1's upper-right is a three-arrowhead junction: its h-label moves to
+      // the free lower-left corner with a short leader instead
+      if (v === "P1") {
+        g.append("line").attr("x1", x - 15).attr("y1", y + 15).attr("x2", x - 24).attr("y2", y + 24)
+          .attr("stroke", P.muted).attr("stroke-width", 1);
+        g.append("text").attr("x", x - 27).attr("y", y + 32).attr("text-anchor", "end")
+          .attr("font-size", 12.5)
+          .attr("font-family", "'JetBrains Mono', monospace").attr("fill", P.muted).text("h=" + FEAT[v]);
+      } else {
+        g.append("text").attr("x", x + 26).attr("y", y - 10).attr("font-size", 12.5)
+          .attr("font-family", "'JetBrains Mono', monospace").attr("fill", P.muted).text("h=" + FEAT[v]);
+      }
     });
 
     // the ledger

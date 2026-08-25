@@ -48,12 +48,13 @@
 
   function render() {
     const P = U.pal();
-    const svg = U.svgIn("w10-mp-svg", 760, 330);
+    const svg = U.svgIn("w10-mp-svg", 760, 342);
     svg.attr("font-family", "'Source Sans 3', sans-serif");
     const g = svg.append("g");
     const found = compose(author, METAPATHS[mp].hops);
+    const OFF = 14;   // vertical offset applied to every node position
 
-    g.append("text").attr("x", 380).attr("y", 24).attr("text-anchor", "middle")
+    g.append("text").attr("x", 380).attr("y", 22).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted)
       .text(`${METAPATHS[mp].label} — who counts as ${author}'s neighborhood under this lens?`);
 
@@ -61,7 +62,7 @@
     [[WRITES, "w"], [PUB, "p"], [CITES, "c"]].forEach(([pairs, rel]) =>
       pairs.forEach(([a, b]) => {
         const [x1, y1] = POS[a], [x2, y2] = POS[b];
-        g.append("line").attr("x1", x1).attr("y1", y1 + 40).attr("x2", x2).attr("y2", y2 + 40)
+        g.append("line").attr("x1", x1).attr("y1", y1 + OFF).attr("x2", x2).attr("y2", y2 + OFF)
           .attr("stroke", eStyle(rel)).attr("stroke-width", 1.8)
           .attr("stroke-dasharray", rel === "c" ? "5 3" : null).attr("opacity", 0.45);
       }));
@@ -71,16 +72,20 @@
       const base = isA ? P.yellow : isV ? P.accent : P.blue;
       const hot = v === author || found.has(v);
       const r = isV ? 22 : 14;
-      g.append("circle").attr("cx", x).attr("cy", y + 40).attr("r", v === author ? 18 : r)
+      g.append("circle").attr("cx", x).attr("cy", y + OFF).attr("r", v === author ? 18 : r)
         .attr("fill", base).attr("opacity", hot ? 1 : 0.35)
         .attr("stroke", v === author ? P.text : found.has(v) ? P.accentDark : "none")
         .attr("stroke-width", found.has(v) ? 3 : 2);
-      g.append("text").attr("x", x).attr("y", y + 44).attr("text-anchor", "middle")
-        .attr("font-size", 12).attr("font-weight", 700).attr("fill", P.bg).text(v);
+      // dimmed circles get a pale fill — keep their labels dark (theme text),
+      // full-strength fills keep the background-colored label
+      g.append("text").attr("x", x).attr("y", y + OFF + 4).attr("text-anchor", "middle")
+        .attr("font-size", 13).attr("font-weight", 700)
+        .attr("fill", hot ? P.bg : P.text).text(v);
     });
 
+    // result line lives BELOW the drawing's bounding box — never through it
     const list = [...found].sort().join(", ") || "nobody";
-    g.append("text").attr("x", 380).attr("y", 316).attr("text-anchor", "middle")
+    g.append("text").attr("x", 380).attr("y", 330).attr("text-anchor", "middle")
       .attr("font-size", 13).attr("font-weight", 600).attr("fill", P.accentDark)
       .text(`${author} + ${METAPATHS[mp].label.split("·")[0].trim()} → { ${list} } — a different graph from the same data`);
   }

@@ -19,13 +19,14 @@
     "GIN|4|plain": [44.2, 19.5], "GIN|4|res": [75.2, 1.3],
   };
   const ARCHS = ["GCN", "SAGE", "GAT", "GIN"];
-  const ACOL = { GCN: "#8e8e9a", SAGE: "#0f8377", GAT: "#d9603b", GIN: "#199473" };
 
   let arch = "GCN", depth = 2, res = false;
   const key = () => `${arch}|${depth}|${res ? "res" : "plain"}`;
 
   function render() {
     const P = U.pal();
+    // four clearly separated architecture hues, theme-aware (gold/teal/salmon/purple)
+    const ACOL = { GCN: P.yellow, SAGE: P.blue, GAT: P.accent, GIN: P.purple };
     const svg = U.svgIn("w7-ab-svg", 760, 360);
     svg.attr("font-family", "'Source Sans 3', sans-serif");
     const g = svg.append("g");
@@ -34,9 +35,12 @@
     const [bm] = R["GCN|2|plain"];
     const delta = m - bm;
 
+    const headTxt = `${arch} · ${depth} layers · ${res ? "residual" : "no skips"}`;
+    g.append("rect").attr("x", 200 - headTxt.length * 3.8 - 28).attr("y", 48)
+      .attr("width", 13).attr("height", 13).attr("rx", 3).attr("fill", ACOL[arch]);
     g.append("text").attr("x", 200).attr("y", 60).attr("text-anchor", "middle")
-      .attr("font-size", 15).attr("font-weight", 700).attr("fill", ACOL[arch])
-      .text(`${arch} · ${depth} layers · ${res ? "residual" : "no skips"}`);
+      .attr("font-size", 15).attr("font-weight", 700).attr("fill", P.text)
+      .text(headTxt);
     g.append("text").attr("x", 200).attr("y", 108).attr("text-anchor", "middle")
       .attr("font-size", 40).attr("font-weight", 800)
       .attr("fill", m > 70 ? P.text : "#cf4a30")
@@ -55,26 +59,28 @@
     g.append("text").attr("x", x0 + 140).attr("y", y0 - 14).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("font-weight", 700).attr("fill", P.text)
       .text("all 16 measured configurations");
-    entries.forEach(([k, [mm]], i) => {
+    entries.forEach(([k, [mm, ss]], i) => {
       const y = y0 + i * rowH;
       const [a] = k.split("|");
-      const w = Math.max(2, (mm / 85) * 210);
+      const w = Math.max(2, (mm / 85) * 190);
       const hot = k === key();
       g.append("rect").attr("x", x0 + 78).attr("y", y).attr("width", w).attr("height", 13)
         .attr("rx", 4).attr("fill", ACOL[a]).attr("opacity", hot ? 1 : 0.35);
       g.append("text").attr("x", x0 + 72).attr("y", y + 11).attr("text-anchor", "end")
-        .attr("font-size", 11 + 1).attr("font-weight", hot ? 700 : 400)
+        .attr("font-size", 12.5).attr("font-weight", hot ? 700 : 400)
         .attr("fill", hot ? P.text : P.muted)
         .text(k.replace("|res", "·R").replace("|plain", "").replace("|", "·"));
       if (hot || i === 0 || i === entries.length - 1) {
         g.append("text").attr("x", x0 + 82 + w).attr("y", y + 11)
-          .attr("font-size", 12).attr("fill", P.muted).text(mm.toFixed(1));
+          .attr("font-size", 12.5).attr("font-weight", hot ? 700 : 400)
+          .attr("fill", hot ? P.text : P.muted)
+          .text(hot ? `${mm.toFixed(1)} ± ${ss.toFixed(1)}` : mm.toFixed(1));
       }
     });
 
     const notes = {
-      "GAT|4|plain": "the crash: deep attention with no highway for gradients — and σ = 9.8 means seeds disagree wildly",
-      "GIN|4|plain": "sum aggregation explodes activations with depth; σ = 19.5 is a model gambling, not learning",
+      "GAT|4|plain": "the crash: deep attention with no highway for gradients — and s.d. = 9.8 means seeds disagree wildly",
+      "GIN|4|plain": "sum aggregation explodes activations with depth; s.d. = 19.5 is a model gambling, not learning",
       "GAT|4|res": "same GAT, one residual connection: +54 points. The safest upgrade in the design space",
       "GCN|2|plain": "the boring baseline is the best single cell — on THIS dataset. That sentence is the whole method",
     };
@@ -95,7 +101,7 @@
       });
 
     g.append("text").attr("x", 380).attr("y", 350).attr("text-anchor", "middle")
-      .attr("font-size", 12).attr("fill", P.muted)
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text("measured on Cora (public split, 3 seeds, early stopping) — Lab 7 reproduces this grid");
   }
 

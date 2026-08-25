@@ -223,40 +223,58 @@ mol.append(f'  <text x="185" y="252" text-anchor="middle" font-family="{SANS}" f
            f'fill="var(--dkr-text, #1c1c21)">decalin — two fused hexagons</text>')
 mol.append(f'  <text x="545" y="252" text-anchor="middle" font-family="{SANS}" font-size="13" font-weight="700" '
            f'fill="var(--dkr-text, #1c1c21)">bicyclopentyl — two pentagons, one bond</text>')
-hist_txt = " · ".join(f"{cnt}× class {i}" for i, cnt in sorted(Counter(cd.values()).items()))
-mol.append(f'  <text x="380" y="282" text-anchor="middle" font-family="{MONO}" font-size="12.5" '
-           f'fill="var(--dkr-muted, #6e6e7a)">both stabilize at: {hist_txt} — 1-WL calls them the same molecule</text>')
+# the histogram claim, checkable in one glance: a color CHIP before each count
+# (the classes are drawn as colors, so name them as colors, not numbers)
+counts = sorted(Counter(cd.values()).items())
+x = 240
+mol.append(f'  <text x="{x}" y="283" text-anchor="start" font-family="{MONO}" font-size="12.5" '
+           f'fill="var(--dkr-muted, #6e6e7a)">both stabilize at:</text>')
+x += 148
+for i, cnt in counts:
+    mol.append(f'  <circle cx="{x + 5.5}" cy="{279}" r="5.5" fill="{CLASS_COLOR[i]}"/>')
+    mol.append(f'  <text x="{x + 16}" y="283" text-anchor="start" font-family="{MONO}" font-size="12.5" '
+               f'fill="var(--dkr-text, #1c1c21)">{cnt}&#xD7;</text>')
+    x += 52
+mol.append(f'  <text x="380" y="306" text-anchor="middle" font-family="{MONO}" font-size="12.5" '
+           f'fill="var(--dkr-muted, #6e6e7a)">identical histograms, permanently &#x2014; 1-WL calls them the same molecule</text>')
 write("fig-w9-molecules", "\n".join(mol),
       "The carbon skeletons of decalin (two fused hexagons) and bicyclopentyl (two pentagons joined by a bond), nodes colored by their final WL color — both graphs show the same color counts although the molecules are different",
-      height=300)
+      height=322)
 
 # ═══════════════ figure 3: the expressiveness ladder ═══════════════════════
 la = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" '
       f'fill="var(--dkr-muted, #6e6e7a)">each rung separates pairs the rung below cannot — and charges for it</text>']
 RUNGS = [
-    ("mean / max MP-GNNs", "below 1-WL", "loses multiset counts ({t} vs {t,t})", "var(--dkr-muted, #8e8e9a)"),
-    ("sum-MLP GNNs (GIN) = 1-WL", "the ceiling of message passing", "blind: C&#x2083;&#x222A;C&#x2083; vs C&#x2086;, decalin pair, all CSL graphs", "var(--dkr-blue, #0f8377)"),
-    ("1-WL + structural features", "triangle counts, RW returns, Laplacian PEs", "separates the pairs above; costs preprocessing + choices", "var(--dkr-green, #199473)"),
-    ("3-WL / higher-order GNNs", "colors pairs of nodes (n&#xB2; objects)", "separates CSL graphs natively; O(n&#xB3;) memory and up", "#7c5cd6"),
+    ("mean / max MP-GNNs", "below 1-WL", "loses multiset counts ({t} vs {t,t})", "var(--dkr-muted, #8e8e9a)", False),
+    ("sum-MLP GNNs (GIN) = 1-WL", "the ceiling of message passing", "blind: C&#x2083;&#x222A;C&#x2083; vs C&#x2086;, decalin pair, all CSL graphs", "var(--dkr-blue, #0f8377)", False),
+    ("1-WL + structural features", "triangle counts, RW returns, Laplacian PEs", "separates the pairs above; costs preprocessing + choices", "var(--dkr-green, #199473)", False),
+    ("subgraph GNNs &#x2014; the half-rung", "a bag of copies, one node deleted per copy", "costs n GNN runs", "var(--dkr-accent, #d9603b)", True),
+    ("3-WL / higher-order GNNs", "colors pairs of nodes (n&#xB2; objects)", "separates CSL graphs natively; O(n&#xB3;) memory and up", "#7c5cd6", False),
 ]
 y = 52
-for name, what, sep, color in RUNGS:
+arrow_ys = []
+for name, what, sep, color, half in RUNGS:
+    h = 50 if half else 64
+    x0, w = (130, 500) if half else (60, 640)
+    dash = ' stroke-dasharray="7 5"' if half else ""
     la.append(f'''  <g font-family="{SANS}">
-    <rect x="60" y="{y}" width="640" height="64" rx="10" fill="{color}" opacity="0.10"/>
-    <rect x="60" y="{y}" width="640" height="64" rx="10" fill="none" stroke="{color}" stroke-width="2"/>
-    <text x="80" y="{y + 26}" font-size="14" font-weight="700" fill="{color}">{name}</text>
-    <text x="80" y="{y + 47}" font-size="12" fill="var(--dkr-text, #1c1c21)">{what} &#x2014; <tspan fill="var(--dkr-muted, #6e6e7a)">{sep}</tspan></text>
+    <rect x="{x0}" y="{y}" width="{w}" height="{h}" rx="10" fill="{color}" opacity="0.10"/>
+    <rect x="{x0}" y="{y}" width="{w}" height="{h}" rx="10" fill="none" stroke="{color}" stroke-width="2"{dash}/>
+    <text x="{x0 + 20}" y="{y + (20 if half else 26)}" font-size="{13 if half else 14}" font-weight="700" fill="{color}">{name}</text>
+    <text x="{x0 + 20}" y="{y + (39 if half else 47)}" font-size="12.5" fill="var(--dkr-text, #1c1c21)">{what} &#x2014; <tspan fill="var(--dkr-muted, #6e6e7a)">{sep}</tspan></text>
   </g>''')
-    y += 78
-for i in range(3):
-    ay = 52 + 64 + i * 78
+    arrow_ys.append(y + h)
+    y += h + 14
+for ay in arrow_ys[:-1]:
     la.append(f'  <line x1="380" y1="{ay}" x2="380" y2="{ay + 14}" stroke="var(--dkr-muted, #8e8e9a)" '
               f'stroke-width="2" marker-end="url(#w9-arr)"/>')
+    la.append(f'  <text x="394" y="{ay + 12}" font-family="{SANS}" font-size="12.5" '
+              f'fill="var(--dkr-muted, #6e6e7a)">+ power &#xB7; + cost</text>')
 la.insert(1, '''  <defs><marker id="w9-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
     <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--dkr-muted, #8e8e9a)"/></marker></defs>''')
 write("fig-w9-ladder", "\n".join(la),
-      "The expressiveness ladder: mean and max GNNs sit below 1-WL; GIN reaches the 1-WL ceiling; structural features climb past specific blind pairs; 3-WL and higher-order GNNs separate more but cost polynomially more",
-      height=y + 8)
+      "The expressiveness ladder: mean and max GNNs sit below 1-WL; GIN reaches the 1-WL ceiling; structural features climb past specific blind pairs; subgraph GNNs sit between as a half-rung; 3-WL and higher-order GNNs separate more but cost polynomially more",
+      height=y - 6)
 
 # ═══════════════ figure 4: barbell sensitivity, computed ═══════════════════
 BPOS = {}
@@ -277,8 +295,26 @@ BPOS[4] = (172, 150); BPOS[0] = (98, 96); BPOS[1] = (60, 150); BPOS[2] = (98, 20
 BPOS[7] = (588, 150); BPOS[8] = (662, 96); BPOS[9] = (700, 150); BPOS[10] = (662, 204); BPOS[11] = (620, 96)
 vals = S[SRC]
 vmax = vals.max()
+
+SUP = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+
+def sci(v):
+    """6e-04 -> 6×10⁻⁴ — book notation, matching the lecture prose."""
+    m, e = f"{v:.0e}".split("e")
+    return f"{m}&#xD7;10{str(int(e)).translate(SUP)}"
+
+
+def fmt_val(v):
+    return f"{v:.3f}" if v >= 5e-3 else sci(v)
+
+
+# per-node label nudges: the two top nodes of each clique would otherwise stack
+# their labels into one string ("0.179 0.179"); stagger them radially outward
+LABEL_OFF = {0: (-24, -20), 3: (20, -20), 8: (26, -20), 11: (-26, -20)}
+
 sq = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" '
-      f'fill="var(--dkr-muted, #6e6e7a)">how much node 1 (&#x2605;) can influence each node after {K} layers: (&#x00C2;&#x2075;)&#x2081;&#x1D65;, computed exactly</text>']
+      f'fill="var(--dkr-muted, #6e6e7a)">how much the starred node u can influence each node v after {K} layers &#x2014; (&#x00C2;&#x2075;)&#x1D64;&#x1D65;, computed exactly</text>']
 for a, b in BAR.edges():
     (x1, y1), (x2, y2) = BPOS[a], BPOS[b]
     sq.append(f'  <line x1="{x1:.0f}" y1="{y1:.0f}" x2="{x2:.0f}" y2="{y2:.0f}" '
@@ -286,20 +322,22 @@ for a, b in BAR.edges():
 for v, (x, y) in BPOS.items():
     frac = vals[v] / vmax
     rr = 9 + 11 * math.sqrt(frac)
+    # fade only the FILL with influence; a full-opacity stroke keeps every node
+    # findable in dark theme even when its fill has faded to near-nothing
     sq.append(f'  <circle cx="{x:.0f}" cy="{y:.0f}" r="{rr:.1f}" fill="var(--dkr-accent, #d9603b)" '
-              f'opacity="{0.25 + 0.75 * frac:.2f}"/>')
-    label = f"{vals[v]:.3f}" if vals[v] >= 5e-3 else f"{vals[v]:.0e}"
-    yoff = -18 if y < 150 else 30
-    sq.append(f'  <text x="{x:.0f}" y="{y + yoff:.0f}" text-anchor="middle" font-family="{MONO}" '
-              f'font-size="12" fill="var(--dkr-text, #1c1c21)">{label}</text>')
+              f'fill-opacity="{0.25 + 0.75 * frac:.2f}" stroke="var(--dkr-accent, #d9603b)" stroke-width="1.2"/>')
+    label = fmt_val(vals[v])
+    dx, dy = LABEL_OFF.get(v, (0, -18 if y < 150 else 30))
+    sq.append(f'  <text x="{x + dx:.0f}" y="{y + dy:.0f}" text-anchor="middle" font-family="{MONO}" '
+              f'font-size="12.5" fill="var(--dkr-text, #1c1c21)">{label}</text>')
 sq.append(f'  <text x="{BPOS[SRC][0]:.0f}" y="{BPOS[SRC][1] + 5:.0f}" text-anchor="middle" '
           f'font-size="13" fill="var(--dkr-bg, #fff)" font-weight="700">&#x2605;</text>')
 sq.append(f'''  <g font-family="{SANS}">
     <rect x="62" y="252" width="636" height="30" rx="15" fill="var(--dkr-blue, #0f8377)"/>
-    <text x="380" y="272" text-anchor="middle" font-size="13" font-weight="700" fill="var(--dkr-bg, #fff)">same clique: {sens_near:.3f} &#xB7; across the bridge: {sens_far:.0e} &#x2014; a {ratio:.0f}&#xD7; crush; one added edge buys {rescue:.0f}&#xD7; back</text>
+    <text x="380" y="272" text-anchor="middle" font-size="13" font-weight="700" fill="var(--dkr-bg, #fff)">same clique: {sens_near:.3f} &#xB7; across the bridge: {sci(sens_far)} &#x2014; a {ratio:.0f}&#xD7; crush; one added edge buys {rescue:.0f}&#xD7; back</text>
   </g>''')
 write("fig-w9-squash", "\n".join(sq),
-      f"A barbell graph of two five-cliques joined by a two-node path, each node labeled with how much the starred source node can influence it after {K} propagation layers — influence within the source clique is around {sens_near:.3f} while across the bridge it collapses to about {sens_far:.0e}",
+      f"A barbell graph of two five-cliques joined by a two-node path, each node labeled with how much the starred source node can influence it after {K} propagation layers — influence within the source clique is around {sens_near:.3f} while across the bridge it collapses to about {sens_far:.4f}",
       height=300)
 
 print("\nall Week 9 claims verified")
