@@ -5,21 +5,33 @@ subtitle: "Who to ask, and when"
 
 ## Instructor
 
-**Rustam Lukmanov** — Innopolis University.
+**Dr. Rustam A. Lukmanov** — Innopolis University.
 Lectures, project supervision, exam and policy questions.
 
-- **Office hours:** to be announced in Week 1 (they will live in this
-  table and in the Moodle calendar; expect one fixed weekly slot plus
-  by-appointment).
-- **Contact:** via Moodle messages for anything grade-adjacent (it leaves
-  a record, which protects you); course email for the rest — announced in
-  Week 1 alongside the Moodle page.
+- **Office:** room 410
+- **Office hours:** Thursdays, second half of the day until 17:00 — **by
+  prior arrangement**: message first to book a slot (one booking can cover
+  the instructor and the TA together)
+- **Contact:** Telegram [**@lukmanovr**](https://t.me/lukmanovr) (preferred)
+  · email [r.lukmanov@innopolis.ru](mailto:r.lukmanov@innopolis.ru).
+  For anything grade-adjacent, use Moodle messages — it leaves a record,
+  which protects you.
 
-## Teaching assistants
+## Teaching assistant
 
-To be announced before the semester starts — the course is budgeted for
-lab support and grading TAs, and their names, lab-session assignments,
-and office hours will appear here in Week 1.
+**Solomon Okibe** — lab support and grading.
+
+- **Office hours:** the same Thursday window (second half of the day until
+  17:00) — write in advance and book a slot; a single booking can cover
+  both the TA and the instructor
+- **Contact:** Telegram [**@s_okibe**](https://t.me/s_okibe) (preferred)
+  · email [s.okibe@innopolis.university](mailto:s.okibe@innopolis.university)
+
+## Course channels
+
+The course has group channels on **Telegram** and **Max** — the invite
+links live on the Moodle page. Announcements land there first; questions
+asked in the group reach everyone.
 
 ## Who to ask what
 
@@ -28,11 +40,12 @@ and office hours will appear here in Week 1.
 | A lab exercise that won't pass, environment issues | The lab session itself (fastest), then the TA |
 | Homework clarification | The Moodle forum thread for that HW — answers there reach everyone |
 | A grade ([regrade policy](policies.qmd#grading)) | Written regrade request within 7 days |
-| Project scope, topic, or a stuck experiment | Project office hours (bring the measured table you have, however small) |
+| Project scope, topic, or a stuck experiment | Book a Thursday office-hours slot (bring the measured table you have, however small) |
 | Exam logistics, accommodations, life events | The instructor, as early as possible — [late policy](policies.qmd#late-policy) |
 | A broken link or typo on this site | The "Report an issue" link on any page — fixes land quickly |
 
-One norm worth stating: questions asked in the open (forum, lab room)
-outrank private messages for anything that isn't personal — every answer
-in the open saves thirty people the same email, and the course treats
-asking visible questions as a contribution, not an imposition.
+One norm worth stating: questions asked in the open (group channel, forum,
+lab room) outrank private messages for anything that isn't personal —
+every answer in the open saves thirty people the same message, and the
+course treats asking visible questions as a contribution, not an
+imposition.
