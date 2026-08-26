@@ -475,6 +475,13 @@ coefficient) and into features; for now it is one more entry in the growing case
 nothing like Cora, and everything this course does is, in one way or another, a
 machine for cashing in that difference.
 
+The karate club makes both halves of that claim visible. Two members with identical
+degree can sit in completely different structural positions, and the club as a whole
+holds triangles that chance cannot reproduce even when chance is handed the exact
+degree sequence:
+
+{{< include ../assets/d3/w1-closure.html >}}
+
 ## 3. First numbers from pure structure
 
 Before any learning, the representations themselves already answer questions. Three
