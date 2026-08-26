@@ -53,8 +53,7 @@ come with a story that good.
 
 {{< include ../assets/d3/w1-hero.html >}}
 
-It is worth thirty seconds on *how* he did it, because the method is a fossil record
-of this whole course. Zachary modeled the club as a capacitated network — friendships
+How he did it is a fossil record of this whole course. Zachary modeled the club as a capacitated network — friendships
 as pipes, with capacities from how many settings each pair interacted in — declared
 Mr. Hi the source and the Officer the sink, and computed the **minimum cut**: the
 cheapest set of friendships whose removal disconnects the two leaders. His prediction:
@@ -64,8 +63,8 @@ structure, and 33 of 34 members landed where the cut said they would. Hold the s
 of that in mind: a quantity defined on edges (the cut), minimized over partitions,
 predicting node behavior. In §3 today you will meet the matrix that *measures* cuts;
 in Week 2 you will minimize it; by Week 6 a neural network will be descended from it.
-The karate club is not a cute example — it is the course's origin story, and we will
-recompute it with better tools at least three more times.
+The karate club is the course's origin story; we will recompute it with better
+tools three more times.
 
 That is the thesis of this course, in one 1977 result: **connections carry information
 that lives nowhere else.** No column in a spreadsheet about these 34 people — age, rank,
@@ -76,16 +75,14 @@ Half a century later, the systems around you run on the same idea at billion-nod
 
 {{< include ../assets/figures/fig-w1-systems.html >}}
 
-Put numbers on the panels, because the scale is the point. Google's Knowledge Graph
+The scale is the point: Google's Knowledge Graph
 reported five *billion* entities and five hundred billion facts back in 2020
 [Google, 2020](https://blog.google/products/search/about-knowledge-graph-and-knowledge-panels/) — every
 search box query touches it. Pinterest's recommender propagates signals over a graph
 of billions of pins and boards [Ying et al., 2018](https://arxiv.org/abs/1806.01973);
 Google Maps' ETA system, in production since 2020,
 treats road networks as graphs and runs a graph neural network over them for a billion
-users [Derrow-Pinion et al., 2021](https://arxiv.org/abs/2108.11482). The molecule
-panel is the one with a Nobel-adjacent punchline: the 2020
-discovery of the antibiotic halicin came from a graph-level model screening millions
+users [Derrow-Pinion et al., 2021](https://arxiv.org/abs/2108.11482). The molecule panel: the 2020 discovery of the antibiotic halicin came from a graph-level model screening millions
 of candidate molecular graphs [Stokes et al., 2020](https://doi.org/10.1016/j.cell.2020.01.021)
 — structure-based prediction finding, in hours, what
 bench chemistry had missed for decades. And the quietest panel is the most universal:
@@ -104,8 +101,7 @@ can squeeze out of pure structure, and the three kinds of questions you can ask.
 **Roadmap.** (1) Graphs and their types — a modeling decision. (2) Three ways to store a
 graph, and why the honest answer is "the cheap one". (3) First structure numbers:
 degrees, walks, and a strange matrix called the Laplacian that will follow us all
-semester. (4) The three levels of prediction. (5) A trap involving node ordering that
-sets up the deepest idea of the course.
+semester. (4) The three levels of prediction. (5) The node-ordering trap — the deepest idea of the course.
 
 ::: {.callout-note title="Recap — what this lecture assumes" collapse="true"}
 Only your prerequisites — nothing graph-specific:
@@ -206,14 +202,14 @@ meanings. Weeks 4–5 treat the fully-typed case (knowledge graphs), and Week 10
 neural models that respect types natively.
 
 Multigraphs — several edges between one
-pair — appear whenever events repeat (transactions, messages, flights); collapsing
-them to a weighted single edge is the standard move, and the standard information
-loss: the *timing pattern* of a hundred transfers between two accounts is exactly
-what a fraud model wants, and a weight of 100 has thrown it away. Which brings us to
-**temporal graphs**, where edges carry timestamps and the graph is really a process;
-we defer them to Week 14, but plant the flag now: whenever your edges have
-timestamps, splitting data randomly instead of by time is a leakage machine (you will
-hear this warning again, with numbers).
+pair — appear whenever events repeat (transactions, messages, flights). Collapsing
+them to a weighted single edge is the standard move, and the widget below prices the
+standard information loss. Which brings us to **temporal graphs**, where edges carry
+timestamps and the graph is really a process; we defer them to Week 14, but plant
+the flag now: with timestamped edges, splitting data randomly instead of by time is
+a leakage machine.
+
+{{< include ../assets/d3/w1-multigraph.html >}}
 
 One modeling honesty note before moving on: sometimes there is no graph until *you*
 build one — practitioners routinely create k-nearest-neighbor graphs over plain
@@ -231,11 +227,13 @@ not the answer but the representation — the landmasses matter only as meeting 
 the bridges only as connections; shape, size, and geography are noise. Two centuries
 before the word "graph" existed, that is precisely the act you perform every time you
 turn a database into `edge_index`: deciding which of reality's details are structure
-and which are noise. (Euler's answer, using nothing but degrees — the first graph
-statistic, three sections early: an Eulerian walk exists only if zero or two
-landmasses touch an odd number of bridges. Königsberg had four odd ones; the walk is
-impossible. Degrees will start earning their keep for us in §3.)
+and which are noise. (Euler's answer used nothing but degrees — the first graph
+statistic, three sections early: such a walk exists only if zero or two landmasses
+touch an odd number of bridges. Count the odd ones in the widget's badges. Degrees
+start earning their keep in §3.)
 :::
+
+{{< include ../assets/d3/w1-konigsberg.html >}}
 
 ## 2. Handing a graph to a computer
 
@@ -997,8 +995,6 @@ lemma and the check it gives you; the three storages of one graph and which
 survives when $m = O(n)$; why $(\mathbf{A}^3)_{vv}$ counts triangles; the
 friendship paradox's two averages (4.6 vs 7.8) and the sampling bias behind
 them; and the invariance sentence — node order is storage, not information.
-Whatever stalls, its section is a two-minute reread tonight.
-
 And keep today's three quiet theorems within reach as you go, because the whole
 semester leans on them: the handshake lemma (your data-sanity reflex), walks-by-powers
 (the counting device under every propagation method to come), and the quadratic form

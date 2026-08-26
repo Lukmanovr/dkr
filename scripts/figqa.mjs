@@ -57,7 +57,7 @@ export const WIDGETDIR = join(ROOT, "assets", "d3");
 const STATIC_WIDGETS = ["w6-eq-linked"];
 // JS-rendered widgets: the harness loads their real scripts so shot and lint
 // exercise the initial rendered state, not an empty container.
-const JS_WIDGETS = ["w1-hero", "w1-builder", "w1-cost", "w1-types", "w1-tasks", "w1-permute",
+const JS_WIDGETS = ["w1-hero", "w1-builder", "w1-cost", "w1-types", "w1-tasks", "w1-permute", "w1-multigraph", "w1-konigsberg",
                     "w2-centrality", "w2-pagerank", "w2-wl", "w2-louvain",
                     "w3-walks", "w3-pq", "w3-embed", "w3-labelprop",
                     "w4-transe", "w4-patterns", "w4-negatives", "w4-rank",
@@ -86,7 +86,8 @@ export function harnessFor(name, theme) {
     ? ["d3.v7.min.js", "_dkr.js", ...(DATA_DEPS[name] || []), `${name}.js`]
         .map((f) => `<script src="${pathToFileURL(join(WIDGETDIR, f)).href}"></script>`).join("")
     : "";
-  return `<!doctype html><html><head><meta charset="utf-8">
+  const baseHref = pathToFileURL(join(ROOT, "lectures") + "/").href;
+  return `<!doctype html><html><head><meta charset="utf-8"><base href="${baseHref}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">

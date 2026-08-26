@@ -15,7 +15,7 @@ const A = join(ROOT, "assets", "d3") + "/";
 const strip = (f) =>
   readFileSync(A + f, "utf8").replace(/^```\{=html\}\r?\n/, "").replace(/\r?\n```\r?\n?$/, "");
 
-const body = ["w1-hero.html", "w1-permute.html", "w6-message-passing.html", "w6-spectral.html", "w6-normalization.html", "w6-permutation.html", "w6-eq-linked.html",
+const body = ["w1-hero.html", "w1-permute.html", "w1-multigraph.html", "w1-konigsberg.html", "w6-message-passing.html", "w6-spectral.html", "w6-normalization.html", "w6-permutation.html", "w6-eq-linked.html",
   "w1-builder.html", "w1-cost.html", "w1-types.html", "w1-tasks.html",
   "w2-centrality.html", "w2-pagerank.html", "w2-wl.html", "w2-louvain.html",
   "w3-walks.html", "w3-pq.html", "w3-embed.html", "w3-labelprop.html",
@@ -49,7 +49,7 @@ const run = (name, src) => {
 };
 
 for (const f of ["d3.v7.min.js", "_dkr.js", "w6-message-passing.js", "w6-spectral.js", "w6-normalization.js", "w6-permutation.js", "w6-eq-linked.js",
-  "w1-hero.js", "w1-permute.js", "w1-builder.js", "w1-cost.js", "w1-types.js", "w1-tasks.js",
+  "w1-hero.js", "w1-permute.js", "w1-multigraph.js", "w1-konigsberg.js", "w1-builder.js", "w1-cost.js", "w1-types.js", "w1-tasks.js",
   "w2-centrality.js", "w2-pagerank.js", "w2-wl.js", "w2-louvain.js",
   "w3-walks.js", "w3-pq.js", "w3-embed.js", "w3-labelprop.js",
   "w4-transe.js", "w4-patterns.js", "w4-negatives.js", "w4-rank.js",
@@ -584,6 +584,36 @@ else console.log("  w14-map: fraud sector cites Weeks 2, 10, 14 ✓");
   } else console.log("  w1-hero: leader labels + the-one-miss annotation ✓");
 }
 
+// week-1 multigraph + Konigsberg probes
+{
+  const T = (id) => [...window.document.querySelectorAll(`#${id} svg text`)].map((t) => t.textContent).join(" | ");
+  const dots = window.document.querySelectorAll("#w1-mg-svg svg circle").length;
+  if (dots < 26) { failures++; console.error(`  FAIL w1-multigraph: ${dots} circles, want 24 dots + 2 accounts`); }
+  else console.log("  w1-multigraph: 24 transfers + 2 accounts rendered ✓");
+  for (const b of window.document.querySelectorAll("#w1-mg-widget [data-view]")) {
+    if (b.getAttribute("data-view") === "collapsed") b.dispatchEvent(new window.Event("click", { bubbles: true }));
+  }
+  let mg = T("w1-mg-svg");
+  if (!/w = 24/.test(mg) || !/pattern is gone/.test(mg)) { failures++; console.error("  FAIL w1-multigraph collapsed: " + mg.slice(-200)); }
+  else console.log("  w1-multigraph: collapse shows identical w = 24 ✓");
+  for (const b of window.document.querySelectorAll("#w1-mg-widget [data-scen]")) {
+    if (b.getAttribute("data-scen") === "burst") b.dispatchEvent(new window.Event("click", { bubbles: true }));
+  }
+  mg = T("w1-mg-svg");
+  if (!/w = 24/.test(mg)) { failures++; console.error("  FAIL w1-multigraph burst collapsed weight changed"); }
+  else console.log("  w1-multigraph: burst scenario collapses to the SAME weight ✓");
+
+  let kb = T("w1-kb-svg");
+  if (!/seven bridges/.test(kb)) { failures++; console.error("  FAIL w1-konigsberg city view: " + kb.slice(0, 200)); }
+  else console.log("  w1-konigsberg: city view asks the question ✓");
+  for (const b of window.document.querySelectorAll("#w1-kb-widget [data-kb]")) {
+    if (b.getAttribute("data-kb") === "graph") b.dispatchEvent(new window.Event("click", { bubbles: true }));
+  }
+  kb = T("w1-kb-svg");
+  if (!/deg 5/.test(kb) || !/impossible/.test(kb)) { failures++; console.error("  FAIL w1-konigsberg graph view: " + kb.slice(-220)); }
+  else console.log("  w1-konigsberg: degrees 3,3,5,3 -> impossible ✓");
+}
+
 // week-1 permutation-invariance probes
 {
   const peText = () => [...window.document.querySelectorAll("#w1-pe-svg svg text")].map((t) => t.textContent).join(" | ");
@@ -613,7 +643,7 @@ if (!/stable after round 2/.test(wlTexts)) { failures++; console.error("  FAIL W
 else console.log("  WL cast stabilizes after round 2 ✓");
 
 // sanity: every widget rendered SVG content
-for (const id of ["w1-he-svg", "w1-pe-svg", "w6-mp-svg", "w6-sp-svg", "w6-nm-svg", "w6-pm-svg", "w1-bd-svg", "w1-ct-svg", "w1-ty-svg", "w1-tk-svg",
+for (const id of ["w1-he-svg", "w1-pe-svg", "w1-mg-svg", "w1-kb-svg", "w6-mp-svg", "w6-sp-svg", "w6-nm-svg", "w6-pm-svg", "w1-bd-svg", "w1-ct-svg", "w1-ty-svg", "w1-tk-svg",
   "w2-ce-svg", "w2-pr-svg", "w2-wl-svg", "w2-lv-svg",
   "w3-wk-svg", "w3-pq-svg", "w3-em-svg", "w3-lp-svg",
   "w4-te-svg", "w4-pt-svg", "w4-ng-svg", "w4-rk-svg",

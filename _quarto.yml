@@ -8,6 +8,7 @@ project:
     - "!docs/"
   resources:
     - "assets/d3/*.js"
+    - "assets/images/*"
     - "labs/*.ipynb"
 
 website:
