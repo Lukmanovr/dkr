@@ -463,3 +463,14 @@ div.algorithm { overflow-x: auto; }
   display: inline-flex;
   align-items: center;
 }
+
+// Automatic figure numbering (instructor request 2026-08-26): interactive
+// captions count themselves in document order via a CSS counter, so
+// inserting a widget renumbers everything downstream with zero edits.
+// Captions must NOT hard-code "Figure N." any more.
+main { counter-reset: dkrfig; }
+.interactive-container > .fig-caption::before {
+  counter-increment: dkrfig;
+  content: "Figure " counter(dkrfig) ". ";
+  font-weight: 700;
+}

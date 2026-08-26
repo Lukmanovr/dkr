@@ -473,7 +473,7 @@ $$ {#eq-w06-ring}
 where — $u_k(j)$ is the $k$-th eigenvector's value at node $j$, $n$ the ring's node
 count, $\lambda_k$ the matching eigenvalue — classical Fourier
 analysis is literally the special case where the graph is a cycle. Try
-the `ring` option in Figure 2 and watch the sinusoids appear.
+the `ring` option in Figure 4 and watch the sinusoids appear.
 
 ::: {#def-gft .definition name="Graph Fourier transform"}
 Let $\mathbf{L} = \mathbf{U}\boldsymbol{\Lambda}\mathbf{U}^\top$ be the eigendecomposition
@@ -522,7 +522,7 @@ laid over the top:
 
 {{< include ../assets/figures/fig-spectrum.html >}}
 
-Experiment with all of this — the eigenvector gallery in Figure 2 is this proposition
+Experiment with all of this — the eigenvector gallery in Figure 4 is this proposition
 made visible:
 
 {{< include ../assets/d3/w6-spectral.html >}}
@@ -1080,7 +1080,7 @@ labels, so averaging neighbors destroys the signal — in spectral terms, the la
 lives at high frequencies, exactly where @prp-lowpass says the GCN attenuates. Repairs
 previewed later: separate self/neighbor weights (GraphSAGE, Week 7), attention that can
 down-weight neighbors (GAT, Week 7), or filters that pass high frequencies (the
-$w_1 > 0$ region in Figure 2's filter mode — spectral methods, Week 13).
+$w_1 > 0$ region in Figure 4's filter mode — spectral methods, Week 13).
 </details>
 
 ::: {.notions}

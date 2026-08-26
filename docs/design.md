@@ -608,6 +608,10 @@ box; at ≤700px display equations wrap (`white-space: normal !important` — ka
 loads after the theme, so !important is required) and equation numbers (`.katex-tag`,
 NOT `.tag`) flow inline after the math; verify with
 `node scripts/shot_page.mjs <page> <prefix> 375` (0px horizontal overflow required).
+(33a) **Figure numbering is automatic**: interactive captions are numbered by a
+CSS counter in document order (`.interactive-container > .fig-caption::before`)
+— never write "Figure N." into a caption, and when prose references a figure
+by number, remember the number is the widget's position on that page.
 (33) **Book register**: welcoming section openers that assume only previous weeks,
 paragraphs ≤~12 lines, every ## section carries a visual anchor (figure, widget,
 algorithm, definition, equation, or table), and every lecture ends with the
