@@ -92,8 +92,12 @@ print("every row is one fact: (head, relation, tail) as integer ids")"""),
 
     md("""## 2 · The TransE score  *(exercise 1 — skill: the decoder, vectorized)*
 
-$f(h,r,t) = -\\|\\mathbf{h} + \\mathbf{r} - \\mathbf{t}\\|_2$, batched. The assert is
-the lecture's scorers-figure toy — you already know both numbers.
+**What to do:** in the next cell, implement `transe_score(E, R, triples)` so that it
+returns, for every row $(h, r, t)$ of the batch, the score
+$f(h,r,t) = -\\|\\mathbf{h} + \\mathbf{r} - \\mathbf{t}\\|_2$ (higher means truer), as a
+`(B,)` tensor — vectorized over the batch, with no Python loop. The asserts replay the
+lecture's scorers-figure toy, whose two numbers you already know by hand; when the cell
+prints "exercise 1 ✓" your decoder is correct.
 """),
 
     todo("""def transe_score(E: torch.Tensor, R: torch.Tensor, triples: torch.Tensor) -> torch.Tensor:
@@ -133,12 +137,18 @@ print("exercise 1 ✓ — the translation decoder, hand-verified")"""),
 
     md("""## 3 · Corruption and the margin  *(exercise 2 — skill: training under OWA)*
 
-Two pieces: the corruption sampler (replace head **or** tail, uniformly), and the
-margin ranking loss
+**What to do:** in the next cell, implement two functions. First,
+`corrupt(triples, n_ent, g)` must return a copy of the batch in which each row has its
+head **or** its tail (a 50/50 coin flip per row) replaced by a uniformly random entity —
+never both, and never the relation. Second, `margin_loss(pos, neg, gamma)` must return
+the margin ranking loss
 $\\mathcal{L} = \\text{mean}\\,\\max(0, \\gamma - f_{\\text{pos}} + f_{\\text{neg}})$.
+The asserts check the corruption statistics and two hand-computable loss values; when
+the cell prints "exercise 2 ✓" both functions are correct.
 
-You are coding against a spec — the lecture's training-epoch algorithm
-([Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html)):
+The algorithm below (the lecture's training-epoch algorithm, from
+[Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html))
+specifies exactly what your implementations must do; follow it step by step:
 
 > **Algorithm · TransE training epoch**
 >
@@ -231,7 +241,11 @@ assert abs(lo.item() - 0.0) < 1e-6, "pos=−1, neg=−3, γ=1: margin satisfied 
 assert abs(hi.item() - 0.5) < 1e-6, "pos=−1, neg=−1.5, γ=1: relu(1−(−1)+(−1.5)) = 0.5"
 print("exercise 2 ✓ — corruption is honest, the margin does what it says")"""),
 
-    md("""### Train TransE on the real thing *(provided — your three functions, at scale)*"""),
+    md("""### Train TransE on the real thing *(provided — your three functions, at scale)*
+
+Nothing to implement here — the next cell wires your `transe_score`, `corrupt`, and
+`margin_loss` into the full training loop. Run it; training takes a few minutes on CPU.
+"""),
 
     code("""def train_transe(triples, n_ent, n_rel, d=100, gamma=1.0, lr=0.01,
                  epochs=3, batch=2048, seed=0):
@@ -262,8 +276,10 @@ print("done")"""),
 
     md("""## 4 · Filtered evaluation  *(exercise 3 — skill: the protocol, exactly)*
 
-The spec, mirroring the lecture's evaluation algorithm (the protocol of
-[Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html)):
+The algorithm below (the lecture's evaluation algorithm — the protocol of
+[Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html))
+specifies exactly what the evaluation must do; your implementation in the next cell is
+lines 4–5, and you should follow them step by step:
 
 > **Algorithm · Filtered ranking evaluation**
 >
@@ -279,11 +295,14 @@ The spec, mirroring the lecture's evaluation algorithm (the protocol of
 > 8. MRR ← mean(1/ranks);  Hits@K ← mean[rank ≤ K]
 > 9. **return** MRR, Hits@K
 
-Implement the single-query filtered rank — lines 4–5. The toy assert is the
-lecture's Q5: raw rank 4 with two known-true competitors above → filtered rank 2.
-Then the real thing (provided plumbing runs lines 2–9 around your function): MRR and
-Hits@10 over a held-out sample, both directions, filtered. Note line 5 counts
-*strictly greater* scores — ties are never resolved in the model's favor.
+**What to do:** in the next cell, implement `filtered_rank(scores, target, known)` so
+that it sets the scores of the known-true competitors (every id in `known` except the
+target itself) to $-\\infty$ and returns the 1-based rank of the target, counting only
+*strictly greater* scores — ties are never resolved in the model's favor. The first
+asserts replay the lecture's Q5 by hand: raw rank 4 with two known-true competitors
+above becomes filtered rank 2. The provided plumbing then runs lines 2–9 of the
+algorithm around your function, computing filtered MRR and Hits@10 over a held-out
+sample in both directions; when the cell prints "exercise 3 ✓" all checks passed.
 """),
 
     todo("""def filtered_rank(scores: torch.Tensor, target: int, known: set) -> int:
@@ -387,10 +406,16 @@ print("exercise 3 ✓ — for calibration: well-tuned TransE reaches ≈0.29 MRR
 
     md("""## 5 · The RotatE score  *(exercise 4 — skill: rotations, in tensors)*
 
-Entities are complex vectors; relations are pure phases. Store entities as complex
-tensors and relations as real phase angles $\\theta$, with
-$\\mathbf{r} = e^{i\\theta}$ built by `torch.polar`. The assert is the lecture's
-quarter-turn: $h$ at 45°, rotate by 90°, land exactly on $t$ at 135°.
+In RotatE, entities are complex vectors and relations are pure phases: entities are
+stored as complex tensors, relations as real phase angles $\\theta$, and the rotation
+$\\mathbf{r} = e^{i\\theta}$ is built by `torch.polar`.
+
+**What to do:** in the next cell, implement `rotate_score(E, PHASE, triples)` so that
+it returns, for every row $(h, r, t)$, the score
+$-\\|\\mathbf{h} \\circ e^{i\\theta_r} - \\mathbf{t}\\|$ with the norm taken over the
+complex coordinates, as a `(B,)` tensor. The asserts replay the lecture's quarter-turn
+example: $h$ at 45°, rotated by 90°, must land exactly on $t$ at 135° and score 0,
+while the decoy at 0° scores clearly worse. "exercise 4 ✓" confirms both.
 """),
 
     todo("""def rotate_score(E: torch.Tensor, PHASE: torch.Tensor, triples: torch.Tensor) -> torch.Tensor:
@@ -442,8 +467,15 @@ TransE and RotatE side by side (provided).
 [The TransE-symmetry proposition from the lecture](https://lukmanovr.github.io/dkr/lectures/04-knowledge-graphs.html#prp-transe-sym)
 predicts TransE must drive
 $\\|\\mathbf{r}_{married}\\|$ toward zero while keeping $\\|\\mathbf{r}_{manages}\\|$
-healthy; RotatE's Table-1 fix predicts the *married* phases park near 0 or π. Your
-part: extract the evidence.
+healthy; RotatE's Table-1 fix predicts the *married* phases park near 0 or π.
+
+**What to do:** the training code at the top of the next cell is provided — your part
+is the two evidence extractors below it. Implement `transe_evidence(R)` so that it
+returns the ratio $\\|\\mathbf{r}_{married}\\| / \\|\\mathbf{r}_{manages}\\|$, and
+`rotate_evidence(PHASE)` so that it returns the mean of $|\\sin\\theta|$ over the
+married relation's phases (a value near 0 exactly when every phase sits near 0 or π).
+The asserts check that both measurements land where the theory predicts; when the cell
+prints "exercise 5 ✓" the prophecy is confirmed.
 """),
 
     todo("""MARRIED, MANAGES = 0, 1

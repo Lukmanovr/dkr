@@ -77,7 +77,8 @@ The karate club from lecture ships with networkx — 34 members, and the `club` 
 records which side each member actually joined after the split.
 
 **Predict before you run** (lecture check): how many *edges* should networkx report?
-And which two members will have the highest degree?
+And which two members will have the highest degree? Write down your predictions before
+running the next cell.
 """),
 
     code("""G = nx.karate_club_graph()
@@ -97,12 +98,20 @@ plt.axis("off"); plt.show()"""),
 
     md("""## 2 · Build the cast graph by hand  *(exercise 1 — skill: edge list → edge_index)*
 
-The lecture's cast graph: nodes A–F numbered 0–5, undirected edges
+The lecture's cast graph has nodes A–F, numbered 0–5, and the seven undirected edges
 AB, AC, AD, BC, CE, CF, EF. PyG stores an *undirected* graph as a **directed edge list
 containing both directions** — a `(2, 2m)` integer tensor called `edge_index`.
 
-Code against the lecture's spec (Algorithm 1 there — exercise 1 is lines 1–5,
-exercise 2 below is lines 6–7):
+**What to do:** in the next cell, implement `cast_edge_index()` so that it returns the
+cast graph as a `(2, 14)` LongTensor containing both directions of the seven edges.
+Type the seven edges in by hand — do not compute or import them. The order of the
+columns is up to you, but every edge must appear in both directions. The asserts below
+the function check the shape, the edge set, and the both-directions property; when the
+cell prints "exercise 1 ✓" your implementation is correct.
+
+The algorithm below (Algorithm 1 from the lecture) specifies exactly what your
+implementation in the next cell must do; follow it step by step. This exercise
+implements lines 1–5; exercise 2 in Section 3 implements lines 6–7.
 
 > **Algorithm 1 · Edge list → COO `edge_index`, with degrees**
 >
@@ -117,8 +126,6 @@ exercise 2 below is lines 6–7):
 > 6. d ← zeros(n)
 > 7. **for** each entry u in row 0 of `edge_index` **do** d[u] ← d[u] + 1
 > 8. **return** `edge_index`, d — sanity: Σᵤ dᵤ = 2m (handshake lemma)
-
-Write it out by hand. Order of columns is up to you; both directions are not.
 """),
 
     todo("""def cast_edge_index() -> torch.Tensor:
@@ -173,8 +180,13 @@ print("exercise 1 ✓ — the cast graph lives in a tensor now")"""),
 
     md("""## 3 · Degrees from the edge list  *(exercise 2 — skill: structure numbers without a matrix)*
 
-Degrees straight from `edge_index`, no matrix anywhere — the sparse habit from Pitfall 1.
-This is lines 6–7 of Algorithm 1 above, and torch collapses the loop into one call.
+**What to do:** in the next cell, implement `degrees(edge_index, num_nodes)` so that it
+returns a length-`num_nodes` integer tensor whose entry `d[u]` is the degree of node `u`.
+Compute it directly from `edge_index` and do not build an adjacency matrix — working
+without the matrix is the sparse habit from Pitfall 1 in the lecture. You are
+implementing lines 6–7 of Algorithm 1 above; torch collapses that loop into a single
+`bincount` call. The assert compares your output against the hand-computed degrees
+`[3, 2, 4, 1, 2, 2]`; when the cell prints "exercise 2 ✓" your implementation is correct.
 """),
 
     todo("""def degrees(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
@@ -208,9 +220,16 @@ print("exercise 2 ✓ — degrees:", dict(zip("ABCDEF", d.tolist())))"""),
     md("""## 4 · The lecture's pencil math, verified  *(exercise 3 — skill: A², Laplacian)*
 
 The lecture proved $(\\mathbf{A}^k)[u,v]$ counts length-$k$ walks and that
-$\\mathbf{x}^\\top\\mathbf{L}\\mathbf{x}$ counts cut edges for indicator signals. Your
-turn to confirm every claim numerically — on the same cast graph, against the same
-numbers computed in the lecture examples and self-checks.
+$\\mathbf{x}^\\top\\mathbf{L}\\mathbf{x}$ counts cut edges for indicator signals. Now you
+confirm every claim numerically, on the same cast graph, against the same numbers
+computed in the lecture examples and self-checks.
+
+**What to do:** in the next cell, `dense_adjacency` is written for you; implement
+`laplacian(A)` so that it returns $\\mathbf{L} = \\mathbf{D} - \\mathbf{A}$, where
+$\\mathbf{D}$ is the diagonal matrix of row sums of $\\mathbf{A}$. The asserts then
+verify the walk counts in $\\mathbf{A}^2$ and the cut value
+$\\mathbf{x}^\\top\\mathbf{L}\\mathbf{x} = 2$ against the lecture's pencil computations;
+when the cell prints "exercise 3 ✓" every check has passed.
 """),
 
     todo("""def dense_adjacency(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
@@ -281,7 +300,8 @@ Cora returns as the star of Week 6. Today, just meet it — and settle a storage
 from the lecture.
 
 **Predict before you run:** would Cora's *dense* adjacency matrix fit in free Colab's
-~12.7 GB of RAM? And ogbn-products' (n = 2.4 M)? Commit to two yes/no answers.
+~12.7 GB of RAM? And ogbn-products' (n = 2.4 M)? Write down your two yes/no answers
+before running the next cell.
 """),
 
     code("""from torch_geometric.datasets import Planetoid
@@ -299,10 +319,16 @@ print("moral: 'sparse or nothing' is a statement about SCALE, and scale arrives 
 
     md("""## 6 · A real knowledge-graph fragment  *(exercise 4 — skill: typed edges are just more bookkeeping)*
 
-Twelve real facts from Wikidata about this course's own neighborhood, as
-(head, relation, tail) triples — the heterogeneous shape from the lecture's Figure 3,
-and the object Weeks 4–5 are devoted to. No download: knowledge is small when you only
-need a taste.
+The next cell contains twelve real facts from Wikidata about this course's own
+neighborhood, written as (head, relation, tail) triples — the heterogeneous shape from
+the lecture's Figure 3, and the object Weeks 4–5 are devoted to. There is nothing to
+download; the fragment is pasted directly into the cell.
+
+**What to do:** in the next cell, implement `kg_stats(triples)` so that it returns the
+tuple `(num_entities, num_relation_types, num_facts)`. Entities are everything that
+appears as a head *or* a tail; relation types are the distinct middle elements. The
+asserts check for 10 entities, 5 relation types, and 12 facts; when the cell prints
+"exercise 4 ✓" your counts are correct.
 """),
 
     todo("""TRIPLES = [

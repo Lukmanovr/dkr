@@ -68,8 +68,16 @@ print(f"torch {torch.__version__} · device {DEV} — environment OK")"""),
 
     md("""## 1 · The lecture's arithmetic, asserted  *(exercise 1)*
 
-Three updates, computed the way the lecture computed them. If you did the reading,
-each function is a transcription; the asserts hold you to the exact numbers.
+You start by computing three architecture updates exactly the way the lecture computed
+them by hand.
+
+**What to do:** in the next cell, implement three small functions.
+`sage_update(h_self, H_nbrs, w_self, w_nbr)` must return the scalar SAGE-mean update
+`w_self * h_self + w_nbr * mean(H_nbrs)`. `gin_update(h_self, H_nbrs, eps)` must return
+the scalar GIN update `(1 + eps) * h_self + sum(H_nbrs)`. `gat_alphas(scores)` must
+return the softmax of a list of raw attention scores. If you did the reading, each
+function is a transcription of a lecture formula; the asserts hold you to the exact
+numbers from the lecture's worked examples, and "exercise 1 ✓" confirms all of them.
 """),
 
     todo("""def sage_update(h_self, H_nbrs, w_self, w_nbr):
@@ -162,12 +170,18 @@ print("exercise 1 ✓ — SAGE separates, GIN counts, GAT mutes: the lecture's n
 
     md("""## 2 · One layer from the template  *(exercise 2 — skill: MessagePassing)*
 
-The lecture's claim: every architecture is `message()` + an `aggr` + `update()`.
-Prove it to yourself by building SAGE-mean from the base class and matching it, to
-six decimals, against the same computation done with dense matrices.
+The lecture claims that every architecture is `message()` + an `aggr` + `update()`.
+You now prove that to yourself.
+
+**What to do:** in the cell after the algorithm below, implement the two missing
+methods of `MiniSAGE`: `forward(x, edge_index)` and `message(x_j)`. The assert then
+matches your layer, to six decimals, against the same computation done with dense
+matrices on a hand-checkable 4-node path; "exercise 2 ✓" confirms the match.
 """),
 
-    md("""**Algorithm · SAGE-mean layer via the `MessagePassing` template**
+    md("""**Algorithm · SAGE-mean layer via the `MessagePassing` template.** The
+algorithm below specifies exactly what your implementation in the next cell must do;
+follow it step by step.
 
 **Input:** node features `x` (n × d); `edge_index` (2 × m, messages flow j → i).
 **Output:** updated features (n × d′).
@@ -180,7 +194,7 @@ six decimals, against the same computation done with dense matrices.
 
 This is the lecture's SAGE equation with the concatenation multiplied out
 (`W·[h ‖ m] = W_self·h + W_nbr·m`) — the same split the minibatch algorithm
-(lecture §2) uses in its line 10. Code against this spec, not a vibe.
+(lecture §2) uses in its line 10.
 """),
 
     todo("""class MiniSAGE(MessagePassing):
@@ -264,8 +278,16 @@ print("exercise 2 ✓ — the template is now something you have built, not some
 
     md("""## 3 · The aggregator propositions, in code  *(exercise 3)*
 
-The lecture's @prp-agg with tensors instead of chalk — including the real-valued
-asterisk that the widget's standing challenge hinted at.
+This section re-proves the lecture's aggregator propositions (@prp-agg) with tensors
+instead of chalk — including the real-valued asterisk that the widget's standing
+challenge hinted at.
+
+**What to do:** in the next cell, implement `confusion_check(A, B)` so that, given two
+`(n_i, d)` stacks of neighbor features, it returns the dict
+`{'mean': bool, 'max': bool, 'sum': bool}` where each flag is `True` exactly when that
+aggregator produces identical outputs for the two stacks (use `torch.allclose`). The
+asserts walk through the lecture's confusion cases plus the real-valued counterexample;
+"exercise 3 ✓" confirms them all.
 """),
 
     todo("""def confusion_check(A: torch.Tensor, B: torch.Tensor) -> dict:
@@ -330,20 +352,29 @@ print("exercise 3 ✓ — sum wins on one-hots, needs its MLP on reals; the prop
 
 The training harness is provided and is exactly the lecture's protocol: hidden 64,
 dropout 0.5, Adam(0.01, wd 5e-4), early stopping on validation (patience 30), test
-accuracy at the best validation epoch. Your part is the statistics: turn raw runs
-into the mean ± std table that claims are made of.
+accuracy at the best validation epoch.
+
+**What to do:** in the cell after the algorithm below, implement `summarize(runs)` so
+that it turns the raw run results `{config: [acc, acc, ...]}` into
+`{config: {'mean': ..., 'std': ...}}` in percent, rounded to one decimal place, using
+the *sample* standard deviation (`statistics.stdev`; a single run gets std 0.0). The
+provided harness then runs the grid through your function; the asserts check
+`summarize` on a toy input and check the headline GAT-at-depth-4 finding, and
+"exercise 4 ✓" confirms both.
 
 Under SMOKE the grid shrinks (2 architectures × 2 seeds, few epochs); run the full
 16 × 3 grid before submitting — it is ≈ 8 minutes on CPU, less on a GPU runtime.
 
 **Predict before you run:** sixteen cells — {GCN, SAGE, GAT, GIN} × {2, 4 layers} ×
 {±residual}. Which single cell wins? Which crashes hardest? Write both guesses down
-now; the lecture's §6 discussion is spoilers, your prediction is the pedagogy.
+before running the next cell; the lecture's §6 discussion is spoilers, your prediction
+is the pedagogy.
 """ ),
 
-    md("""**Algorithm · The ablation protocol** *(the lecture §6 algorithm
-"One-Factor Ablation with Seeds and Error Bars", as the spec for `run()` and
-`summarize()`)*
+    md("""**Algorithm · The ablation protocol.** The algorithm below (the lecture §6
+algorithm "One-Factor Ablation with Seeds and Error Bars") specifies exactly what the
+provided `run()` and your `summarize()` in the next cell must do; follow it step by
+step.
 
 **Input:** factor grid F = architectures × depths × {±residual}; seeds S = {0, 1, 2};
 a fixed budget (public split, ≤ 200 epochs, patience 30, no per-cell tuning).
@@ -554,8 +585,16 @@ citations, a **time-based split** (train on
 pre-2017 papers, validate on 2017, test on 2018+ — the honest split discipline from
 Week 1, institutionalized). The download is ~80 MB on first run.
 
-**Predict before you run:** Cora's grid said GCN ≥ SAGE (within noise). Does that
-hold at 60× the size, under a time split, with 40 classes?
+**What to do:** in the next cell, implement `run_arxiv(arch, seed)` so that it trains
+an `ArxivNet(arch)` full-batch and returns the tuple `(val_acc, test_acc)` recorded at
+the best-*validation* epoch. Mirror exercise 4's `run()`: seed torch, use Adam with
+lr 0.01, train for `15 if SMOKE else 60` epochs with cross-entropy on `tr_idx`, and
+track the test accuracy at the epoch where validation accuracy peaks. The asserts
+check both architectures clear the accuracy floor; "exercise 5 ✓" confirms it.
+
+**Predict before you run:** Cora's grid said GCN ≥ SAGE (within noise). Write down
+whether you expect that to hold at 60× the size, under a time split, with 40 classes —
+before running the next cell.
 """),
 
     todo("""from ogb.nodeproppred import PygNodePropPredDataset

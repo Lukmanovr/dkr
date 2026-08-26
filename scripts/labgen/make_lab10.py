@@ -23,7 +23,7 @@ def todo(solution, stub): return ("code", solution, stub)
 
 
 CELLS = [
-    md("""# Lab 10 · Typed message passing — from a hand ledger to the honest showdown
+    md("""# Lab 10 · Typed message passing: R-GCN by hand, on DBLP, and in a fair showdown
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab10_hetero.ipynb)
 
@@ -45,7 +45,8 @@ claim, and claims get measured against matched baselines.
 1. Compute typed updates and parameter counts by hand, asserted to the lecture.
 2. Train a heterogeneous GNN on DBLP and measure what the typed graph is worth.
 3. Implement the inverse-channel edge construction, and prove it is not optional.
-4. Run the showdown: shallow DistMult vs R-GCN+DistMult, same everything.
+4. Run the showdown: shallow DistMult vs R-GCN+DistMult under an identical
+   training budget and evaluation protocol.
 """),
 
     md("""## 0 · Setup"""),
@@ -69,13 +70,27 @@ print(f"torch {torch.__version__} · device {DEV} — environment OK")
 if DEV.type != "cuda":
     print("(no GPU: exercise 4's encoder will be slow but correct — consider Runtime → Change runtime type)")"""),
 
-    md("""## 1 · The ledger and the bill  *(exercise 1 — the lecture's arithmetic, asserted)*
+    md("""## 1 · Typed updates and the parameter bill  *(exercise 1)*
 
-Two functions: the typed scalar update (the lecture's mixing desk) and the
-parameter counters (the lecture's bill). The asserts hold you to every number
-on those two figures.
+**What you will implement**, in the next code cell:
 
-You are implementing the lecture's Algorithm (One R-GCN Layer), scalar-for-scalar:
+1. `rgcn_update(h_self, channels, w_self=1.0)` — the scalar R-GCN update for a
+   single node. `channels` is a list of `(w_r, [h_u, ...])` pairs; return
+   `w_self * h_self` plus, for each channel, `w_r` times the mean of that
+   channel's neighbor values.
+2. `params_full(R, d)` — the per-layer parameter count with one full d×d weight
+   matrix per relation direction plus the self-loop, i.e. (2R+1) matrices.
+3. `params_basis(R, d, B)` — the per-layer parameter count under basis
+   decomposition: B basis matrices of d², 2R·B mixing coefficients, and the
+   undecomposed self-loop d².
+
+**How you will know it worked:** the asserts in the same cell compare your
+outputs to the lecture's worked examples (5.25 for node P1, 3.0 for A2, 2.0 for
+the untyped collapse, 4,750,000 and 324,220 for the parameter counts). When
+they all pass, the cell prints "exercise 1 ✓".
+
+The algorithm below specifies exactly what your `rgcn_update` implementation
+must do; follow it step by step:
 
 > **One R-GCN layer** — **Input:** features $h_u$ for all nodes; relations with
 > inverse channels; weights $w_\\text{self}, \\{w_r\\}$. **Output:** updated $h'_v$.
@@ -88,11 +103,10 @@ You are implementing the lecture's Algorithm (One R-GCN Layer), scalar-for-scala
 > 6. &nbsp;&nbsp;&nbsp;&nbsp;$h'_v \\leftarrow m$  (σ = identity in this scalar version)
 > 7. **end for**
 >
-> Mean WITHIN the channel first, the channel's weight second — that ordering is
-> the whole point (three co-authors cannot outvote one citation), and it is what
-> the 5.25-vs-2.00 assert checks.
-
-`rgcn_update` below computes lines 1–7 for a single node.
+One ordering detail matters: take the mean WITHIN each channel first, and apply
+the channel's weight second. This ordering is what makes typing meaningful —
+three co-authors cannot outvote one citation — and it is exactly what the
+5.25-vs-2.00 assert pair checks.
 """),
 
     todo("""def rgcn_update(h_self, channels, w_self=1.0):
@@ -176,12 +190,22 @@ assert round(params_full(237, 100) / params_basis(237, 100, 30), 1) == 14.7
 assert params_full(24, 200) == 1_960_000 and params_basis(24, 200, 30) == 1_241_440
 print("exercise 1 ✓ — typed 5.25 vs untyped 2.00; the 4.75M bill and its 14.7× discount")"""),
 
-    md("""## 2 · DBLP: what the typed graph is worth  *(exercise 2 — HeteroConv, one SAGEConv per edge type)*
+    md("""## 2 · DBLP: what the typed graph is worth  *(exercise 2)*
 
-The lecture measured it (MLP 79.0 ± 0.5 → typed GNN 84.0 ± 0.7, three seeds);
-here you build the typed model and reproduce the gap with one seed. The MLP
-baseline and the training loop are provided; your part is the heterogeneous
-forward pass — the piece where the types actually happen.
+The lecture measured this gap over three seeds: a feature-only MLP reaches
+79.0 ± 0.5% test accuracy on DBLP author classification, and a typed GNN
+reaches 84.0 ± 0.7%. Here you reproduce that gap with one seed.
+
+**What you will implement:** the `forward(self, x_dict, edge_index_dict)`
+method of the `HeteroGNN` class, two cells below (the next cell loads DBLP and
+trains the provided MLP baseline first). For each of the two `HeteroConv`
+layers, apply the layer, then apply ReLU followed by dropout(0.5) to every node
+type's tensor; finally return `self.head(x_dict["author"])`. Everything else —
+the MLP baseline, both training loops — is provided.
+
+**How you will know it worked:** the exercise cell trains your model and
+asserts that its test accuracy beats 81% and beats the MLP by more than 2
+points; when both hold, it prints "exercise 2 ✓".
 """),
 
     code("""dblp = DBLP(root="data/DBLP")[0]
@@ -326,13 +350,25 @@ if not SMOKE:
     )
 print("exercise 2 ✓ — the graph pays: co-authorship signal the MLP cannot see")"""),
 
-    md("""## 3 · Inverse channels are your job  *(exercise 3 — the silent bug, prevented)*
+    md("""## 3 · Inverse channels  *(exercise 3)*
 
-`RGCNConv` propagates along the edges you give it, in the direction you give
-them. The standard construction — concatenate the flipped edge list, offset
-the flipped relation types by $R$ — is three lines, and forgetting it builds
-an information diode. Implement it; the asserts check the construction *and*
-demonstrate the diode.
+`RGCNConv` propagates messages only along the edges you give it, in the
+direction you give them. Every practical R-GCN therefore adds an *inverse*
+copy of each edge, so that information can also flow backwards. If you forget
+this step, any entity that only ever appears as an edge target never receives
+a message at all — a silent bug that no error message will report.
+
+**What you will implement:** `add_inverse(edge_index, edge_type,
+num_relations)` in the next cell. It must return a pair
+`(edge_index2, edge_type2)` in which every original edge also appears flipped
+(target→source), with the flipped copy's relation type offset by
+`num_relations` so forward and inverse channels get separate weights. This is
+about three lines using `torch.cat` and `.flip(0)`.
+
+**How you will know it worked:** the asserts in the same cell check the shape
+and content of your construction, then count FB15k-237's pure-sink entities
+and verify that with your inverse edges every one of them now receives
+messages. When they all pass, the cell prints "exercise 3 ✓".
 """),
 
     todo("""fb_train = FB15k_237("data/FB15k237", split="train")[0]
@@ -405,17 +441,34 @@ assert (deg2[(out_deg == 0) & (in_deg > 0)] > 0).all(), (
 print(f"exercise 3 ✓ — {sinks:,} pure sinks (plus 1,126 pure sources, mute in reverse) "
       f"would sit in an information diode without your three lines")"""),
 
-    md("""## 4 · The showdown  *(exercise 4 — same everything, honest verdict)*
+    md("""## 4 · The showdown: lookup vs encoder  *(exercise 4)*
 
-Training code for both pipelines is provided — it is Lab 4's recipe with the
-encoder swapped in. Your part is the referee: `evaluate` computes filtered MRR
-and Hits@10 over a sampled set of test facts, both directions. Under SMOKE the
-models barely train (1 epoch, 200 facts); run full before submitting (5 epochs
-each, 1,000 facts — ≈ 5 min with a GPU).
+You will compare two KG-completion pipelines on FB15k-237 under identical
+training budgets: shallow DistMult (embedding lookup) versus R-GCN encoder +
+DistMult. The training code for both pipelines is provided in the next cell —
+it is Lab 4's recipe with the encoder swapped in.
 
-Both pipelines run the lecture's encoder-agnostic training loop — the
-encoder–decoder template of [Schlichtkrull et al., 2018](https://arxiv.org/abs/1703.06103)
-under Lab 4's protocol. You code against this spec, not a vibe:
+**What you will implement:** `evaluate(E, R, n_facts=None, seed=123)` in the
+cell after the training code. Given entity embeddings `E` and relation
+embeddings `R`, it must sample test facts with the seeded generator, score all
+candidate entities in BOTH directions (tail prediction and head prediction)
+with DistMult, set the scores of known-true answers other than the target to
+−10⁹ (the "filtered" protocol), and return the pair `(mrr, hits10)`.
+
+**How you will know it worked:** the exercise cell trains both pipelines,
+calls your `evaluate` on each, and asserts that both MRRs land in the expected
+bands (lecture values: 0.179 for the lookup, 0.126 for the encoder) and that
+the lookup wins at this budget. When all three asserts pass, the cell prints
+"exercise 4 ✓".
+
+Under SMOKE the models barely train (1 epoch, 200 eval facts); run the full
+version before submitting (5 epochs each, 1,000 facts — about 5 minutes with
+a GPU).
+
+Both pipelines follow the encoder–decoder template of
+[Schlichtkrull et al., 2018](https://arxiv.org/abs/1703.06103) under Lab 4's
+protocol. The algorithm below specifies exactly what the whole pipeline —
+including your `evaluate` — must do; follow it step by step:
 
 > **Encoder-agnostic KG completion** — **Input:** train triples $T$; entity
 > table $E$; relation table $R$; encoder (lookup: $Z = E$; R-GCN: one typed
@@ -432,12 +485,14 @@ under Lab 4's protocol. You code against this spec, not a vibe:
 >    set known-true answers (except the target) to $-10^9$, record the rank
 > 8. **return** mean reciprocal rank; fraction of ranks $\\le 10$
 >
-> Lines 1–6 are the provided trainers; lines 7–8 are your `evaluate`. Line 2 is
-> the entire cost asymmetry: the lookup's encoder is indexing (free), the
-> R-GCN's is a full-graph propagation per gradient step.
+Lines 1–6 are the provided trainers; lines 7–8 are your `evaluate`. Line 2
+carries the entire cost asymmetry between the pipelines: the lookup's encoder
+is a free table lookup, while the R-GCN's encoder is a full-graph propagation
+on every gradient step.
 
 **Predict before you run:** the lecture's table says which pipeline wins at
-this budget. By how much, and in which relation categories, is your call.
+this budget. Write down your prediction — which pipeline wins, by roughly how
+much MRR — before running the next cell.
 """),
 
     code("""fb_val = FB15k_237("data/FB15k237", split="val")[0]
@@ -597,11 +652,17 @@ print("exercise 4 ✓ — the lecture's uncomfortable table, reproduced by your 
 
     md("""### Your claims paragraph *(graded — write it in this cell)*
 
-Three claims from YOUR numbers, lecture format (sentence → numbers → scope):
-one about what the typed graph bought on DBLP, one about the showdown's
-verdict *including the wall-clock you observed*, and one about what these
-results do **not** license (think: inductive settings, features, tuning
-budgets).
+Write three claims in THIS cell, replacing the placeholder below. Each claim
+is 1–2 sentences following the lecture's format: state the claim, quote the
+specific numbers from your own cell outputs that support it, and state its
+scope (what settings the claim covers). The three claims must be:
+
+1. What the typed graph bought on DBLP (cite your MLP and GNN accuracies from
+   exercise 2).
+2. The showdown's verdict, including the wall-clock time you observed for each
+   pipeline (cite your MRR/Hits@10 numbers from exercise 4).
+3. What these results do **not** license you to conclude (consider inductive
+   settings, node features, and tuning budgets).
 
 *(your claims here)*
 

@@ -51,7 +51,7 @@ come with a story that good.
 :::
 :::
 
-{{< include ../assets/figures/fig-w1-hero.html >}}
+{{< include ../assets/d3/w1-hero.html >}}
 
 It is worth thirty seconds on *how* he did it, because the method is a fossil record
 of this whole course. Zachary modeled the club as a capacitated network — friendships

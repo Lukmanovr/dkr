@@ -65,8 +65,10 @@ print(f"torch {torch.__version__} — environment OK")"""),
 
     md("""### The spec for half one
 
-You are coding against a procedure, not a vibe. This is the lecture's Algorithm 1,
-in the "lite" form this lab builds — [Ren, Hu & Leskovec, ICLR 2020](https://arxiv.org/abs/2002.05969):
+The algorithm below is the lecture's Algorithm 1, in the "lite" form this lab builds
+([Ren, Hu & Leskovec, ICLR 2020](https://arxiv.org/abs/2002.05969)). It specifies
+exactly what your implementations in exercises 1, 2, and 4 must do; follow it step by
+step:
 
 **Algorithm 1 · Query2box query answering (lite)**
 
@@ -99,6 +101,12 @@ d(\\mathbf{v}; \\mathbf{c}, \\mathbf{o}) = \\underbrace{\\bigl\\|\\max(|\\mathbf
 $$
 with $\\alpha < 1$: being outside is expensive, position *within* the box is cheap but
 not free (so the model can still rank inside answers).
+
+**What to do:** in the next cell, implement `box_dist(v, c, o)` so that it returns this
+distance for a batch of points against a box, broadcasting over leading dimensions —
+this is lines 8–9 of Algorithm 1. The asserts check three hand-computable values (at
+the center, inside, and outside the box) plus the batch shape; when the cell prints
+"exercise 1 ✓" your implementation is correct.
 """),
 
     todo("""ALPHA = 0.2
@@ -155,6 +163,13 @@ Projection translates the center and **grows** the offset (following a relation 
 only widen an answer set); intersection averages the centers and **shrinks** the
 offset to the elementwise minimum. (The paper adds attention and a learned shrink —
 this is the honest "lite" version, and it works.)
+
+**What to do:** in the next cell, implement the two operators from lines 3–4 of
+Algorithm 1. `project(c, o, rc, ro)` must return the box `(c + rc, o + |ro|)` — the
+absolute value keeps offsets nonnegative. `intersect(cs, os_)` must take `(k, d)`
+stacks of centers and offsets and return the mean of the centers and the elementwise
+minimum of the offsets. The asserts check both on hand-computable boxes; "exercise 2 ✓"
+confirms them.
 """),
 
     todo("""def project(c, o, rc, ro):
@@ -210,10 +225,17 @@ print("exercise 2 ✓ — project grows, intersect shrinks")"""),
 
     md("""## 3 · Easy vs hard answers  *(exercise 3 — checked on the lecture's toy KG)*
 
-Before training anything: the evaluation discipline. For a 2-hop query, an answer is
-**easy** if the train graph alone reaches it, **hard** if reaching it needs a held-out
-edge. Your function is checked against the lecture's biomedical toy — where you
-already know the split by heart.
+Before training anything, you build the evaluation discipline. For a 2-hop query, an
+answer is **easy** if the train graph alone reaches it, and **hard** if reaching it
+needs a held-out edge.
+
+**What to do:** in the next cell, implement two functions.
+`two_hop_answers(adj, anchor, r1, r2)` must return the set of all entities reachable by
+the traversal anchor —r1→ mid —r2→ answer, where `adj` maps `(head, rel)` to a set of
+tails. `easy_hard_split(train_adj, full_adj, anchor, r1, r2)` must return the pair
+`(easy, hard)`: `easy` is the answer set in the train graph, `hard` is the answer set
+in the full graph minus the easy ones. The asserts check both against the lecture's
+biomedical toy, where you already know the split by heart; "exercise 3 ✓" confirms it.
 """),
 
     todo("""def two_hop_answers(adj: dict, anchor, r1, r2) -> set:
@@ -279,10 +301,16 @@ print("exercise 3 ✓ — the split that separates reasoning from recall, verifi
 
     md("""## 4 · Train on real queries, measure the gap  *(provided + exercise 4)*
 
-FB15k-237 again (cached from Lab 4 if you ran it in the same runtime). We sample
-2-hop paths, train boxes on the **train graph only**, and evaluate Hits@10 on easy
-versus hard answers of held-out queries. Your part: composing the 2-hop query box
-from your own operators.
+FB15k-237 again (cached from Lab 4 if you ran it in the same runtime). The provided
+code samples 2-hop paths, trains boxes on the **train graph only**, and evaluates
+Hits@10 on easy versus hard answers of held-out queries.
+
+**What to do:** in the next cell, implement `query_box_2p(anchor_ids, r1_ids, r2_ids)`
+so that it turns a batch of 2-hop queries into `(B, d)` centers and offsets: start from
+the anchor entity as a zero-offset box, then apply your `project` with relation `r1`,
+then again with `r2`. Everything else in the cell is provided and runs around your
+function; the asserts check the box shapes and the easy/hard Hits@10 ordering, and
+"exercise 4 ✓" means the measurement succeeded.
 """),
 
     todo("""from torch_geometric.datasets import FB15k_237
@@ -561,7 +589,9 @@ print(f"exercise 4 ✓ — the gap is the lecture's §3 in one line: report hard
     md("""### The spec for half two
 
 The graph retriever you are about to build is the lecture's Algorithm 2 — GraphRAG
-**local search**, distilled from [Edge et al., 2024](https://arxiv.org/abs/2404.16130):
+**local search**, distilled from [Edge et al., 2024](https://arxiv.org/abs/2404.16130).
+The algorithm below specifies exactly what your implementation in exercise 5 must do;
+follow it step by step:
 
 **Algorithm 2 · GraphRAG local search**
 
@@ -584,10 +614,17 @@ line 9 is provided.
 
     md("""## 5 · Mini-GraphRAG  *(exercise 5 — the bake-off, refereed by coverage)*
 
-Six documents, a KG extracted from them (with provenance), three questions with gold
-supporting facts. The vector retriever is provided (real cosine over bag-of-words);
-you build the graph retriever: link entities by string match, expand k hops, collect
-facts. The referee is the coverage metric from the lecture's Figure 3.
+The next cell sets up six documents, a KG extracted from them (with provenance), and
+three questions with gold supporting facts. The vector retriever is provided — a real
+cosine similarity over bag-of-words.
+
+**What to do:** in the next cell, implement `graph_facts(entities, hops)` so that it
+returns the set of retrieved fact indices: start the frontier at the linked entities,
+and for each hop collect every fact whose head or tail is in the frontier while adding
+both endpoints of each collected fact to the frontier — lines 2–7 of Algorithm 2. The
+provided referee scores both retrievers with the coverage metric from the lecture's
+Figure 3; the asserts check the three expected outcomes, and "exercise 5 ✓" confirms
+the bake-off ran as predicted.
 """),
 
     todo("""DOCS = [

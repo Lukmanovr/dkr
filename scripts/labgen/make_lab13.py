@@ -296,15 +296,23 @@ te_list = list(ZINC("data/ZINC", subset=True, split="test"))
 print(f"ZINC subset: {len(tr_list)}/{len(va_list)}/{len(te_list)} molecules "
       f"\\u00b7 device {DEV} \\u00b7 SMOKE={SMOKE}")"""),
 
-    md("""## 1 · RWSE from the definition  *(exercise 1 · build the fingerprint)*
+    md("""## 1 · RWSE from the definition  *(exercise 1)*
 
-The definition is three lines of math: $M = D^{-1}A$, take powers, read the
-diagonal. Your implementation must reproduce the lecture's hand table on the
-triangle-with-tail **exactly** — this is Checklist-G ground truth a human can
-hold, and it is what makes every later use of `rwse_diag` trustworthy.
+**What you will implement:** `rwse_diag(A, K)` in the next cell. Given a
+dense adjacency matrix `A`, it must build the row-normalized random-walk
+matrix $M = D^{-1}A$, take its powers $M^1 \\dots M^K$, and return the
+(n, K) array whose column k holds the diagonal of $M^k$ — for each node, the
+probability that a k-step random walk returns to where it started.
 
-**Algorithm (RWSE precompute)** — the spec you are coding against
-(the lecture's Algorithm 1):
+**How you will know it worked:** the asserts in the same cell compare your
+output on the lecture's triangle-with-tail graph against the hand-computed
+table, entry by entry — including the tail node's exact zero at k=3. When
+they all pass, the cell prints "exercise 1 ✓". Every later exercise reuses
+`rwse_diag`, which is why it is verified against numbers a human can check
+by hand.
+
+The algorithm below (the lecture's Algorithm 1) specifies exactly what your
+implementation must do; follow it step by step:
 
 > **Input:** adjacency $A$ ($n \\times n$); walk length $K$.
 > **Output:** $R \\in \\mathbb{R}^{n \\times K}$ with $R[v, k] = (M^k)_{vv}$.
@@ -320,17 +328,31 @@ hold, and it is what makes every later use of `rwse_diag` trustworthy.
 > 8. **return** $R$
 
 **Predict before you run:** what must entry $R[3, k{=}3]$ (the tail node's
-3-step return) be, and what graph fact forces it? Commit before executing."""),
+3-step return) be, and what graph fact forces it? Write down your prediction
+before running the next cell."""),
 
     todo(RWSE_SOL, RWSE_STUB),
 
-    md("""## 2 · The CSL crack  *(exercise 2 · separate the inseparable)*
+    md("""## 2 · The CSL crack  *(exercise 2)*
 
-Week 9's stress pair: $\\mathrm{CSL}(11,2)$ and $\\mathrm{CSL}(11,3)$, both
-4-regular, both vertex-transitive, provably identical to 1-WL and therefore
-to every MPNN. First watch WL fail — the refinement below converges to one
-color per graph, the same color histogram both sides. Then crack the pair
-with the third entry of your own encoding."""),
+This exercise revisits Week 9's stress pair: $\\mathrm{CSL}(11,2)$ and
+$\\mathrm{CSL}(11,3)$ are both 4-regular and vertex-transitive, and 1-WL —
+and therefore every MPNN — provably cannot tell them apart. The next cell
+(provided) runs WL refinement on both graphs so you can watch it fail: it
+converges to one color per graph, with identical color histograms on both
+sides. Run it, then separate the pair yourself in the cell after it.
+
+**What you will implement:** `first_separating_k(Ra, Rb, tol=1e-8)`. Given
+two graphs' RWSE matrices, it must return the smallest k (1-based) at which
+the two graphs' column-k values differ *as multisets* — sort each column
+before comparing, because node order must not matter — or `None` if no
+column separates them.
+
+**How you will know it worked:** the asserts check that every node within
+each CSL graph carries an identical fingerprint (vertex-transitivity), that
+the k=3 return probabilities are 6/64 for CSL(11,2) and exactly 0 for
+CSL(11,3), and that your function reports separation at exactly k=3. When
+they all pass, the cell prints "exercise 2 ✓"."""),
 
     code("""def wl_colors(G, rounds=4):
     col = {v: 0 for v in G}
@@ -351,22 +373,33 @@ print("Now overrule it with a feature the architecture cannot compute:")"""),
 
     todo(SEP_SOL, SEP_STUB),
 
-    md("""## 3 · The ladder, at your budget  *(exercise 3 · wire it in, then measure)*
+    md("""## 3 · The ladder, at your budget  *(exercise 3)*
 
-Two runs under one protocol — MPNN-only, then MPNN+RWSE — at a budget a lab
-can afford (12 epochs full mode, a 2-epoch slice under SMOKE). The lecture's
-100-epoch table is provided below as constants; your claims paragraph will
-compare against it.
+You will now train two models on ZINC under one protocol — MPNN-only, then
+MPNN+RWSE — at a budget a lab session can afford (12 epochs in full mode; a
+2-epoch slice under SMOKE). The lecture's 100-epoch table is provided as
+constants in the harness cell; your claims paragraph will compare your
+12-epoch numbers against it.
 
-First, the wiring: your `rwse_diag`, applied to every molecule, offline
-(Week 11's precompute discipline)."""),
+**What you will implement first:** the body of the loop in `attach_rwse(ds,
+K=16)` in the next cell. For each PyG molecule, build the dense adjacency
+matrix from `d.edge_index` (it already stores both directions), call your
+`rwse_diag`, and store the result as `d.rwse`, a float32 tensor of shape
+(num_nodes, K). This is Week 11's precompute discipline: computed offline,
+once, before training.
+
+**How you will know it worked:** the asserts check the shape, dtype, the
+all-zero k=1 column (molecules have no self-loops), and that every entry is a
+probability in [0, 1]. When they pass, the cell prints "exercise 3a ✓"."""),
 
     todo(ATTACH_SOL, ATTACH_STUB),
 
-    md("""The model and harness are given — your effort goes to the ideas, not the
-training loop (the local channel is a GINE convolution so bond types are
-read; the attention channel and `node_reps` exist for exercise 4; the
-`global_channel` function it calls is *yours to write there*)."""),
+    md("""The next cell is provided — the model and the training harness; there is
+nothing to implement in it. The local channel is a GINE convolution so bond
+types are read; the attention channel and `node_reps` exist for exercise 4.
+Note that the `global_channel` function this model calls does not exist yet:
+you will implement it in exercise 4. That is fine for now — exercise 3's two
+runs use `attn=False` and never call it."""),
 
     code("""class Block(torch.nn.Module):
     \"\"\"One GPS-ish layer: local GINE + (optional) global attention, summed
@@ -457,9 +490,9 @@ TUNED_REF = 0.070  # literature, ~10x schedules + polish — a DIFFERENT budget
 print("harness ready")"""),
 
     md("""**Predict before you run:** the lecture's 100-epoch gap was 0.053 in
-RWSE's favor. At 12 epochs, will the gap be bigger, smaller, or gone —
-and why? (Think about what a cosine schedule has and hasn't done by
-epoch 12.)"""),
+RWSE's favor. At 12 epochs, will the gap be bigger, smaller, or gone — and
+why? (Think about what a cosine schedule has and hasn't done by epoch 12.)
+Write down your prediction before running the next cell."""),
 
     code("""EPOCHS = 2 if SMOKE else 12
 TRAIN = tr_l[:1500] if SMOKE else tr_l
@@ -481,17 +514,34 @@ print("exercise 3 \\u2713 — measured, not asserted into an ordering: at 12 "
       "0.053 gap needed the FULL budget to emerge — budget moves everything, "
       "including ablations. Say this in your claims paragraph.")"""),
 
-    md("""## 4 · The GPS block and its tripwire  *(exercise 4 · build the global channel)*
+    md("""## 4 · The GPS block and its tripwire  *(exercise 4)*
 
-The global channel is four lines — densify, mask, attend, re-flatten — and
-one of those lines is the genre's quietest bug. `to_dense_batch` pads every
-molecule to the batch's largest; attention will happily read the phantom
-atoms unless `key_padding_mask` says otherwise; the model still trains,
-merely worse, and nothing crashes.
+**What you will implement:** `global_channel(block, x, batch,
+sabotage_mask=False)` in the next cell — the global attention channel of the
+GPS block. It is about four lines: call `to_dense_batch(x, batch)` to pad the
+batch into a dense (B, n_max, h) tensor plus a mask, run `block.mha` over it
+with the correct `key_padding_mask`, and re-flatten the result back to
+(num_nodes, h) with `att[mask]`. With `sabotage_mask=True` you deliberately
+pass no padding mask, so the bug can be measured.
 
-**Algorithm (one GraphGPS layer)** — the spec `Block.forward` already
-follows; steps 2–4 are the `global_channel` you write (the lecture's
-Algorithm 2):
+The masking line is the one that carries a famously silent bug:
+`to_dense_batch` pads every molecule up to the batch's largest, and attention
+will happily read those phantom atoms unless `key_padding_mask` tells it not
+to. A model with this bug still trains and nothing crashes — it is just
+quietly worse. Be careful with the convention: `to_dense_batch`'s mask is
+True on REAL nodes, but `key_padding_mask` wants True on PADDING, so you must
+pass the inverted mask `~mask`.
+
+**How you will know it worked:** the harness in the same cell runs one
+molecule alone and then batched next to a much larger molecule. The first
+assert demands that the phantom padding rows do NOT change the small
+molecule's outputs (correct masking); the second flips `sabotage_mask=True`
+and demands the outputs DO change (proving the bug is real and your mask is
+what prevents it). When both pass, the cell prints "exercise 4 ✓".
+
+The algorithm below (the lecture's Algorithm 2) specifies exactly what one
+GraphGPS layer must do. `Block.forward` (provided earlier) already runs steps
+1 and 5–7; your `global_channel` is steps 2–4:
 
 > **Input:** node features $X$; edges $E$ with features; batch assignment.
 > **Output:** updated features $X''$.
@@ -507,20 +557,17 @@ Algorithm 2):
 > 6. $X'' \\leftarrow \\mathrm{LN}(X' + \\mathrm{FFN}(X'))$
 > 7. **return** $X''$
 
-Step 3's inversion is the tripwire: skip it and attention reads phantom
-atoms. The harness below prices the bug: it runs one molecule alone, then
-batched next to a bigger molecule (phantom padding rows appear), and
-demands your real outputs not move; then it flips `sabotage_mask=True` and
-demands they DO move.
-
 **Predict before you run:** roughly how large will the sabotage diff be,
-given outputs are LayerNormed (so O(1) scale)?"""),
+given that outputs are LayerNormed and therefore O(1) in scale? Write down
+your prediction before running the next cell."""),
 
     todo(GLOBAL_SOL, GLOBAL_STUB),
 
-    md("""With the channel correct, train the full hybrid briefly — enough to watch
-the loss fall, not enough to claim a ranking (that discipline is the
-lecture's Figure 4)."""),
+    md("""Now that the channel is correct, run the next (provided) cell: it trains
+the full hybrid for a few epochs — long enough to watch the training loss
+fall, deliberately not long enough to claim a ranking against the other
+models (making that ranking honestly would require the full protocol, which
+is the lecture's Figure 4 point)."""),
 
     code("""GPS_EPOCHS = 2 if SMOKE else 3
 GPS_TRAIN = tr_l[:800] if SMOKE else tr_l[:4000]
@@ -555,13 +602,21 @@ print("exercise 4b \\u2713 — the hybrid trains; ranking it fairly would need "
 
     md("""### Your claims paragraph *(graded — write it in this cell)*
 
-Three claims, cells cited: one about the hand-verified encoding (the exact
-zero, and what quantity the $k{=}3$ entry computes that message passing
-provably cannot); one about the CSL crack (what 1-WL said, what your $k=3$
-column said, and why that is Week 9's Route 2 industrialized); one about
-budgets (your 12-epoch ladder vs the provided 100-epoch table — including
-the honest sentence about what attention did not buy at matched budget, and
-what your near-tie at 12 epochs says about comparing at ONE budget).
+Write three claims in THIS cell, replacing the placeholder below. Each claim
+is 1–2 sentences that state the claim, cite the specific numbers from your
+own cell outputs that support it, and state its scope. The three claims must
+be:
+
+1. About the hand-verified encoding (exercise 1): name the exact zero you
+   reproduced, and say what quantity the $k{=}3$ entry computes that message
+   passing provably cannot.
+2. About the CSL crack (exercise 2): what 1-WL said, what your $k{=}3$ column
+   said, and why this is Week 9's "Route 2" (add features WL cannot compute)
+   made practical.
+3. About budgets (exercise 3): compare your 12-epoch ladder to the provided
+   100-epoch table, say plainly what attention did not buy at the matched
+   budget, and say what your near-tie at 12 epochs implies about ablations
+   run at only ONE budget.
 
 *(your claims here)*
 

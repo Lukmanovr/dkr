@@ -69,8 +69,11 @@ print(f"torch {torch.__version__} · networkx {nx.__version__} — environment O
 
     md("""## 1 · Five importances, one club  *(read and investigate before you write)*
 
-The karate club again — but now we rank it. Before running, **commit to two
-predictions**: Mr. Hi is node 0, the Officer is node 33; they have degrees 16 and 17.
+The karate club again — but now we rank it. There is nothing to implement in this
+section; read the code, then run it. Context for your predictions: Mr. Hi is node 0,
+the Officer is node 33, and they have degrees 16 and 17.
+
+Write down your answers to these two questions before running the next cell:
 
 1. Who wins **betweenness** — the instructor or the president?
 2. Does the **same** member win eigenvector centrality?
@@ -97,12 +100,14 @@ print("the lecture's kite story, on real data.")"""),
 
     md("""## 2 · PageRank from scratch  *(exercise 1 — skill: power iteration)*
 
-Implement the damped update from the lecture,
-$\\mathbf{r} \\leftarrow \\beta M\\mathbf{r} + (1-\\beta)\\tfrac{1}{n}\\mathbf{1}$,
-directly on an (undirected) `networkx` graph: at each step every node keeps
+**What to do:** in the next cell, implement `pagerank(G, beta, iters)` so that it
+returns a dict `{node: rank}` whose values sum to 1, computed by the damped update from
+the lecture, $\\mathbf{r} \\leftarrow \\beta M\\mathbf{r} + (1-\\beta)\\tfrac{1}{n}\\mathbf{1}$,
+directly on an (undirected) `networkx` graph. At each step every node keeps
 $(1-\\beta)/n$ base mass and receives $\\beta \\cdot r_u / d_u$ from each neighbor $u$.
 
-You are coding against a spec — the lecture's Algorithm 1, restated:
+The algorithm below (the lecture's Algorithm 1, restated) specifies exactly what your
+implementation in the next cell must do; follow it step by step.
 
 > **Algorithm · PageRank by power iteration** ([Brin & Page, 1998](https://doi.org/10.1016/S0169-7552(98)00110-X))
 >
@@ -116,9 +121,11 @@ You are coding against a spec — the lecture's Algorithm 1, restated:
 > 6. **end for**
 > 7. **return** $r$
 
-The check is unforgiving on purpose: **six decimals against `networkx`**, which runs
-the same iteration. If you are close-but-not-equal, read the assertion messages — each
-names the usual bug.
+The asserts below the function check your ranks against `networkx` (which runs the same
+iteration) and the tolerance is deliberately strict: your values must match to
+**six decimals**. When the cell prints "exercise 1 ✓" your implementation is correct.
+If you are close but not equal, read the assertion messages — each one names the usual
+bug behind that symptom.
 """),
 
     todo("""def pagerank(G: nx.Graph, beta: float = 0.85, iters: int = 200) -> dict:
@@ -179,9 +186,15 @@ print(f"top-3: {sorted(pr, key=pr.get, reverse=True)[:3]} — the two leaders, t
 
     md("""## 3 · Triangles by matrix power  *(exercise 2 — skill: A³ and clustering)*
 
-The lecture proved $(\\mathbf{A}^3)[u,u] = 2\\,\\times$ triangles at $u$. Use it:
-compute every node's local clustering coefficient from a dense $\\mathbf{A}$ and match
-`nx.clustering` exactly. The factor of 2 is yours to place correctly.
+The lecture proved $(\\mathbf{A}^3)[u,u] = 2\\,\\times$ the number of triangles at $u$.
+Now you use that fact.
+
+**What to do:** in the next cell, implement `clustering_from_A(G)` so that it returns a
+dict mapping every node to its local clustering coefficient, computed from a dense
+adjacency matrix via the diagonal of $\\mathbf{A}^3$ (nodes with degree < 2 get 0 by
+convention). You must place the factor of 2 correctly yourself. The assert compares
+every value against `nx.clustering` exactly; when the cell prints "exercise 2 ✓" your
+implementation is correct.
 """),
 
     todo("""def clustering_from_A(G: nx.Graph) -> dict:
@@ -233,13 +246,16 @@ print(f"most clustered members: {sorted(cc, key=cc.get, reverse=True)[:3]} "
 
     md("""## 4 · Modularity, from the definition  *(exercise 3 — skill: Q and its null model)*
 
-Implement $Q = \\sum_c \\left[ e_c/m - (D_c/2m)^2 \\right]$ and check it three ways:
-the two pencil values from the lecture's cast graph, then `networkx` on an arbitrary
-partition. Note the lecture values are the exact fractions $6/49$ and $10/49$.
+**What to do:** in the next cell, implement `modularity(G, communities)` so that it
+returns $Q = \\sum_c \\left[ e_c/m - (D_c/2m)^2 \\right]$ for a partition given as an
+iterable of node-sets. The asserts check it three ways: against the two pencil values
+from the lecture's cast graph (the exact fractions $6/49$ and $10/49$), and against
+`networkx` on an arbitrary partition. When the cell prints "exercise 3 ✓" all three
+checks have passed.
 
 **Predict before you run:** the lecture's worked example moved hub $C$ across the cut
-without changing the cut size, and $Q$ *rose*. Re-derive in one sentence why, before
-the assertions check your memory.
+without changing the cut size, and $Q$ *rose*. Write down, in one sentence, why that
+happened — before running the next cell and letting the assertions check your memory.
 """),
 
     todo("""CAST = nx.Graph([(0, 1), (0, 2), (0, 3), (1, 2), (2, 4), (2, 5), (4, 5)])  # A..F = 0..5
@@ -306,9 +322,11 @@ print(f"exercise 3 ✓ — Q(ABCD|EF) = {q1:.6f}, Q(ABD|CEF) = {q2:.6f}: moving 
 
     md("""### Louvain on the club — algorithm meets 1977
 
-Now the real thing (provided — you implemented its objective, the library does the
-moves + aggregation). We score the found communities against reality with the adjusted
-Rand index, where 0 ≈ random agreement and 1 = identical partitions.
+Now the real algorithm. There is nothing to implement here — the next cell is provided;
+read it and run it. You implemented Louvain's objective ($Q$); the library performs the
+greedy moves and aggregation. The cell scores the communities Louvain finds against the
+real 1977 split using the adjusted Rand index, where 0 means roughly random agreement
+and 1 means identical partitions.
 """),
 
     code("""louvain = nx.community.louvain_communities(G, seed=SEED, weight=None)
@@ -334,10 +352,15 @@ print("politics; the friendship structure itself has more texture. Both are real
 
     md("""## 5 · One eigenvector against reality  *(exercise 4 — skill: spectral bisection)*
 
-The lecture's Fiedler figure, reproduced by you: build the Laplacian, take the
-eigenvector of the **second-smallest** eigenvalue, threshold at zero, and count how
-many of the 34 members land on their true side. The lecture told you the answer; the
-assertion holds you to it.
+Now you reproduce the lecture's Fiedler figure yourself.
+
+**What to do:** in the next cell, implement `fiedler_split(G)` so that it builds the
+Laplacian of the club as a numpy array, takes the eigenvector of the
+**second-smallest** eigenvalue, splits the members by the sign of their entry, and
+returns the tuple `(agreement_count, predicted_sides_dict)` — where `agreement_count`
+counts how many of the 34 members land on their true side, scored under the better of
+the two sign alignments (the eigenvector's global sign is arbitrary). The lecture told
+you the answer is 32; the assertion holds you to it, and "exercise 4 ✓" confirms it.
 """),
 
     todo("""def fiedler_split(G: nx.Graph):
@@ -386,13 +409,17 @@ print("the two misses are boundary members 2 and 8 — exactly where a smooth si
 
     md("""## 6 · The 1968 trick  *(exercise 5 — skill: WL color refinement)*
 
-Implement one refinement round: every node's new color is determined by
-*(its color, the multiset of its neighbors' colors)*. The `table` dict is the "hash":
-it assigns a fresh integer id to each signature it has never seen — **shared across
-graphs**, so two graphs processed with the same table get comparable colors.
+**What to do:** in the next cell, implement `wl_refine(G, colors, table, round_id)` so
+that it performs one refinement round and returns the new `{node: color_id}` dict.
+Every node's new color is determined by the pair *(its own color, the sorted multiset
+of its neighbors' colors)*. The `table` dict is the "hash": it assigns a fresh integer
+id to each signature it has never seen, and it is **shared across graphs**, so two
+graphs processed with the same table get comparable colors.
 
-The spec — the lecture's Algorithm 2, restated
-([Weisfeiler & Leman, 1968](https://www.iti.zcu.cz/wl2018/pdf/wl_paper_translation.pdf)):
+The algorithm below (the lecture's Algorithm 2, restated from
+[Weisfeiler & Leman, 1968](https://www.iti.zcu.cz/wl2018/pdf/wl_paper_translation.pdf))
+specifies exactly what your implementation in the next cell must do; follow it step by
+step.
 
 > **Algorithm · WL color refinement**
 >
@@ -406,10 +433,11 @@ The spec — the lecture's Algorithm 2, restated
 > 6. **end for**
 > 7. **return** the counter of colors from rounds $0 \\ldots h$
 
-Exercise 5 implements one round (lines 3–4); the provided `wl_histogram` wraps it into
-the full loop. Then the two verdicts from the lecture, now yours to reproduce: the
-path–star pair is distinguished in one round; the two-triangles–hexagon pair is never
-distinguished at all.
+Your `wl_refine` implements one round (lines 3–4); the provided `wl_histogram` wraps it
+into the full loop. The asserts then reproduce the two verdicts from the lecture: the
+path–star pair must be distinguished after one round, and the two-triangles–hexagon
+pair must never be distinguished at all. When the cell prints "exercise 5 ✓" both
+verdicts hold.
 """),
 
     todo("""def wl_refine(G: nx.Graph, colors: dict, table: dict, round_id: int) -> dict:
@@ -512,10 +540,16 @@ print("hold the rings result until Week 9: GNNs inherit exactly this blindness")
 The lecture promised a measurement; now you produce it — in two stages, and the first
 stage is designed to *disappoint you in an instructive way*.
 
-**Stage 1.** Compute **seven structural statistics per node** of Cora — degree,
-clustering, triangles, PageRank, core number, two neighbor-degree summaries — and train
-logistic regression on the standard 140-node split. **Predict before you run:** papers
-have 7 topics, so chance is ≈ 14%. Where does structure-statistics-only land — near 20%,
+**Stage 1 — what to do:** in the next cell, implement `structure_features(G)` so that
+it returns an `(n, 7)` numpy matrix with one row per node (in node order 0..n−1) and
+these seven columns: degree, clustering coefficient, triangle count, PageRank, core
+number, average neighbor degree, and max neighbor degree. The provided code below the
+function then trains logistic regression on the standard 140-node split; the asserts
+check the matrix shape and that the resulting accuracy lands in the expected band, and
+"exercise 6 ✓" is printed by the Stage 2 cell once both stages have run.
+
+**Predict before you run:** papers have 7 topics, so chance is ≈ 14%. Write down your
+prediction before running the next cell — does structure-statistics-only land near 20%,
 40%, or 60%?
 """ ),
 
@@ -610,8 +644,9 @@ print("almost nothing to do with its importance. Statistics are topic-blind.")""
 
 Topic does live in the graph — via homophily: papers cite their own field, so a paper's
 **position** (which citation cluster it sits in) is informative even though its
-statistics are not. Add your Louvain communities as one-hot features and re-run
-(provided):
+statistics are not. There is nothing to implement here: the next cell is provided —
+read it and run it. It adds Louvain communities as one-hot features, re-trains the same
+classifier, and prints "exercise 6 ✓" with the semester's structure-only baseline.
 """),
 
     code("""comms = nx.community.louvain_communities(Gc, seed=SEED)
@@ -636,8 +671,9 @@ print("and Week 6's GCN — which also reads the papers' words — reaches ~81%.
 
     md("""## 8 · WL features classify real molecules  *(provided — read, run, and note the year)*
 
-Your `wl_histogram` from exercise 5, pointed at PROTEINS: 1,113 real protein graphs,
-task "is this an enzyme?". This is the
+Nothing to implement here — read the next cell, then run it. It points your
+`wl_histogram` from exercise 5 at PROTEINS: 1,113 real protein graphs, with the task
+"is this an enzyme?". This is the
 [2011 state of the art](https://jmlr.org/papers/v12/shervashidze11a.html) — built
 from a 1968 algorithm — and it remains a strong baseline today. (Under CI SMOKE we subsample; the
 dataset server is external, so this cell degrades gracefully if it is unreachable.)

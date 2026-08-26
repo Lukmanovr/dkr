@@ -226,30 +226,59 @@ N_U, N_I = int(raw[:, 0].max()) + 1, int(raw[:, 1].max()) + 1
 print(f"{len(raw)} interactions \\u00b7 {N_U} users \\u00b7 {N_I} items "
       f"\\u00b7 device {DEV} \\u00b7 SMOKE={SMOKE}")"""),
 
-    md("""## 1 · The wall and its auditor  *(exercise 1 · build deployment's contract)*
+    md("""## 1 · The temporal wall and its auditor  *(exercise 1)*
 
 A random split asks "can you interpolate a known past?"; deployment asks
 "can you extrapolate into an unknown future?". The global temporal split is
 the only protocol here that matches the deployed question — and its virtue
-is that the contract is one assert: every train timestamp precedes every
-test timestamp.
+is that its no-leakage contract can be checked with one assert: every train
+timestamp precedes every test timestamp.
+
+**What you will implement:** `make_temporal_split(raw)` in the next cell. It
+must sort the interactions by timestamp (a stable sort), cut them into
+train/val/test at the 80% and 90% marks, and then drop any val or test row
+whose user OR item never appears in train (cold-start rows are excluded and
+counted, never silently kept). It returns the three integer arrays of
+(user, item, rating, timestamp) rows.
+
+**How you will know it worked:** the auditor asserts in the same cell check
+that the wall holds (all train timestamps ≤ all val timestamps ≤ all test
+timestamps) and that the sizes match the lecture exactly — 80000/1519/1344
+rows and 66 surviving test users. When they pass, the cell prints
+"exercise 1 ✓".
 
 **Predict before you run:** 943 users have interactions. Roughly how many
 will still be *evaluable* after an 80% time wall (they need train history
-AND post-wall interactions on train-seen items)? Commit to a number."""),
+AND post-wall interactions on train-seen items)? Write down your number
+before running the next cell."""),
 
     todo(SPLIT_SOL, SPLIT_STUB),
 
-    md("""## 2 · LightGCN's propagation  *(exercise 2 · reproduce the widget)*
+    md("""## 2 · LightGCN's propagation  *(exercise 2)*
 
-The model is three deletions and one mean. Before trusting it with 100,000
-interactions, make it reproduce the lecture widget's hand numbers on the
-7-node toy graph — ground truth a human can hold (the normalized adjacency
-builder is given; the propagation is yours).
+LightGCN is a GCN with the feature transforms, nonlinearity, and self-loops
+all deleted: what remains is degree-normalized propagation plus a mean over
+layers. Before trusting your implementation with 100,000 interactions, you
+will make it reproduce the lecture widget's hand-computed numbers on a
+7-node toy graph — ground truth a human can verify.
 
-**Algorithm — LightGCN propagation with layer-mean readout** (the spec
-`propagate` implements; the lecture's Algorithm "LightGCN with BPR",
-inner loop):
+**What you will implement:** `propagate(P0, Q0, K)` two cells below (the
+next cell provides `build_norm_adj`, the normalized-adjacency builder; run
+it first). Given user and item embedding tables, `propagate` must run K
+rounds of bipartite propagation with the sparse operators `A_ui` and `A_iu`,
+then return the layer-MEAN readout `(P_final, Q_final)` together with the
+list of per-layer pairs, so the asserts can watch the signal spread layer by
+layer.
+
+**How you will know it worked:** the asserts trace one unit of signal placed
+on user u1 through the toy graph and require the exact hand values — u2
+holds 0.250 of it at K=2, u3 hears nothing until K=4 and then holds exactly
+0.0625 — plus the layer-mean readout including the k=0 term. When they pass,
+the cell prints "exercise 2 ✓".
+
+The algorithm below specifies exactly what your `propagate` implementation
+must do (it is the inner loop of the lecture's "LightGCN with BPR"
+algorithm); follow it step by step:
 
 **Input:** tables $P^{(0)}$ (users), $Q^{(0)}$ (items); sparse operators
 `A_ui`, `A_iu`; depth $K$.
@@ -280,18 +309,28 @@ print("builder ready — now make it move signal")"""),
 
     todo(PROP_SOL, PROP_STUB),
 
-    md("""## 3 · BPR and the ladder  *(exercise 3 · train what you derived)*
+    md("""## 3 · BPR and the ladder  *(exercise 3)*
 
-The loss first — with the hand-checkable tie point (a model that cannot
-tell positive from negative sits at exactly log 2). Then the harness (given:
-training loop, early stopping on validation Recall@20, the ranking
-evaluator that masks train items) runs your propagation and your loss at
-K=0 and K=3, with the one-line popularity baseline computed alongside,
-because the lecture said always.
+**What you will implement:** `bpr_loss(pu, qi, qj)` in the next cell — the
+Bayesian Personalized Ranking loss. Given batched embeddings for a user, an
+observed (positive) item, and a sampled (negative) item, compute the score
+difference `(pu * (qi - qj)).sum(1)` and return the mean of
+`-log sigmoid(difference)`. It is about two lines.
 
-**Algorithm — one BPR training epoch** (the outer loop of the lecture's
-Algorithm "LightGCN with BPR"; the given `train_lightgcn` runs it around
-your `bpr_loss`):
+**How you will know it worked:** the asserts check three hand-verifiable
+values — a confidently correct ordering gives a near-zero loss, a
+confidently wrong one is punished hard, and when positive and negative tie
+the loss is exactly log 2 ≈ 0.6931 (the "model knows nothing" point, worth
+recognizing on sight). When they pass, the cell prints "exercise 3a ✓".
+
+After that, the cell following it is provided: a training harness with the
+BPR loop, early stopping on validation Recall@20, and a ranking evaluator
+that masks train items. It runs YOUR `propagate` and YOUR `bpr_loss` at K=0
+and at K=3, and also computes the one-line popularity baseline, because the
+lecture's rule is: always run the baseline.
+
+The algorithm below is the outer loop of the lecture's "LightGCN with BPR"
+algorithm; the provided `train_lightgcn` runs it around your `bpr_loss`:
 
 **Input:** train pairs $T$; tables $P^{(0)}, Q^{(0)}$; depth $K$; L2
 strength $\\lambda$.
@@ -372,7 +411,8 @@ print(f"popularity R@20 (temporal): {pop_r:.4f} — remember this number")"""),
     md("""**Predict before you run:** the lecture's full-budget ladder put K=0 at
 0.156 — *below* popularity — and K=3 at 0.195. Will your run (same seed,
 same protocol) land in those neighborhoods? Which side of popularity will
-YOUR K=0 fall on?"""),
+YOUR K=0 fall on? Write down your prediction before running the next
+cell."""),
 
     code("""sc0 = train_lightgcn(tr, va, 0, "LightGCN K=0 (= BPR-MF)")
 r0 = eval_ranking(sc0, tr, te)
@@ -400,14 +440,18 @@ else:
     )
 print("exercise 3 \\u2713 — the ladder, on the honest split, with the baseline watching")"""),
 
-    md("""## 4 · The inflation experiment  *(exercise 4 · measure the protocol lie)*
+    md("""## 4 · The inflation experiment  *(exercise 4)*
 
-The week's signature number. Train the SAME K=3 model with the SAME budget
-on a RANDOM 80/10/10 split of the SAME data, and divide. The lecture
-measured ×1.77; your asserts demand > 1.4 so hardware and seed noise
-cannot rescue a leaky protocol.
+This exercise measures how much a leaky protocol inflates a result. Nothing
+to implement: the next cell (provided) trains the SAME K=3 model with the
+SAME budget on a RANDOM 80/10/10 split of the SAME data, then divides the
+random-split Recall@20 by your temporal-split Recall@20 from exercise 3.
+The lecture measured an inflation of ×1.77; the assert demands your ratio
+exceed 1.4, a margin wide enough that hardware and seed noise cannot rescue
+a leaky protocol. When it passes, the cell prints "exercise 4 ✓".
 
-**Predict before you run:** write down your expected ratio first."""),
+**Predict before you run:** write down your expected inflation ratio before
+running the next cell."""),
 
     code("""rng = np.random.default_rng(0)
 perm = rng.permutation(len(raw))
@@ -439,13 +483,19 @@ print("exercise 4 \\u2713 — same model, same data, same budget: the number "
 
     md("""### Your claims paragraph *(graded — write it in this cell)*
 
-Three claims, cells cited: the **popularity sentence** (your pop vs K=0
-numbers, and what mechanism lets a sorted list beat trained
-personalization on a temporal split); the **co-consumption sentence**
-(your exercise-2 masses — who hears whom at which K — and how the ladder's
-K=0 → K=3 gain is that mechanism at scale); the **protocol sentence**
-(your measured inflation, and which of your two numbers deployment would
-actually deliver).
+Write three claims in THIS cell, replacing the placeholder below. Each claim
+is 1–2 sentences that state the claim, cite the specific numbers from your
+own cell outputs that support it, and state its scope. The three claims must
+be:
+
+1. **Popularity:** cite your popularity and K=0 numbers from exercise 3, and
+   explain what mechanism lets a sorted list beat trained personalization on
+   a temporal split.
+2. **Co-consumption:** cite your exercise-2 propagation masses (who hears
+   whom at which K), and explain how the ladder's K=0 → K=3 gain is that
+   same mechanism operating at scale.
+3. **Protocol:** cite your measured inflation ratio from exercise 4, and say
+   which of your two K=3 numbers deployment would actually deliver.
 
 *(your claims here)*
 

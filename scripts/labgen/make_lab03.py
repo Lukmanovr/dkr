@@ -72,8 +72,18 @@ print(f"torch {torch.__version__} · networkx {nx.__version__} — environment O
 
     md("""## 1 · Walks  *(exercise 1 — skill: the corpus generator)*
 
-The "sentences". Exercises 1 and 2 together implement the lecture's Algorithm 1 — code
-against this spec, not a vibe:
+Random walks are the "sentences" of DeepWalk's corpus, and this section generates them.
+
+**What to do:** in the next cell, implement `random_walks(G, num_walks, length, seed)`
+so that it returns a list of walks (each a list of nodes): `num_walks` walks of
+`length` nodes starting from *every* node of `G`, taking uniformly random neighbor
+steps, all driven by a single `random.Random(seed)`. Iterate rounds in the outer loop
+and start nodes in `sorted(G)` order in the inner loop. The asserts check the walk
+count, walk validity, and exact reproducibility; "exercise 1 ✓" means all of them pass.
+
+Exercises 1 and 2 together implement the lecture's Algorithm 1. The algorithm below
+specifies exactly what your implementations must do; follow it step by step —
+exercise 1 is steps 1–4, exercise 2 is step 5.
 
 > **Algorithm · Walk corpus → skip-gram pairs** (DeepWalk)
 >
@@ -87,10 +97,10 @@ against this spec, not a vibe:
 > 5. **for** each walk in $W$, each position $i$, each $j \\neq i$ with $|i-j| \\le w$: add $(\\text{walk}_i, \\text{walk}_j)$ to $\\mathcal{D}$
 > 6. **return** $\\mathcal{D}$ — exactly $|V| \\cdot \\gamma \\cdot (2wK - w(w{+}1))$ pairs when no walk ends early
 
-Exercise 1 is steps 1–4 ($\\gamma$ = `num_walks`, $K$ = `length`); exercise 2 is step 5.
-The determinism contract (one `random.Random(seed)` driving everything, nodes iterated
-in sorted order) is part of the exercise, because reproducible corpora are what make
-every later assert possible.
+In the algorithm, $\\gamma$ is `num_walks` and $K$ is `length`. The determinism
+contract (one `random.Random(seed)` driving everything, nodes iterated in sorted order)
+is part of the exercise, because reproducible corpora are what make every later assert
+possible.
 """),
 
     todo("""CAST = nx.Graph([(0, 1), (0, 2), (0, 3), (1, 2), (2, 4), (2, 5), (4, 5)])  # A..F = 0..5
@@ -155,8 +165,13 @@ print("exercise 1 ✓ — deterministic corpus:", len(walks), "walks; first walk
 
     md("""## 2 · Windows  *(exercise 2 — skill: pairs, checked against the lecture)*
 
-Slide the window, emit (center, context) pairs. The first assert is the lecture's Q2
-example — if you did that self-check, you already know the answer by hand.
+**What to do:** in the next cell, implement `skipgram_pairs(walks, window)` so that it
+slides a window over every walk and returns all (center, context) pairs with
+$1 \\le |i - j| \\le w$, in reading order (center position ascending, then context
+position ascending), with no self-pairs and no wrap-around. This is step 5 of the
+algorithm above. The first assert is the lecture's Q2 example — if you did that
+self-check, you already know the answer by hand; the second checks the exact pair-count
+formula. "exercise 2 ✓" means both pass.
 """),
 
     todo("""def skipgram_pairs(walks: list, window: int) -> list:
@@ -207,11 +222,20 @@ print(f"exercise 2 ✓ — {n_pairs} pairs from 24 walks; the formula 2wK − w(
 
     md("""## 3 · The SGNS loss  *(exercise 3 — skill: the lecture's formula, in torch)*
 
-Two tables (center and context, as word2vec really has), $k$ negatives per pair, and
-the loss you derived:
-$-\\left[\\log\\sigma(\\mathbf{z}_u\\!\\cdot\\!\\mathbf{z}'_v) + \\sum_k \\log\\sigma(-\\mathbf{z}_u\\!\\cdot\\!\\mathbf{z}'_{n_k})\\right]$.
-Your loss plus one optimizer step is the lecture's Algorithm 2 — autograd computes the
-pulls and pushes the spec writes out by hand:
+The model keeps two embedding tables (center and context, as word2vec really has) and
+draws $k$ negatives per pair.
+
+**What to do:** in the next cell, implement `sgns_loss(z_u, z_v, z_neg)` so that it
+returns the mean of the loss you derived in lecture,
+$-\\left[\\log\\sigma(\\mathbf{z}_u\\!\\cdot\\!\\mathbf{z}'_v) + \\sum_k \\log\\sigma(-\\mathbf{z}_u\\!\\cdot\\!\\mathbf{z}'_{n_k})\\right]$,
+as a scalar to minimize. The surrounding `train_sgns` (provided) supplies the batching
+and optimizer; the asserts check that your loss is finite on extreme scores, positive,
+decreasing during training, and that the trained embeddings separate the club's
+factions. "exercise 3 ✓" means all checks pass.
+
+Your loss plus one optimizer step is the lecture's Algorithm 2. The algorithm below
+spells out exactly what one update must accomplish — autograd computes the pulls and
+pushes that the spec writes out by hand:
 
 > **Algorithm · One SGNS update** ([Mikolov et al., 2013](https://arxiv.org/abs/1310.4546))
 >
@@ -355,7 +379,10 @@ assert sep >= 30, (
 )
 print(f"exercise 3 ✓ — loss {losses[0]:.3f} → {losses[-1]:.3f}, faction separation {sep}/34")"""),
 
-    md("""### See it *(provided — the lecture's Figure 3, from your own training run)*"""),
+    md("""### See it *(provided — the lecture's Figure 3, from your own training run)*
+
+Nothing to implement here — just run the next cell to plot your trained embeddings.
+"""),
 
     code("""from sklearn.decomposition import PCA
 
@@ -372,13 +399,21 @@ print("compare with the lecture's widget: same algorithm, same graph, same geome
 
     md("""## 4 · Scale it to Cora  *(exercise 4 — skill: your pipeline, for real)*
 
-No new algorithms — wire YOUR three functions together at Cora scale. The count assert
-is exact because the pair formula is exact: for walks of length 20 with window 5, each
-walk emits $2wK − w(w{+}1) = 170$ pairs.
+There are no new algorithms in this section — you wire your own functions together at
+Cora scale.
+
+**What to do:** in the next cell, implement `cora_pairs()` so that it builds the Cora
+skip-gram corpus by composing your `random_walks` and `skipgram_pairs` from exercises
+1 and 2, using the module-level `NUM_WALKS`, `LENGTH`, `WINDOW` and `seed=1`. The rest
+of the cell (provided) trains SGNS on your corpus and probes the embeddings with
+logistic regression. The count assert is exact because the pair formula is exact: for
+walks of length 20 with window 5, each walk emits $2wK − w(w{+}1) = 170$ pairs. When
+the cell prints "exercise 4 ✓" both the corpus and the accuracy check passed.
 
 **Predict before you run:** Lab 2's best structure-only number was 61.7% (statistics +
-community one-hots). Learned 64-d walk embeddings, same classifier — higher or lower,
-and by how much?
+community one-hots). Write down your prediction before running the next cell: will
+learned 64-d walk embeddings with the same classifier score higher or lower, and by
+how much?
 """),
 
     todo("""from torch_geometric.datasets import Planetoid
@@ -489,7 +524,14 @@ pairs by dot product:
 - **clean** — embeddings retrained by the same recipe on the graph *with test edges
   removed*.
 
-**Predict before you run:** which AUC is higher, and by roughly how much?
+**What to do:** in the next cell, implement `dot_auc(Z, pairs, labels)` so that it
+scores every pair `(u, v)` with the dot product `Z[u] @ Z[v]` and returns the ROC AUC
+of those scores against the labels. The provided code around it builds the edge split,
+runs both contestants through your function, and asserts that the leaky AUC is clearly
+inflated while the clean AUC still beats chance; "exercise 5 ✓" confirms both.
+
+**Predict before you run:** write down which AUC you expect to be higher, and by
+roughly how much, before running the next cell.
 """),
 
     todo("""split_rng = random.Random(7)
@@ -583,7 +625,10 @@ assert auc_clean > 0.55, (
 )
 print("exercise 5 ✓ — never let your walks see the test set")"""),
 
-    md("""### The t-SNE ritual *(provided — enjoy it, then read Pitfall 4 again)*"""),
+    md("""### The t-SNE ritual *(provided — enjoy it, then read Pitfall 4 again)*
+
+Nothing to implement here — just run the next cell.
+"""),
 
     code("""if SMOKE:
     print("SMOKE: skipping t-SNE (slow); the PCA in section 3 covers the smoke path")

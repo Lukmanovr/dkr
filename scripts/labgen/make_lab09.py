@@ -71,9 +71,18 @@ P5P2 = nx.disjoint_union(nx.path_graph(5), nx.path_graph(2))"""),
 
     md("""## 1 · WL refinement, from scratch  *(exercise 1 — the measuring stick)*
 
-The definition from the lecture, as ~10 lines of Python. The one subtlety the
-asserts will catch if you miss it: the color table must be **shared across both
-graphs** — a fresh color means "a signature never seen in either graph".
+You now turn the lecture's WL definition into roughly ten lines of Python.
+
+**What to do:** in the next cell, implement `wl_histograms(G1, G2, rounds)` so that it
+runs `rounds` rounds of WL refinement on both graphs with a **shared** color table and
+returns the pair `(hist1, hist2)`, each a dict mapping color to class size at the final
+round. The one subtlety the asserts will catch if you miss it: because a fresh color
+means "a signature never seen in either graph", the table must span both graphs. The
+provided `wl_blind` wraps your function; the asserts reproduce every verdict from the
+lecture's blind pairs, and "exercise 1 ✓" confirms them.
+
+The algorithm below specifies exactly what your implementation in the next cell must
+do; follow it step by step.
 
 > **Algorithm · WL comparison with a shared color table**
 >
@@ -188,7 +197,15 @@ print("exercise 1 ✓ — blind where the lecture said blind, sharp exactly at r
 
 The theorem says: same WL histograms ⇒ same pooled embedding, *for every setting
 of the weights*. So we do not train — we draw random weights once and check both
-directions. Implement one GIN layer in numpy; the MLP weights are provided.
+directions.
+
+**What to do:** in the next cell, implement two functions using the provided MLP
+weights. `gin_layer(X, A)` must compute one GIN layer,
+`MLP((1 + EPS) * X + A @ X)` with `MLP(z) = tanh(z W1) W2`. `gin_readout(G, layers)`
+must build the dense adjacency (with `weight=None`), start from all-ones `(n, 8)`
+features, apply `layers` GIN layers, and sum-pool over nodes into one vector. The
+asserts check both directions of the theorem — WL-blind pairs give *identical*
+readouts, a WL-splittable pair splits — and "exercise 2 ✓" confirms them.
 """),
 
     todo("""rng = np.random.default_rng(9)
@@ -275,9 +292,14 @@ print("   no training happened. The ceiling is a property of the ARCHITECTURE.")
     md("""## 3 · Augmentations on trial  *(exercise 3 — the honesty test)*
 
 An augmentation must pass two tests at once: **separate** genuinely different
-graphs, and **spare** two relabeled copies of the same graph. Implement per-node
-triangle counts; the trial harness (provided) then runs your feature and two
-rivals through both tests.
+graphs, and **spare** two relabeled copies of the same graph.
+
+**What to do:** in the next cell, implement `triangle_counts(G)` so that it returns a
+dict mapping each node to the number of triangles through it (count adjacent neighbor
+pairs, or use $\\mathrm{diag}(A^3)/2$). The trial harness `wl_blind_with_features` is
+provided; it runs your feature and two rivals (plain degree, random IDs) through both
+tests. The asserts check the expected verdict for every feature–test combination, and
+"exercise 3 ✓" confirms them all.
 """),
 
     todo("""HEX_RELABELED = nx.relabel_nodes(HEX, {v: (5 * v + 2) % 6 for v in HEX})
@@ -384,14 +406,24 @@ print("exercise 3 ✓ — structural features: power without lies; random IDs: p
 
     md("""## 4 · The CSL stress test  *(exercise 4 — cracking a 4-regular safe)*
 
-$\\mathrm{CSL}(11, s)$: 11 nodes in a ring, edges to distance 1 and distance
-$s$. Build the family, verify the lecture's three claims, then crack the pair
-with the random-walk return probabilities you can also compute by hand
-($6/64$ vs $0$ at three steps — count the triangles).
+$\\mathrm{CSL}(11, s)$ is the graph with 11 nodes in a ring and edges to distance 1
+and distance $s$. The `csl` builder is provided; the asserts verify the lecture's
+three claims (4-regular, WL-blind, non-isomorphic) and then crack the pair.
+
+**What to do:** in the next cell, implement `rw_return_probs(G, kmax)` so that it
+returns a `(kmax, n)` array whose entry `[k-1, i]` is the probability that a k-step
+uniform random walk starting at node `i` ends back at node `i`: row-normalize the
+adjacency, take successive powers, and read the diagonal. You can check the key value
+by hand — $6/64$ vs $0$ at three steps, by counting triangles. The asserts verify
+those values and that the resulting features crack the WL-blind pair honestly;
+"exercise 4 ✓" confirms it.
 
 One term the asserts use: CSL graphs are **vertex-transitive** — some symmetry
 of the graph maps any node to any other, so every node "looks the same" and WL
 can never split the node set.
+
+The algorithm below specifies exactly what your implementation in the next cell must
+do; follow it step by step.
 
 > **Algorithm · Random-walk return features (RWPE)**
 >
@@ -493,9 +525,16 @@ print(f"exercise 4 ✓ — return probs {r2[2, 0]:.4f} vs {r3[2, 0]:.4f}: the sa
 
     md("""## 5 · Oversquashing, to the decimal  *(exercise 5 — the second wall)*
 
-The barbell: two 5-cliques joined by a 2-node path. Influence after $K$ layers is
-the entry $(\\hat A^K)_{uv}$ — build it (HW2's `build_ahat`, new graph) and
-reproduce the lecture's 290× crush and 25× one-edge rescue.
+The barbell graph is two 5-cliques joined by a 2-node path. Influence after $K$
+layers is the entry $(\\hat A^K)_{uv}$.
+
+**What to do:** in the next cell, implement `sensitivity(G, K)` so that it returns the
+$(n, n)$ matrix of K-step influences: build
+$\\hat{A} = \\tilde{D}^{-1/2}(A + I)\\tilde{D}^{-1/2}$ from the *unweighted* adjacency
+(the same construction as HW2's `build_ahat`, on a new graph) and raise it to the K-th
+power. The asserts then reproduce the lecture's numbers — the 290× sensitivity crush
+across the bridge and the 25× rescue from adding one edge; "exercise 5 ✓" confirms
+them to the decimal.
 """),
 
     todo("""BARBELL = nx.barbell_graph(5, 2)      # nodes 0-4 clique · 5,6 path · 7-11 clique

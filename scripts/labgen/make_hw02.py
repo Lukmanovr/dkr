@@ -184,10 +184,22 @@ variants run the same checks with different numbers.
 
 ### B1 (20 pts) · Query2box-lite — reasoning as geometry
 
-The toy KG below places 10 biomedical entities in 2-D by hand. Relations act on
-*boxes*: translate the center, then widen. Implement the three box operations;
-the asserts then answer a real two-hop conjunctive query with them:
-*"proteins targeted by drugs that treat Inflammation AND Pain."*
+The toy KG in the exercise cell places 10 biomedical entities in 2-D by hand,
+and relations act on *boxes*: translate the center, then widen the half-size.
+
+**What you will implement**, in the exercise cell:
+
+1. `translate(box, rel)` — apply a relation to a box: add the relation's
+   translation vector to the center and its widening vector to the half-size.
+2. `intersect(box1, box2)` — the per-dimension intersection [max(lo), min(hi)],
+   returned as (center, half); return `None` if it is empty in any dimension.
+3. `inside(box, p)` — whether point `p` lies inside the closed box.
+
+**How you will know it worked:** the asserts use your three functions to answer
+a real two-hop conjunctive query — *"proteins targeted by drugs that treat
+Inflammation AND Pain"* — checking the answer set at every stage, including
+that a genuinely empty intersection is reported as `None` rather than faked.
+When they all pass, the cell prints "B1 ✓".
 """ ),
 
     md("""#### The spec for B1
@@ -196,7 +208,8 @@ You are coding against the lecture's Query2box procedure
 ([Ren et al., 2020](https://arxiv.org/abs/2002.05969)), in the hand-set 2-D form
 this exercise uses: relations act on boxes, conjunction is intersection, and the
 answer set is whatever lies inside the final box (exact membership stands in for
-the paper's soft box-distance ranking).
+the paper's soft box-distance ranking). The algorithm below specifies exactly
+what your implementations must do; follow it step by step.
 
 **Algorithm 1 · Query2box-lite on a hand-set KG**
 
@@ -368,10 +381,24 @@ print("B1 ✓ — a 2-hop conjunctive query answered by translate → intersect 
 
     md("""### B2 (20 pts) · Oversmoothing, predicted then measured
 
-Your A2 proof says the contraction rate of plain propagation is the second
-eigenvalue. Here you *measure* it on the karate club and check the theory to two
-decimal places. Implement `build_ahat` and `contraction_rate`; the asserts
-compare your measured rate against the spectrum numpy computes.
+Your A2 proof says the contraction rate of plain propagation is the magnitude
+of the second eigenvalue. Here you *measure* that rate on the karate club graph
+and check the theory to two decimal places.
+
+**What you will implement**, in the exercise cell:
+
+1. `build_ahat(G)` — the dense normalized propagation operator
+   $\\tilde D^{-1/2}(A+I)\\tilde D^{-1/2}$ as a numpy matrix, built from the
+   UNWEIGHTED adjacency (pass `weight=None`; the karate club's edges carry
+   weights that must be ignored).
+2. `contraction_rate(Ahat, x0, K=40)` — propagate `x0` for K steps, subtract
+   the projection onto the dominant eigenvector (the component that never
+   decays), and return the per-step shrink factor of what remains.
+
+**How you will know it worked:** the asserts check the operator's shape,
+symmetry, and one hand-computable entry, then compare your measured rate
+against $|\\lambda_2|$ computed independently by numpy — the two must agree to
+about two decimals. When they pass, the cell prints "B2 ✓".
 """),
 
     md("""#### The spec for B2
@@ -381,6 +408,8 @@ component that survives forever, and watch the residual shrink by a constant fac
 per step. This is the quantitative core of the oversmoothing analyses of
 [Li et al., 2018](https://arxiv.org/abs/1801.07606) and
 [Oono & Suzuki, 2020](https://arxiv.org/abs/1905.10947), run on a 34-node graph.
+The algorithm below specifies exactly what your `contraction_rate` must do;
+follow it step by step.
 
 **Algorithm 2 · Measuring a propagation operator's contraction rate**
 
@@ -496,10 +525,24 @@ print(f"B2 ✓ — theory |λ₂| = {lam2:.4f}, measured rate = {rate:.4f}: the 
 
 Your A3 proof says every GAT
 ([Veličković et al., 2018](https://arxiv.org/abs/1710.10903)) receiver ranks
-senders identically. Implement both scoring functions; the asserts then (i) verify the theorem across 100 random
-parameter draws — the argmax column is constant *every single time* — and (ii)
-exhibit GATv2 parameters (provided) under which each receiver prefers a
-*different* sender, the pattern your proof shows GAT can never produce.
+senders identically. Here you catch that theorem in numbers.
+
+**What you will implement**, in the exercise cell (about two lines each):
+
+1. `gat_score(a, W, hv, hu)` — the original GAT score: transform both feature
+   vectors with `W`, concatenate, take the dot product with `a`, and THEN apply
+   LeakyReLU.
+2. `gatv2_score(a, W, hv, hu)` — the GATv2 score: concatenate the raw features,
+   transform with `W`, apply LeakyReLU, and THEN take the dot product with `a`.
+   The order of the nonlinearity relative to the dot product is the entire
+   difference between the two models.
+
+**How you will know it worked:** the asserts (i) draw 100 random GAT parameter
+sets and verify that in every single draw all receivers share the same favorite
+sender — the static-attention theorem, empirically; and (ii) evaluate provided
+GATv2 parameters under which each receiver prefers a *different* sender, the
+pattern your proof shows GAT can never produce. When both pass, the cell prints
+"B3 ✓".
 
 Setup: 5 receivers and 5 senders, one-hot features $h_i = e_i \\in \\mathbb R^5$.
 """),

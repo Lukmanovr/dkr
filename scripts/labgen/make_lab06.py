@@ -111,8 +111,12 @@ From the lecture: $\\tilde{\\mathbf{A}} = \\mathbf{A} + \\mathbf{I}$,
 $\\tilde{\\mathbf{D}} = \\mathrm{diag}(\\tilde{\\mathbf{A}}\\mathbf{1})$, and
 $\\hat{\\mathbf{A}} = \\tilde{\\mathbf{D}}^{-1/2}\\tilde{\\mathbf{A}}\\tilde{\\mathbf{D}}^{-1/2}$.
 
-Fill in `normalize_adjacency`. The check below runs it on a 3-node path graph whose
+**What to do:** in the next cell, implement `normalize_adjacency(A)` so that it returns
+$\\hat{\\mathbf{A}}$ computed from a dense adjacency matrix: add self-loops, compute the
+degrees of the self-looped graph, and scale rows *and* columns by the inverse square
+root of the degree. The check below the function runs it on a 3-node path graph whose
 $\\hat{\\mathbf{A}}$ you can (and should) verify by hand — the habit from Pitfall 3.
+When the cell prints "exercise 1 ✓" your operator matches the hand computation.
 """),
 
     todo("""def to_dense_adj(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
@@ -184,9 +188,11 @@ print("exercise 1 ✓ — A_hat matches the hand computation")"""),
 
     md("""## 3 · Verify the lecture's hand-simulation
 
-Before trusting code with 2,708 nodes, make it reproduce the 4-node example you can
-check with a pencil (the lecture's hand-simulation example): mean-aggregate neighbors, add your own value,
-ReLU. Expected result: $(3,\\; 1,\\; 3.5,\\; 0)$ — including node D getting clipped to zero.
+Nothing to implement here — read the next cell, then run it. Before trusting code with
+2,708 nodes, we make it reproduce the 4-node example you can check with a pencil (the
+lecture's hand-simulation example): mean-aggregate neighbors, add your own value, apply
+ReLU. The expected result is $(3,\\; 1,\\; 3.5,\\; 0)$ — including node D getting
+clipped to zero.
 """),
 
     code("""ex_edges = torch.tensor([[0, 1, 0, 2, 1, 2, 1, 3], [1, 0, 2, 0, 2, 1, 3, 1]])  # AB,AC,BC,BD
@@ -202,12 +208,20 @@ print("matches the lecture table ✓ (note D: erased by the ReLU)")"""),
 
     md("""## 4 · The GCN layer and model  *(exercise 2)*
 
-The lecture's GCN-layer definition, as code: a layer is `A_hat @ (X @ W)` — propagation
-is fixed, only the channel mix $\\mathbf{W}$ is learned. Fill in the `forward`.
+This section turns the lecture's GCN-layer definition into code: one layer computes
+`A_hat @ (X @ W)` — the propagation is fixed, and only the channel mix $\\mathbf{W}$
+is learned.
+
+**What to do:** in the cell after the algorithm below, implement `GCNLayer.forward` so
+that it returns `A_hat @ self.W(X)` — mix the channels first, then propagate (that
+order is cheaper). The two-layer `GCN` model around it is provided. The check verifies
+that with $\\mathbf{W} = \\mathbf{I}$ your layer equals plain propagation; when the
+cell prints "exercise 2 ✓" it is correct.
 """),
 
-    md("""**Algorithm · Two-layer GCN forward pass** — the spec you are about to code
-against (it mirrors the lecture's algorithm float exactly):
+    md("""**Algorithm · Two-layer GCN forward pass.** The algorithm below (mirroring
+the lecture's algorithm float exactly) specifies exactly what your implementation in
+the next cell must do; follow it step by step:
 
 **Input:** features $\\mathbf{X} \\in \\mathbb{R}^{n \\times d}$; sparse
 $\\hat{\\mathbf{A}}$; weights $\\mathbf{W}_1$, $\\mathbf{W}_2$; dropout rate $p$.
@@ -289,10 +303,15 @@ print("exercise 2 ✓ — layer computes A_hat @ X W")"""),
 
     md("""## 5 · Train on Cora — and measure what nothing-but-features buys first  *(exercise 3)*
 
-Two models, one protocol. The MLP sees only the bag-of-words matrix; the GCN sees the
-same features **plus** propagation. Fill in `accuracy` (masked), then run both.
-Professional habit from Pitfall 5: the GNN number is meaningless without the baseline
-next to it.
+We now train two models under one protocol. The MLP sees only the bag-of-words matrix;
+the GCN sees the same features **plus** propagation. The professional habit from
+Pitfall 5: the GNN number is meaningless without the baseline next to it.
+
+**What to do:** in the next cell, implement `accuracy(logits, y, mask)` so that it
+returns the fraction of correct predictions (argmax over classes) among the nodes
+selected by `mask`. The asserts check it on a tiny hand-computable probe; "exercise 3 ✓"
+confirms it. The cell after that (provided) trains both models with your `accuracy` —
+run it and compare the two printed test accuracies.
 """),
 
     todo("""def accuracy(logits: torch.Tensor, y: torch.Tensor, mask: torch.Tensor) -> float:
@@ -409,9 +428,15 @@ print("Look for: 7 clusters after training, with graph-neighborhoods sharing reg
     md("""## 7 · Sparse $\\hat{\\mathbf{A}}$, and the price of dense  *(exercise 4)*
 
 The lecture's §2 claims sparse propagation is $O(m)$ and dense is $O(n^2)$. Claims are
-cheap; measure it. First implement $\\hat{\\mathbf{A}}$ **directly from the edge list**
-as a `torch.sparse_coo_tensor` — no $n \\times n$ dense matrix anywhere in the
-construction.
+cheap, so you will measure this one.
+
+**What to do:** in the next cell, implement `normalize_adjacency_sparse(edge_index,
+num_nodes)` so that it builds $\\hat{\\mathbf{A}}$ **directly from the edge list** as a
+`torch.sparse_coo_tensor` — no $n \\times n$ dense matrix is allowed anywhere in the
+construction (the docstring lists the steps). The asserts compare it against your dense
+builder on the path graph and on Cora; "exercise 4 ✓" confirms the match. The timing
+cell after it (provided) then measures dense versus sparse propagation — run it and
+read the printed comparison.
 """),
 
     todo("""def normalize_adjacency_sparse(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
@@ -482,14 +507,16 @@ print("On Cora both are fast — the point is the SCALING: n² vs m. Re-read lec
     md("""## 8 · The SGC ablation: how much was the filter?
 
 The lecture's honest remark: on homophilous benchmarks, the fixed low-pass filter does
-most of the GCN's work. **Predict before running:** within how many accuracy points of
+most of the GCN's work. **Predict before you run:** within how many accuracy points of
 your GCN will plain logistic regression on the precomputed features land — 15? 5? 1?
-Commit to a number. Then test it. SGC ([Wu et al., 2019](https://arxiv.org/abs/1902.07153))
-deletes every nonlinearity, so a
+Write down your number before running the next cell. SGC
+([Wu et al., 2019](https://arxiv.org/abs/1902.07153)) deletes every nonlinearity, so a
 2-layer GCN collapses into logistic regression on the *precomputed* features
 $\\hat{\\mathbf{A}}^2\\mathbf{X}$ — no message passing at training time at all.
 
-**Algorithm · SGC precompute-then-fit** (mirrors the lecture's float; here $K = 2$):
+There is nothing to implement in this section — the next cell is provided. The
+algorithm below (mirroring the lecture's float; here $K = 2$) specifies exactly what
+that cell computes; read them side by side:
 
 **Input:** $\\mathbf{X}$; sparse $\\hat{\\mathbf{A}}$; depth $K$; labeled set
 $\\mathcal{V}_{\\text{train}}$. **Output:** predictions for all nodes.

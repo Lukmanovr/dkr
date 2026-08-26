@@ -816,8 +816,11 @@ Architectures = symmetries. We pull that thread properly in Week 13.
 
 ## 5. The GCN in code, trained honestly
 
-The entire model for Cora is two GCN layers ([Kipf & Welling, 2017](https://arxiv.org/abs/1609.02907)) — spec first, then code.
-Lab 6 builds it from nothing; @alg-w06-gcn-forward is exactly its `GCN.forward`:
+The entire model for Cora is two GCN layers ([Kipf & Welling, 2017](https://arxiv.org/abs/1609.02907)).
+We state the algorithm first and turn it into code second; in Lab 6 you will
+implement this model yourself, starting from an empty file, and
+@alg-w06-gcn-forward is line-for-line the specification of the `GCN.forward`
+method you will write:
 
 ::: {#alg-w06-gcn-forward .algorithm name="Two-layer GCN forward pass"}
 Computes class logits for every node from the features and the fixed propagation

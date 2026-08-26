@@ -71,7 +71,7 @@ SPLIT_CELL_STUB = SPLIT_CELL_SOL.replace('''    ### BEGIN SOLUTION
 
 
 CELLS = [
-    md("""# Lab 12 · Link prediction, leak-proof — and graphs from nothing
+    md("""# Lab 12 · Leak-proof link prediction, and generating graphs from scratch
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lukmanovr/dkr/blob/main/labs/lab12_linkgen.ipynb)
 
@@ -121,16 +121,43 @@ print(f"Cora: {N} nodes · device {DEV}")"""),
 
     md("""## 1 · The split and the auditor  *(exercise 1)*
 
-One function, four buckets — then twelve lines of asserts that would have
-caught this week's 0.363 before any GPU spun up.
+**What you will implement:** `build_split(edge_index, seed=0)` in the next
+cell. It must take the unique undirected edges (keep only columns with
+`src < dst`), shuffle them with a seeded permutation, and split them into
+train/val/test positives in an 85/5/10 ratio; it returns a dict with
+`train_pos`, `val_pos`, `test_pos` (each a (2, n) tensor) and `msg`, the
+message graph, which is exactly the train positives plus their flipped
+copies. The message graph is the only graph any model in this lab is allowed
+to read.
+
+**How you will know it worked:** the rest of the cell is an auditor — twelve
+lines of asserts that check the buckets are disjoint, that no test or val
+edge appears in the message graph, and that the seed-0 bucket sizes equal the
+lecture's (4488/263/527). These are the checks that would have caught the
+lecture's cautionary 0.363 AUC before any training ran. When they all pass,
+the cell prints "exercise 1 ✓".
 """),
 
     todo(SPLIT_CELL_SOL, SPLIT_CELL_STUB),
 
-    md("""## 2 · The heuristic floor  *(exercise 2 — determinism is a feature)*
+    md("""## 2 · The heuristic floor  *(exercise 2)*
 
-Same split, same negatives, same seeds as the lecture: your numbers must
-MATCH, not resemble.
+Before any learned model, you establish the floor that all of them must beat:
+two classical link-prediction heuristics scored on the test split.
+
+**What you will implement**, in the next cell (the negative sampling and the
+AUC helper are provided):
+
+1. `cn_score(pairs)` — for each candidate pair (a, b), the number of common
+   neighbors of a and b, read from the MESSAGE graph only (the `adj` sets
+   built above it).
+2. `aa_score(pairs)` — the Adamic–Adar score: for each pair, the sum over
+   common neighbors c of 1/log(deg(c)), skipping neighbors with degree ≤ 1.
+
+**How you will know it worked:** because the split, the negatives, and the
+seeds are identical to the lecture's, your AUCs must MATCH the lecture's
+exactly — CN 0.724 and AA 0.725, checked by the assert to three decimals.
+When it passes, the cell prints "exercise 2 ✓".
 """),
 
     todo("""edge_set = key(data.edge_index[:, data.edge_index[0] < data.edge_index[1]])
@@ -242,11 +269,23 @@ print("exercise 2 \\u2713 — the floor, reproduced to the third decimal")"""),
 
     md("""## 3 · VGAE's variational core  *(exercise 3)*
 
-The encoder is provided; you supply the two pieces that make it variational:
-the reparameterized sample and the closed-form KL
-([Kipf & Welling, 2016](https://arxiv.org/abs/1611.07308)). Code against the
-spec, not the vibe — the harness below runs this algorithm; **you implement
-steps 2 and 5**:
+**What you will implement**, in the next cell (the GCN encoder and the
+training loop are provided):
+
+1. `reparameterize(mu, logvar)` — return a sample `z = mu + sigma * eps`,
+   where `eps ~ N(0, I)` and `sigma = exp(logvar / 2)`
+   ([Kipf & Welling, 2016](https://arxiv.org/abs/1611.07308)).
+2. `kl_term(mu, logvar)` — the closed-form KL divergence: the mean over nodes
+   of `-1/2 * sum_j (1 + logvar - mu^2 - exp(logvar))`.
+
+**How you will know it worked:** the cell first unit-tests both functions on
+tiny tensors (KL of N(0,1) against N(0,1) must be 0; a near-zero variance must
+collapse the sample onto `mu`), then trains VGAE and asserts test AUC above
+0.88. When everything passes, the cell prints "exercise 3 ✓".
+
+The algorithm below specifies exactly what one VGAE training step must do; the
+provided harness runs steps 1, 3, 4, and 6, and your two functions are steps
+2 and 5.
 
 **Algorithm · one VGAE training step**
 **Input:** features `X`; message graph; supervision positives `P`. **Output:** one gradient step on the ELBO.
@@ -380,11 +419,25 @@ assert vgae_auc > (0.75 if SMOKE else 0.88), (
 )
 print("exercise 3 \\u2713 — eighteen points over the floor, variational plumbing verified")"""),
 
-    md("""## 4 · SEAL's labels — honest and leaky  *(exercise 4 — own the cautionary tale)*
+    md("""## 4 · SEAL's labels — honest and leaky  *(exercise 4)*
 
-You implement the labeling function with a `leak` switch. The harness trains
-BOTH variants: your leak-free labels must clear 0.85, and the leaky ones must
-score **below 0.5** — this week's 0.363, reproduced as a passing test.
+**What you will implement:** `node_labels(nodes, a, b, leak=False)` in the
+next cell. For each node v in the subgraph around a candidate pair (a, b), it
+must compute the label pair (d_a, d_b) — where d_x is 0 if v is the endpoint
+x itself, 1 if v is adjacent to x, and 2 otherwise — and return it as a
+one-hot vector over the 9 combinations. With `leak=False` (correct behavior)
+the adjacency must be read WITH THE CANDIDATE EDGE (a, b) REMOVED; with
+`leak=True` you deliberately read the raw adjacency, reproducing the bug from
+the lecture. Everything else — subgraph extraction, the GIN classifier, and
+training of both variants — is provided.
+
+**How you will know it worked:** the asserts require your leak-free variant to
+score above 0.85 test AUC and your leaky variant to score BELOW 0.5 — worse
+than a coin flip, which is the lecture's cautionary 0.363 reproduced on
+purpose. When both hold, the cell prints "exercise 4 ✓".
+
+The algorithm below specifies exactly what the SEAL pipeline must do; your
+`node_labels` implements steps 1, 3, and 4.
 
 **Algorithm · SEAL labeling** ([Zhang & Chen, 2018](https://arxiv.org/abs/1802.09691)), for a candidate pair `(a, b)`:
 **Input:** message-graph adjacency sets `adj`; candidate `(a, b)`. **Output:** a labeled subgraph a GNN can score.
@@ -395,9 +448,12 @@ score **below 0.5** — this week's 0.363, reproduced as a passing test.
 4. feature `x_v` ← one-hot of `(d_a, d_b)` over the 9 combinations
 5. a small GIN classifies the labeled subgraph, pooled to one logit
 
-`leak=True` means exactly "skip step 1": the labels read the *raw* adjacency,
-the candidate edge leaves its `(0,1)` fingerprint on training positives only,
-and the sabotage assert below fails as a violated spec line, not a mystery.
+`leak=True` means exactly "skip step 1". When step 1 is skipped, the labels
+read the raw adjacency, so the candidate edge leaves a `(0,1)` fingerprint on
+training positives (which are real edges) but not on training negatives — the
+classifier learns that fingerprint instead of graph structure, and at test
+time, where positives have been removed from the message graph, it votes
+backwards. That mechanism is exactly what the sub-0.5 assert demonstrates.
 """),
 
     todo("""def node_labels(nodes, a, b, leak=False):
@@ -580,8 +636,26 @@ print("exercise 4 \\u2713 — you have now personally caused, observed, and fixe
 
     md("""## 5 · GraphRNN-S, judged by statistics  *(exercise 5)*
 
-The model and training are provided; your parts are the BFS sequencing (the
-masterstroke) and the TV metric (the judge).
+The generator model, its training loop, and the sampling code are all
+provided in the next cell.
+
+**What you will implement**, in that same cell:
+
+1. `bfs_sequence(g)` — GraphRNN's data representation: order the nodes of `g`
+   by BFS from node 0 (appending any unreached nodes at the end), then return
+   one row per node i = 1 … n−1, each a width-M 0/1 vector where entry k is 1
+   iff node i connects to node i−1−k in that ordering.
+2. `tv_distance(vals1, vals2, bins, lo, hi)` — the judge: histogram both
+   samples over the given bins and range, normalize each histogram to sum
+   to 1, and return half the sum of absolute differences (the total-variation
+   distance).
+
+**How you will know it worked:** both functions are unit-tested first (a path
+graph for `bfs_sequence`; identical and disjoint samples for `tv_distance`),
+then the trained generator's samples are judged against an Erdős–Rényi
+baseline — the assert requires your generator to beat ER on clustering-TV by
+a clear margin (lecture values: 0.154 vs 0.596). When everything passes, the
+cell prints "exercise 5 ✓".
 """),
 
     todo("""rng = np.random.default_rng(0)
@@ -790,10 +864,16 @@ print("exercise 5 \\u2713 — the generator learned what independence cannot fak
 
     md("""### Your claims paragraph *(graded — write it in this cell)*
 
-Three claims, cells cited: one about the floor and what it says about Cora's
-link signal; one about the leak (your two SEAL numbers, and the mechanism in
-one sentence); one about the generator (your TV margin, and what it does NOT
-prove — Week 9's evaluator blind spot).
+Write three claims in THIS cell, replacing the placeholder below. Each claim
+is 1–2 sentences that state the claim, cite the specific numbers from your own
+cell outputs that support it, and state its scope. The three claims must be:
+
+1. What the heuristic floor (exercise 2) says about how much link signal
+   Cora's structure alone carries.
+2. What the leak did — cite both of your SEAL AUCs from exercise 4 and explain
+   the mechanism in one sentence.
+3. What your generator result shows — cite your TV margin from exercise 5 and
+   state what it does NOT prove (recall Week 9's evaluator blind spot).
 
 *(your claims here)*
 

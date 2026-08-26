@@ -263,9 +263,20 @@ deterministic code — every function takes an explicit seed where randomness ex
 
     md("""## B1 · Spectra as fingerprints — and their limit (20 pts)
 
-Implement the spectral fingerprint and use it to *find* the cospectral pair from A1(c)
-among a set of candidate graphs, then confirm the pair is non-isomorphic by a
-structural invariant the spectrum misses.
+**What you will implement**, in the next cell:
+
+1. `spectrum(G)` — the adjacency spectrum of a graph as a tuple of floats,
+   rounded to 6 decimals and sorted descending (rounding makes spectra usable
+   as dictionary keys).
+2. `find_cospectral_pair(graphs)` — given a dict of named graphs, group them by
+   spectrum and return the sorted `(name_a, name_b)` pair that shares a
+   spectrum despite being non-isomorphic.
+
+**How you will know it worked:** the asserts check the star graph's spectrum,
+require your function to find exactly A1(c)'s cospectral pair among the five
+candidates, and confirm the pair is non-isomorphic by an invariant the
+spectrum misses (their degree multisets differ). When they pass, the cell
+prints "B1 ✓".
 """),
 
     todo("""def spectrum(G: nx.Graph) -> tuple:
@@ -360,10 +371,21 @@ print("the spectrum, like WL, is a sound but incomplete fingerprint (Week 9 will
 
     md("""## B2 · Verify A3 empirically: SGNS finds the shifted PMI (20 pts)
 
-Train a tiny SGNS on the cast graph (code adapted from Lab 3, provided) and test the
-theory: learned scores $\\mathbf{z}_u^\\top \\mathbf{z}'_v$ should correlate strongly
-with $\\mathrm{PMI}(u,v) - \\log k$ across pairs. Your part: compute the empirical
-shifted-PMI matrix from the same walk corpus the trainer used.
+This exercise tests A3's theory in running code: after training, the learned
+scores $\\mathbf{z}_u^\\top \\mathbf{z}'_v$ should correlate strongly with
+$\\mathrm{PMI}(u,v) - \\log k$ across node pairs. The random-walk corpus and
+the SGNS trainer (adapted from Lab 3) are provided.
+
+**What you will implement:** `shifted_pmi(pairs, n, k)` in the exercise cell.
+Given the list of (center, context) pairs, it must return the (n, n) matrix
+$M[u,v] = \\log(\\#(u,v)\\,|\\mathcal D| / (\\#u \\cdot \\#v)) - \\log k$, where
+$\\#(u,v)$ counts pair occurrences, $\\#u$ counts $u$ as a CENTER, and $\\#v$
+counts $v$ as a CONTEXT; cells with no occurrences get $-\\infty$.
+
+**How you will know it worked:** the asserts check the shape, one entry
+against the formula computed independently, and finally that the trained SGNS
+scores correlate with your matrix above 0.9. When they pass, the cell prints
+"B2 ✓".
 """),
 
     md("""#### The spec for B2
@@ -552,10 +574,17 @@ print("B2 ✓ — A3's fixed point is real: the 'neural' method is a matrix fact
 
     md("""## B3 · A4's consequence, measured (20 pts)
 
-Implement DistMult, train it on the Week-4 fragment, and demonstrate the theorem with
-numbers: the model assigns *identical* scores to every fact and its reversal — so it
-cannot rank *(Kazan, capital_of, Tatarstan)* above *(Tatarstan, capital_of, Kazan)*,
-no matter how long you train.
+**What you will implement:** `distmult_score(E, R, triples)` in the exercise
+cell — given an entity table, a relation table, and a (B, 3) tensor of
+(h, r, t) rows, return the (B,) vector of DistMult scores
+$\\sum_i h_i r_i t_i$. The training loop around it is provided.
+
+**How you will know it worked:** the cell first hand-checks your scorer on the
+lecture's toy vectors (score 8, in both directions), then trains for 1,500
+steps and demonstrates A4's theorem with numbers: the trained model still
+assigns *identical* scores to every fact and its reversal, so it cannot rank
+*(Kazan, capital_of, Tatarstan)* above *(Tatarstan, capital_of, Kazan)* no
+matter how long it trains. When all asserts pass, the cell prints "B3 ✓".
 """),
 
     md("""#### The spec for B3

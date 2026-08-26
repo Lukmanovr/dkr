@@ -80,10 +80,21 @@ tr_idx, va_idx, te_idx = split["train"], split["valid"], split["test"]
 DEV = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"arxiv: {N:,} nodes · {E:,} directed edges · device {DEV}")"""),
 
-    md("""## 1 · The explosion, counted  *(exercise 1)*
+    md("""## 1 · The neighborhood explosion, counted  *(exercise 1)*
 
-First the CSR structure (provided — study it, Week 1's adjacency list grown
-up), then your BFS: how many DISTINCT nodes live within L hops?
+The next cell builds a CSR (compressed sparse row) view of the graph — it is
+provided; study it, because exercises 1 and 2 both read neighbors from it.
+Node `v`'s neighbors are the slice `dst_sorted[ptr[v] : ptr[v+1]]`.
+
+**What you will implement:** `khop_size(v, L)` in the cell after the CSR cell.
+It must return the number of DISTINCT nodes within `L` hops of node `v`,
+counting `v` itself — a breadth-first search over the CSR slices, tracking a
+`seen` set and expanding only the new frontier at each hop.
+
+**How you will know it worked:** the cell averages your counts over 200 seed
+nodes and asserts they equal the lecture's numbers exactly (18 nodes at 1 hop,
+4,577 at 2 hops, 22,663 at 3 hops — same seeds, same counts). When the asserts
+pass, the cell prints "exercise 1 ✓".
 """),
 
     code("""# CSR: node v's neighbors are dst_sorted[ptr[v] : ptr[v+1]]
@@ -147,14 +158,24 @@ else:
     assert sizes[1] < sizes[2] < sizes[3], "sizes must explode with L"
 print("exercise 1 ✓ — the explosion is not a metaphor; you just counted it")"""),
 
-    md("""## 2 · One block of fanout sampling  *(exercise 2 — the systems core)*
+    md("""## 2 · One block of fanout sampling  *(exercise 2)*
 
-The contract: for a batch of target nodes, draw ≤ f neighbors each, collect
-the drawn edges in batch-local indices, and return the deduplicated union.
-Every production sampler is this function with better engineering.
+**What you will implement:** `sample_block(batch_nodes, fanout, gen)` in the
+next cell. Given a batch of target nodes, it must draw at most `fanout`
+neighbors for each target, collect the drawn edges using batch-local indices,
+and return three things: `uniq` (the deduplicated union of batch nodes and
+drawn neighbors), `edges` (a (2, m) tensor of [source position in `uniq`;
+target position in the batch]), and `pos` (the batch nodes' positions in
+`uniq`, so that `uniq[pos] == batch_nodes`). Every production neighbor
+sampler is this function with better engineering.
 
-**Algorithm — one block of neighbor sampling (CSR)** *(the lecture's
-Algorithm 1; you are implementing it line for line)*
+**How you will know it worked:** the asserts in the same cell check the remap
+contract (`uniq[pos] == batch`), the fanout bound, determinism under a fixed
+seed, and that an uncapped fanout loads strictly more nodes. When they all
+pass, the cell prints "exercise 2 ✓".
+
+The algorithm below (the lecture's Algorithm 1) specifies exactly what your
+implementation must do; follow it step by step.
 
 **Input:** CSR arrays `ptr`, `dst_sorted`; batch targets B; fanout f; seeded RNG.
 **Output:** deduplicated union U; local edge list E_B; positions of B in U.
@@ -169,11 +190,14 @@ Algorithm 1; you are implementing it line for line)*
 8. E_B ← {(π(u), i) : (u, i) ∈ S};  pos ← π(B)
 9. **return** U, E_B, pos
 
-Step 7 is the remap — the fiddly step everyone gets wrong once, and the one
-the first assert below checks (`uniq[pos] == batch`). `torch.unique(...,
-return_inverse=True)` hands you π for free. Draw with `torch.randint(...,
-generator=gen)` — with replacement, deliberately simple — and note the
-determinism assert: same seed, same sample, no exceptions.
+Three practical hints. Step 7 is the remap from global node IDs to local
+indices — it is the step everyone gets wrong once, and it is what the first
+assert checks (`uniq[pos] == batch`); `torch.unique(..., return_inverse=True)`
+computes the map π for you. Draw samples with `torch.randint(...,
+generator=gen)`; sampling with replacement is fine — it keeps the code simple
+on purpose. Finally, use only the generator `gen` for randomness, because the
+determinism assert reruns your function with the same seed and requires an
+identical sample.
 """),
 
     todo("""def sample_block(batch_nodes, fanout, gen):
@@ -236,10 +260,14 @@ big = sample_block(b, 10**9, torch.Generator().manual_seed(0))[0]
 assert len(big) > len(uniq), "no cap should load strictly more than fanout 10"
 print(f"exercise 2 ✓ — batch 256 loads {len(uniq)} nodes at fanout 10 vs {len(big)} uncapped")"""),
 
-    md("""### Training with your sampler *(provided — your block, stacked twice)*
+    md("""### Training with your sampler *(provided — nothing to implement here)*
 
-Two blocks make a 2-layer sampled SAGE; scatter-mean aggregation, manual and
-visible. Under SMOKE this trains on a slice; run full before submitting.
+The next cell is provided: it stacks two calls to your `sample_block` to train
+a 2-layer sampled GraphSAGE, with the scatter-mean aggregation written out by
+hand so you can see it. Just run it. Under SMOKE it trains on a slice of the
+training set; run the full version before submitting. If its assert fails,
+the usual cause is block wiring — the inner block must sample neighbors of
+the OUTER block's union, not of the original batch.
 """),
 
     code("""W1s = torch.nn.Linear(128, 128); W1n = torch.nn.Linear(128, 128)
@@ -290,11 +318,29 @@ assert sage_acc > (0.25 if SMOKE else 0.52), (
 )
 print("sampler training ✓ — bounded memory, and you felt every second the pipeline costs")"""),
 
-    md("""## 3 · SGC: derive, precompute, race  *(exercise 3)*
+    md("""## 3 · SGC: precompute once, then race  *(exercise 3)*
 
-The lecture's collapse: $\\hat A (\\hat A X W_0) W_1 = (\\hat A^2 X) W$.
-Implement the precompute with sparse ops; a logistic regression then races
-full-batch GCN.
+SGC starts from the lecture's algebraic collapse: with the nonlinearity
+removed, a 2-layer GCN $\\hat A (\\hat A X W_0) W_1$ equals $(\\hat A^2 X) W$
+— so all graph propagation can be computed once, offline, and training reduces
+to a logistic regression on the propagated features.
+
+**What you will implement:** `sgc_features(K)` in the next cell. It must
+return $\\hat A^K X$, where $\\hat A = \\tilde D^{-1/2}(A+I)\\tilde D^{-1/2}$,
+computed with sparse operations on CPU (build the sparse normalized adjacency
+once, then multiply K times; handle the self-loop as a separate
+`selfweight * X` term as the docstring describes). Everything after that —
+the logistic-regression training loop and the timed full-batch GCN it races —
+is provided in the same cell.
+
+**How you will know it worked:** the asserts check that K=0 returns the
+features unchanged, that K=2 changes them, that SGC's test accuracy clears
+0.60, and that your SGC epoch is at least 5× cheaper than a full-batch GCN
+epoch (if it is not, graph work is leaking into your training loop). When all
+of these pass, the cell prints "exercise 3 ✓".
+
+The algorithm below specifies exactly what the full SGC pipeline must do;
+steps 1–3 are your `sgc_features`, steps 4–7 are the provided classifier loop.
 
 **Algorithm — SGC: propagate once, then train a linear model**
 *([Wu et al., 2019](https://arxiv.org/abs/1902.07153))*
@@ -310,10 +356,9 @@ full-batch GCN.
 6. **end for**
 7. **return** W  — inference is X_K · W: no edges consulted
 
-Steps 1–3 are `sgc_features` (your exercise); steps 4–7 are the provided
-classifier loop. Step 2 costs O(K·E·d), paid once — the graph's entire role
-in training, prepaid — which is why the assert below demands your epochs be
-at least 5× cheaper than a full-batch GCN's.
+Step 2 costs O(K·E·d) and is paid exactly once, before training starts; after
+it, the graph is never consulted again. That one-time cost is why the assert
+demands your training epochs be at least 5× cheaper than a full-batch GCN's.
 """),
 
     todo("""def sgc_features(K):
@@ -441,10 +486,12 @@ assert sgc_per_ep < gcn_per_ep / 5, (
 )
 print("exercise 3 ✓ — same ballpark accuracy, epochs measured in milliseconds")"""),
 
-    md("""## 4 · The table, and your claims  *(exercise 4)*
+    md("""## 4 · The trade-off table  *(exercise 4)*
 
-Collect what you measured (plus the lecture's full-batch and cluster rows for
-reference) into the deployment table, then write the claims.
+Nothing to implement here: the next cell collects the numbers you measured in
+exercises 2 and 3 (plus the lecture's full-batch GCN and Cluster-GCN rows for
+reference) into one accuracy/time/memory table. Run it, then write your claims
+paragraph in the cell after it, citing this table.
 """),
 
     code("""table = {
@@ -462,11 +509,17 @@ print("the table is yours — now make it argue")"""),
 
     md("""### Your claims paragraph *(graded — write it in this cell)*
 
-Three claims, lecture format (sentence → cells → scope): one about the
-explosion you counted and what it implies for batch design; one comparing
-YOUR SGC row to the lecture's full-batch row (accuracy paid, time bought);
-one about what this table does NOT establish (implementation quality,
-task-dependence — be specific).
+Write three claims in THIS cell, replacing the placeholder below. Each claim
+is 1–2 sentences in the lecture's format: state the claim, cite the specific
+numbers (and the table cells or exercise outputs they come from) that support
+it, and state its scope. The three claims must be:
+
+1. What the neighborhood explosion you counted in exercise 1 implies for how
+   batches must be designed.
+2. A comparison of YOUR SGC row against the lecture's full-batch GCN row —
+   how much accuracy you paid and how much time you bought.
+3. What this table does NOT establish — be specific (for example,
+   implementation quality and task-dependence both limit its scope).
 
 *(your claims here)*
 

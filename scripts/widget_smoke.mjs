@@ -15,7 +15,7 @@ const A = join(ROOT, "assets", "d3") + "/";
 const strip = (f) =>
   readFileSync(A + f, "utf8").replace(/^```\{=html\}\r?\n/, "").replace(/\r?\n```\r?\n?$/, "");
 
-const body = ["w6-message-passing.html", "w6-spectral.html", "w6-normalization.html", "w6-permutation.html", "w6-eq-linked.html",
+const body = ["w1-hero.html", "w6-message-passing.html", "w6-spectral.html", "w6-normalization.html", "w6-permutation.html", "w6-eq-linked.html",
   "w1-builder.html", "w1-cost.html", "w1-types.html", "w1-tasks.html",
   "w2-centrality.html", "w2-pagerank.html", "w2-wl.html", "w2-louvain.html",
   "w3-walks.html", "w3-pq.html", "w3-embed.html", "w3-labelprop.html",
@@ -49,7 +49,7 @@ const run = (name, src) => {
 };
 
 for (const f of ["d3.v7.min.js", "_dkr.js", "w6-message-passing.js", "w6-spectral.js", "w6-normalization.js", "w6-permutation.js", "w6-eq-linked.js",
-  "w1-builder.js", "w1-cost.js", "w1-types.js", "w1-tasks.js",
+  "w1-hero.js", "w1-builder.js", "w1-cost.js", "w1-types.js", "w1-tasks.js",
   "w2-centrality.js", "w2-pagerank.js", "w2-wl.js", "w2-louvain.js",
   "w3-walks.js", "w3-pq.js", "w3-embed.js", "w3-labelprop.js",
   "w4-transe.js", "w4-patterns.js", "w4-negatives.js", "w4-rank.js",
@@ -570,6 +570,20 @@ mp14 = w14Text("w14-mp-svg");
 if (!/Weeks 2, 10, 14/.test(mp14)) { failures++; console.error("  FAIL w14-map fraud: " + mp14.slice(-300)); }
 else console.log("  w14-map: fraud sector cites Weeks 2, 10, 14 ✓");
 
+// week-1 hero force-layout probes
+{
+  const heroTexts = [...window.document.querySelectorAll("#w1-he-svg svg text")].map((t) => t.textContent).join(" | ");
+  const heroCircles = window.document.querySelectorAll("#w1-he-svg svg circle").length;
+  const heroLines = window.document.querySelectorAll("#w1-he-svg svg line").length;
+  if (heroCircles !== 34) { failures++; console.error(`  FAIL w1-hero: ${heroCircles} nodes, want 34`); }
+  else console.log("  w1-hero: 34 members rendered ✓");
+  if (heroLines !== 78) { failures++; console.error(`  FAIL w1-hero: ${heroLines} edges, want 78`); }
+  else console.log("  w1-hero: 78 ties rendered ✓");
+  if (!/Mr\. Hi \(instructor\)/.test(heroTexts) || !/the Officer \(president\)/.test(heroTexts) || !/the one miss/.test(heroTexts)) {
+    failures++; console.error("  FAIL w1-hero labels: " + heroTexts.slice(0, 200));
+  } else console.log("  w1-hero: leader labels + the-one-miss annotation ✓");
+}
+
 // week-2 correctness probes: drive WL cast to stability and check the verdict text
 for (const b of window.document.querySelectorAll("#w2-wl-widget [data-scene]")) {
   if (b.getAttribute("data-scene") === "cast") b.dispatchEvent(new window.Event("click", { bubbles: true }));
@@ -580,7 +594,7 @@ if (!/stable after round 2/.test(wlTexts)) { failures++; console.error("  FAIL W
 else console.log("  WL cast stabilizes after round 2 ✓");
 
 // sanity: every widget rendered SVG content
-for (const id of ["w6-mp-svg", "w6-sp-svg", "w6-nm-svg", "w6-pm-svg", "w1-bd-svg", "w1-ct-svg", "w1-ty-svg", "w1-tk-svg",
+for (const id of ["w1-he-svg", "w6-mp-svg", "w6-sp-svg", "w6-nm-svg", "w6-pm-svg", "w1-bd-svg", "w1-ct-svg", "w1-ty-svg", "w1-tk-svg",
   "w2-ce-svg", "w2-pr-svg", "w2-wl-svg", "w2-lv-svg",
   "w3-wk-svg", "w3-pq-svg", "w3-em-svg", "w3-lp-svg",
   "w4-te-svg", "w4-pt-svg", "w4-ng-svg", "w4-rk-svg",

@@ -165,9 +165,22 @@ the classifier sees different inputs for the two directions.""",),
 
 ### B1 (20 pts) · The capacity auditor
 
-Week 11's method as a function: bill a full-batch GNN's memory and bound a
-sampled batch's node count, then render the verdict strings the lecture
-rendered.
+This exercise turns Week 11's capacity-audit method into three reusable
+functions.
+
+**What you will implement**, in the exercise cell:
+
+1. `memory_bill_mb(N, E, d, layers)` — the approximate full-batch float32
+   memory bill in MB: features + retained activations + per-edge messages.
+2. `fanout_bound(f, L)` — the worst-case number of nodes a sampled batch
+   touches per target: $1 + f + f^2 + \\cdots + f^L$.
+3. `verdict(N, E, d, layers, gpu_mb)` — return the string `"fits"` if the
+   bill is under 80% of the GPU budget, otherwise `"OOM"`.
+
+**How you will know it worked:** the asserts run your audit on the lecture's
+ogbn-arxiv and ogbn-products numbers and require the same bills and the same
+fits/OOM verdicts the lecture reached. When they pass, the cell prints
+"B1 ✓".
 """),
 
     md("""#### The spec for B1
@@ -176,6 +189,8 @@ Week 11's audit, as a reusable function. The full-batch bill has three float32
 lines — features, retained activations, per-edge messages — and the sampled
 alternative is priced by the geometric fanout bound that GraphSAGE's sampling
 contract introduced ([Hamilton et al., 2017](https://arxiv.org/abs/1706.02216)).
+The algorithm below specifies exactly what your three functions must compute;
+follow it step by step.
 
 **Algorithm 1 · The capacity audit**
 
@@ -263,9 +278,17 @@ print("B1 \\u2713 — the audit that replaces the OOM-and-guess loop")"""),
 
     md("""### B2 (20 pts) · The split validator that catches four leaks
 
-Implement `check_split`; it must PASS a clean split and NAME the violation in
-each of four sabotaged ones. Violation codes: `"test_in_message"`,
-`"overlap"`, `"neg_is_positive"`, `"ok"`.
+**What you will implement:** `check_split(message, train_pos, test_pos,
+test_neg)` in the exercise cell. Each argument is a set of
+`frozenset({u, v})` edge pairs. The function must check for three kinds of
+leak, in a fixed order, and return the FIRST violation it finds as a string —
+`"test_in_message"`, `"overlap"`, or `"neg_is_positive"` — or `"ok"` if the
+split is clean.
+
+**How you will know it worked:** the asserts hand your validator one clean
+split (which must return `"ok"`) and four sabotaged ones (each of which must
+be named correctly, including a split where one bad negative hides among good
+ones). When all five pass, the cell prints "B2 ✓".
 """),
 
     md("""#### The spec for B2
@@ -275,7 +298,8 @@ that lecture violated exactly one bucket's card. Modern benchmarks such as OGB
 ([Hu et al., 2020](https://arxiv.org/abs/2005.00687)) institutionalized this
 discipline by shipping the splits themselves; here you write the auditor, with the
 checks in a fixed order so a multi-fault split reports its *first* violation
-deterministically.
+deterministically. The algorithm below specifies exactly what your `check_split`
+must do; follow it step by step.
 
 **Algorithm 2 · The split audit**
 
@@ -362,8 +386,20 @@ print("B2 \\u2713 — twelve lines that would have caught the 0.363")"""),
 
     md("""### B3 (20 pts) · The metrics module — and the disagreement, reproduced
 
-Implement AUC (pairwise), Hits@K, and MRR. The asserts then reproduce the
-lecture's model-A/model-B story: high AUC with zero Hits@10, and the reverse.
+**What you will implement**, in the exercise cell:
+
+1. `auc_pairwise(pos_scores, neg_scores)` — the probability that a random
+   positive outscores a random negative, with ties counting 1/2.
+2. `hits_at_k(pos_scores, neg_scores, k)` — the fraction of positives ranked
+   within the top k of the MERGED list (rank = 1 + number of strictly higher
+   scores in the merged list).
+3. `mrr(pos_scores, neg_scores)` — the mean over positives of 1/rank, where
+   rank is computed against the NEGATIVES only.
+
+**How you will know it worked:** the asserts first unit-test each metric on
+tiny hand-checkable score lists, then reproduce the lecture's model-A/model-B
+disagreement: model A wins AUC while scoring zero Hits@10, and model B does
+the reverse. When everything passes, the cell prints "B3 ✓".
 """),
 
     md("""#### The spec for B3
@@ -372,7 +408,9 @@ Ranking metrics in the shared-candidate-pool form used here. The protocol descen
 from the raw/filtered ranking evaluation of
 [Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html) —
 Week 4's evaluation procedure — simplified: one shared pool of negatives, and no
-filtering step because the pool is constructed clean.
+filtering step because the pool is constructed clean. The algorithm below
+specifies exactly what your three functions must compute; follow it step by
+step.
 
 **Algorithm 3 · Pool-ranking metrics**
 
