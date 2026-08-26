@@ -1,0 +1,27 @@
+```{=html}
+<div class="interactive-container" id="w1-wk-widget">
+  <div class="fig-label">Interactive · Every entry of A<sup>k</sup> is a walk count you can list</div>
+  <div class="widget-controls">
+    <button class="pill-btn" data-k="1" type="button">k = 1 · one step</button>
+    <button class="pill-btn active" data-k="2" type="button">k = 2 · two steps</button>
+    <button class="pill-btn" data-k="3" type="button">k = 3 · three steps</button>
+  </div>
+  <div id="w1-wk-svg" role="img" aria-label="The cast graph of six people A to F beside the matrix A raised to the power k. Selecting a cell of the matrix highlights the corresponding start and end nodes in the graph, draws every edge used by a walk between them, and lists those walks as arrow sequences. With k equal to two and the cell from A to C selected, the matrix entry reads 1 and exactly one walk is listed, A to B to C."></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Its
+    point: the number in row u, column v of A raised to the k-th power is exactly the
+    number of length-k walks from u to v, which you can list by hand on a graph this
+    small.</p>
+  </noscript>
+  <p class="fig-caption">The proposition, made checkable. Each cell of
+  A<sup>k</sup> holds a count, and the walks it counts are drawn and named beside it, so
+  you can verify the claim rather than trust it. <strong>Try this:</strong> at k = 2,
+  click a diagonal cell and watch the count equal that node's degree, because a two-step
+  walk that returns home is exactly a step out to a neighbour and back. Then click an
+  off-diagonal cell: the walks listed all pass through a shared neighbour, which is why
+  that entry counts common neighbours. Finally switch to k = 3 and watch the matrix fill
+  in — three steps reach almost everyone, which is the small-world warning of §2 arriving
+  as arithmetic, and the reason a three-layer network in Week 6 is far less local than it
+  sounds.</p>
+</div>
+```

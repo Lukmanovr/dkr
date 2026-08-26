@@ -553,6 +553,33 @@ edge. Nodes and edges may repeat — that freedom is what distinguishes a walk f
 *path*, and it is precisely the freedom that makes walks countable by linear algebra.
 :::
 
+Before the statement, it is worth seeing why matrix multiplication was *always* going to
+be the right tool, so that the proposition arrives as a confirmation rather than a
+surprise. Ask how you would count the walks of length $k$ from $u$ to $v$ by hand. Every
+such walk spends its first $k-1$ steps getting to some node $w$ that happens to sit one
+edge away from $v$, and then takes that last edge. So you would count the length-$(k-1)$
+walks into each candidate middle node $w$, keep only the $w$ that are adjacent to $v$,
+and add those counts up over every $w$. Now read the definition of matrix multiplication:
+the entry at $[u,v]$ of a product is the row of the left matrix dotted with the column of
+the right one — that is, a sum over an intermediate index. The intermediate index *is*
+the middle node. Row-times-column is not a metaphor for "sum over all the ways to get
+partway there"; it is that operation, written down.
+
+::: {.predict}
+**Commit before you read on.** A walk of length $2$ that starts at $u$ and ends back at
+$u$ has to step out to a neighbour and step straight back. So what number sits at
+$(\mathbf{A}^2)[u,u]$ — and what does the whole diagonal of $\mathbf{A}^2$ therefore
+spell out?
+
+::: {.predict-answer}
+**The degree $d_u$**, because there is exactly one such out-and-back walk per neighbour,
+and no others. The diagonal of $\mathbf{A}^2$ is the degree sequence — the same numbers
+@eq-w01-degree gave you by summing a row, now arriving from a completely different
+direction. Two independent routes to one quantity is the first sign that the algebra is
+tracking something real about the graph.
+:::
+:::
+
 ::: {#prp-walks .proposition name="Powers of A count walks"}
 For any $k \ge 1$, $(\mathbf{A}^k)[u,v]$ equals the number of walks
 (@def-w01-walk) of length exactly $k$ from $u$ to $v$. In particular
@@ -587,12 +614,44 @@ Common-neighbor counts are not a toy: "how many mutual friends" is the baseline 
 every "people you may know" feature, and in Week 3 it becomes the first serious
 link-prediction heuristic.
 
+Do not take the proposition on faith — the counts are small enough to check by eye.
+Pick any cell below and the walks it claims to count are drawn on the graph and spelled
+out beside it:
+
+{{< include ../assets/d3/w1-walks.html >}}
+
 **The Laplacian.** The strangest and most durable object of the week:
 
 ::: {#def-lap .definition name="Graph Laplacian"}
 $\mathbf{L} = \mathbf{D} - \mathbf{A}$: degrees on the diagonal, $-1$ for each edge off
 it. Every row sums to zero.
 :::
+
+That definition looks like an accounting convention until you apply $\mathbf{L}$ to
+something. Let $\mathbf{x}$ be a **signal** on the graph: one number per node — an
+allegiance, a temperature, a predicted class score. Read off what lands at node $u$. The
+diagonal contributes $d_u x_u$, the off-diagonal $-1$s subtract each neighbour's value,
+and since $u$ has exactly $d_u$ neighbours we may split that first term into one copy of
+$x_u$ per neighbour:
+
+$$
+(\mathbf{L}\mathbf{x})_u \;=\; d_u x_u - \sum_{v \in N(u)} x_v \;=\; \sum_{v \in N(u)} (x_u - x_v),
+$$ {#eq-w01-lapaction}
+
+where — $\mathbf{L} = \mathbf{D} - \mathbf{A}$ is the Laplacian of @def-lap;
+$\mathbf{x} \in \mathbb{R}^n$ is a signal assigning the value $x_u$ to node $u$;
+$d_u$ is the degree of $u$ from @eq-w01-degree; and $N(u)$ is the set of $u$'s
+neighbours, so that $v$ ranges over them. In words: **$\mathbf{L}$ hands back, at every
+node, how far that node's value sits above its neighbours', summed over the neighbours.**
+It is a disagreement meter, and nothing else. On the cast graph, a signal that is $1$ at
+$A$ and $0$ at $B$, $C$ and $D$ gives $(\mathbf{L}\mathbf{x})_A = 3 \cdot 1 - 0 = 3$,
+which is the three unit disagreements $(1-0)$ along $AB$, $AC$ and $AD$ added up.
+
+With @eq-w01-lapaction in hand the next proposition is barely a proposition. If
+$\mathbf{L}\mathbf{x}$ is the per-node total disagreement, then $\mathbf{x}^\top
+\mathbf{L} \mathbf{x}$ — the signal weighted against its own disagreements — has to come
+out as a sum of squared differences over edges. The formal statement only pins down the
+bookkeeping.
 
 ::: {#prp-lap .proposition name="The Laplacian is a variation meter"}
 For any signal $\mathbf{x} \in \mathbb{R}^n$ (one number per node),
@@ -617,12 +676,53 @@ once (via $d_v$); so both sums range over edges:
 $\sum_{(u,v) \in \mathcal{E}} (x_u^2 + x_v^2 - 2x_u x_v) = \sum_{(u,v) \in \mathcal{E}} (x_u - x_v)^2$. $\square$
 </details>
 
-There is a fourth representation we skipped in §2 because it earns its keep only now:
-the **incidence matrix** $\mathbf{B} \in \mathbb{R}^{n \times m}$, one column per
-edge. Orient each undirected edge arbitrarily and put $+1$ at its head row, $-1$ at
-its tail row, zeros elsewhere — each column is a little "difference operator" for one
-edge. It is rarely how you *store* a graph (it is even bigger than the dense
-adjacency for $m > n$), but it explains the Laplacian in one identity:
+Watch the same quantity being built by hand. Each edge contributes the square of the gap
+between its endpoints, and the running total *is* the quadratic form:
+
+{{< include ../assets/d3/w1-lap.html >}}
+
+::: {.predict}
+**Predict.** Take any signal $\mathbf{x}$ and add the same constant $c$ to every node,
+producing $\mathbf{x} + c\mathbf{1}$ where $\mathbf{1}$ is the all-ones vector. What
+happens to $\mathbf{x}^\top \mathbf{L} \mathbf{x}$ — up, down, or unchanged?
+
+::: {.predict-answer}
+**Unchanged**: each edge term becomes $\bigl((x_u + c) - (x_v + c)\bigr)^2 = (x_u -
+x_v)^2$, because the constant cancels inside every difference. The Laplacian sees
+*contrast*, never absolute level, which is exactly why $\mathbf{L}\mathbf{1} =
+\mathbf{0}$ and why "every row sums to zero" was worth putting in the definition.
+:::
+:::
+
+The "differences, then added back up" reading deserves a matrix of its own, and there is
+a fourth representation we skipped in §2 because it earns its keep only here. Picture a
+machine that takes a signal on nodes and returns one number per *edge*: the difference
+between that edge's two endpoints. Building it is easy — give the machine one column per
+edge, and in that column put $+1$ in the row of one endpoint and $-1$ in the row of the
+other, zeros everywhere else, so that the column reaches into the signal and subtracts.
+That machine is the **incidence matrix** $\mathbf{B} \in \mathbb{R}^{n \times m}$, with
+$n$ rows (one per node) and $m$ columns (one per edge); the choice of which endpoint gets
+the $+1$ is called *orienting* the edge, and it is arbitrary. Applied to a signal,
+$\mathbf{B}^\top \mathbf{x}$ is then literally the list of per-edge differences
+$x_u - x_v$, one entry per edge. It is rarely how you *store* a graph (it is even bigger
+than the dense adjacency for $m > n$), but it makes the Laplacian's whole personality
+fall out of one identity: take differences with $\mathbf{B}^\top$, then add them back up
+with $\mathbf{B}$, and you get $\mathbf{L}$ — the discrete answer to "differentiate
+twice":
+
+::: {.predict}
+**Predict.** You are handed a graph and allowed to choose $\mathbf{x}$ freely — any real
+number at any node, as adversarial as you like. Can you ever drive
+$\mathbf{x}^\top \mathbf{L} \mathbf{x}$ below zero?
+
+::: {.predict-answer}
+**No.** By @eq-w01-quadform it is a sum of squares, and squares do not go negative — the
+worst you can do is $0$, achieved exactly when $\mathbf{x}$ is constant on every
+connected component. A matrix with that property for every $\mathbf{x}$ is called
+*positive semidefinite*, and the identity below re-derives it in one line by exhibiting
+the form as a squared length.
+:::
+:::
 
 ::: {#prp-incidence .proposition name="The Laplacian factorizes"}
 For any choice of edge orientations,
@@ -716,8 +816,12 @@ face early.
 lines today and saves confusion in three separate future weeks. The plain
 $\mathbf{L} = \mathbf{D} - \mathbf{A}$ treats a disagreement across an edge the same
 whether the endpoints have two neighbors or two thousand — and in heavy-tailed graphs
-(see §2) that lets hubs dominate every sum. The standard repair is to normalize by
-degrees, and there are two conventional ways:
+(see §2) that lets hubs dominate every sum. Concretely: a node with two neighbours can
+contribute at most two disagreement terms, while a node with two thousand contributes up
+to two thousand, so the hub's opinion drowns everyone else's for no reason other than
+the size of its address book. The repair is to divide each node's contribution by its
+own degree, which puts every node back on a comparable footing, and there are two
+conventional ways to do the dividing:
 
 $$
 \mathbf{L}_{\text{sym}} = \mathbf{I} - \mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2},

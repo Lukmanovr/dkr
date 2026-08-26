@@ -57,7 +57,7 @@ export const WIDGETDIR = join(ROOT, "assets", "d3");
 const STATIC_WIDGETS = ["w6-eq-linked"];
 // JS-rendered widgets: the harness loads their real scripts so shot and lint
 // exercise the initial rendered state, not an empty container.
-const JS_WIDGETS = ["w1-hero", "w1-builder", "w1-cost", "w1-types", "w1-tasks", "w1-permute", "w1-multigraph", "w1-konigsberg", "w1-closure",
+const JS_WIDGETS = ["w1-hero", "w1-builder", "w1-cost", "w1-types", "w1-tasks", "w1-permute", "w1-multigraph", "w1-konigsberg", "w1-closure", "w1-walks", "w1-lap",
                     "w2-centrality", "w2-pagerank", "w2-wl", "w2-louvain",
                     "w3-walks", "w3-pq", "w3-embed", "w3-labelprop",
                     "w4-transe", "w4-patterns", "w4-negatives", "w4-rank",

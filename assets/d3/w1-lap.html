@@ -1,0 +1,27 @@
+```{=html}
+<div class="interactive-container" id="w1-lp-widget">
+  <div class="fig-label">Interactive · What x<sup>T</sup>Lx actually counts</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-preset="agree" type="button">friends agree</button>
+    <button class="pill-btn" data-preset="mixed" type="button">no pattern</button>
+    <button class="pill-btn" data-preset="disagree" type="button">friends disagree</button>
+  </div>
+  <div id="w1-lp-svg" role="img" aria-label="The cast graph of six people, each carrying the value plus one or minus one shown inside their circle. Every edge is labelled with the squared difference of its two endpoints, which is zero when they match and four when they differ, and edges that differ are drawn thick. A running total on the right gives x transpose L x as the sum of those edge labels, alongside the exact average of the same six values shuffled at random, 16.8, drawn as a comparison bar. The friends-agree arrangement totals 8, well below chance; the friends-disagree arrangement totals 20, above it."></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Its
+    point: x transpose L x simply adds up the squared disagreement across every edge,
+    totalling 8 when friends agree and 20 when they disagree, against a chance average
+    of 16.8 for the same six values shuffled.</p>
+  </noscript>
+  <p class="fig-caption">The quadratic form has no mystery in it: each edge contributes
+  the square of the gap between its two endpoints, and x<sup>T</sup>Lx is the sum. All
+  three presets use the same six values, three of each sign, so only their arrangement
+  on the graph changes and the chance average stays fixed at 16.8 — which is what makes
+  "small" meaningful rather than arbitrary. <strong>Try this:</strong> click people to
+  flip sides and drive the total to zero. You can only do it by putting everyone on one
+  side, which is the precise sense in which the Laplacian is blind to constant signals:
+  it measures differences, and a constant has none. Then notice what the middle preset
+  shows — an arrangement can look untidy and still sit at chance, so eyeballing a
+  drawing is not evidence, and the number is.</p>
+</div>
+```
