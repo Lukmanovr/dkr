@@ -94,7 +94,7 @@
 
     g.append("text").attr("x", 380).attr("y", 250).attr("text-anchor", "middle")
       .attr("font-family", "'Source Sans 3', sans-serif").attr("font-size", 12.5).attr("fill", P.muted)
-      .text(`raw extraction: ${RAW.length} triples, ${raw_ents} "entities" — flip the three repairs on and watch both numbers tell the truth`);
+      .text(`raw extraction: ${RAW.length} triples, ${raw_ents} "entities" — flip the repairs on and both numbers tell the truth`);
   }
 
   ["w5-ex-canon", "w5-ex-schema", "w5-ex-prov"].forEach((id) =>

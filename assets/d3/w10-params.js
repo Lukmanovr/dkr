@@ -46,8 +46,8 @@
     const ratio = full / basis;
     g.append("text").attr("x", 380).attr("y", 262).attr("text-anchor", "middle")
       .attr("font-size", 13).attr("font-weight", 600).attr("fill", P.green)
-      .text(`basis decomposition: ${ratio.toFixed(1)}× fewer parameters than full — `
-        + `${B} shared matrices, ${fmt(2 * R * B)} mixing coefficients`);
+      .text(`basis decomposition: ${ratio.toFixed(1)}× fewer parameters — `
+        + `${B} shared matrices + ${fmt(2 * R * B)} coefficients`);
     const warn = R >= 200 && B <= 40
       ? "at KG scale the full version is untrainable luggage; the basis version fits in a coat pocket"
       : R <= 30

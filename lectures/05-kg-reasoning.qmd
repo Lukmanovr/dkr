@@ -955,6 +955,11 @@ benchmark or model reaches you, run both tests in that order — what are the
 operators, and what does the split actually separate — and you will usually know a
 paper's worth before you reach its experiments section.
 
+Close the loop — no notes: draw the DAG for one conjunctive query; the box
+intersection rule; why hard answers exist and what they measure; and the
+two-sentence method — operators first, then what the split separates. A stall
+means a reread tonight.
+
 Notice, though, what every method since Week 3 has had in common: the encoder is
 still a **table**. DeepWalk looked vectors up; TransE looked vectors up; even
 Query2box looks up its anchors. Week 3's four walls still stand — no parameter

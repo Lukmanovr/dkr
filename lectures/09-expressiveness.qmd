@@ -1039,6 +1039,12 @@ theory earns its seat by telling you *what experiment to run next* — a standar
 this lecture's two required papers themselves set, each pairing its theorem
 with the cheap experiment that makes the theorem undeniable.
 
+Close the loop — one minute, no notes: one round of @alg-w09-wl-compare on the
+blind pair and the verdict rule; the tail node's $k{=}3$ return and what that
+entry detects; the 290× bridge number and the sensitivity that measures it; the
+three routes above 1-WL; and GIN's design equation. Each is an exam question in
+embryo.
+
 Notice, finally, an assumption that every graph in this lecture shared — one so
 quiet you may not have registered it as an assumption at all. Every edge meant
 the *same thing*. The karate club's edges were all friendship; Cora's were all

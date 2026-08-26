@@ -19,6 +19,9 @@ await withBrowser(async (browser) => {
     for (const theme of ["light", "dark"]) {
       const url = writeHarness(name, theme, harnessFor(name, theme));
       await page.goto(url, { waitUntil: "networkidle0" });
+      // wait for the real webfonts: Linux CI fallback fonts are wider and
+      // produced phantom overflow findings on the first CI run (2026-08-26)
+      await page.evaluateHandle("document.fonts.ready");
       // let lazyBoot-ed widgets finish their first render
       await page.evaluate(() => new Promise((r) => setTimeout(r, 180)));
       const { problems, notes } = await page.evaluate(() => {

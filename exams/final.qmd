@@ -35,51 +35,72 @@ anything you'd recognize but never compute from.
 
 ## What "ready" means, week by week (post-midterm core)
 
-**Week 9 · [The ceiling](../lectures/09-expressiveness.qmd).** Run 1-WL on
-two ~6-node graphs and state precisely what stable identical histograms do
+**Week 9 · [The ceiling](../lectures/09-expressiveness.qmd).** Run the
+[1-WL comparison algorithm](../lectures/09-expressiveness.qmd#alg-w09-wl-compare)
+on two ~6-node graphs and state precisely what stable identical histograms do
 and do not prove; produce the classic blind pairs (regular graphs, $C_6$
-vs $2C_3$, the CSL family); compute RWSE entries by hand and say which
-structures each $k$ detects; compute a 2-layer sensitivity $(M^2)_{uv}$
-through a bottleneck and name oversquashing; state GIN's sum-vs-mean
-argument and the Route-1/Route-2/Route-3 escape map.
+vs $2C_3$, the CSL family); compute
+[RWSE/RWPE entries](../lectures/09-expressiveness.qmd#alg-w09-rwpe) by hand
+and say which structures each $k$ detects; compute a
+[2-layer sensitivity](../lectures/09-expressiveness.qmd#eq-w09-sens)
+$(M^2)_{uv}$ through a bottleneck and name
+[oversquashing](../lectures/09-expressiveness.qmd#def-w09-oversquash); state
+GIN's sum-vs-mean argument and the Route-1/Route-2/Route-3 escape map.
 
 **Week 10 · [Typed graphs](../lectures/10-hetero-rgcn.qmd).** Count R-GCN
-parameters with and without basis decomposition and say when sharing
-hurts; choose and defend a metapath (against a degree-matched null); read
-our encoder-vs-lookup table honestly (frozen lookup 0.110 vs trained
-R-GCN 0.179 at 5 epochs on equal footing — architecture is not
-automatically signal); explain direction discipline (separate in/out
-tables).
+parameters with and without
+[basis decomposition](../lectures/10-hetero-rgcn.qmd#def-w10-basis) and say
+when sharing hurts; choose and defend a
+[metapath](../lectures/10-hetero-rgcn.qmd#def-w10-metapath) (against a
+degree-matched null); read our
+[encoder-vs-lookup showdown](../lectures/10-hetero-rgcn.qmd#alg-w10-showdown)
+honestly (the trained lookup beats the R-GCN encoder 0.179 vs 0.126 at 5
+epochs, at 1/22nd the wall-clock — architecture is not automatically
+signal); explain direction discipline (separate in/out tables).
 
-**Week 11 · [Scale](../lectures/11-scaling.qmd).** Compute fanout bounds
+**Week 11 · [Scale](../lectures/11-scaling.qmd).** Compute
+[fanout bounds](../lectures/11-scaling.qmd#eq-w11-fanout)
 ($1 + f + f^2 + \dots$) and activation-memory bills; explain the
-neighbor-sampling estimator and its variance; read the cluster-training
-result (0.628 on 2.5% of edges) as a task property, not a law; state what
-SGC precomputation reduces training and serving to, and its
-expressiveness price.
+[neighbor-sampling estimator](../lectures/11-scaling.qmd#eq-w11-estimator)
+and its variance; read the
+[cluster-training result](../lectures/11-scaling.qmd#alg-w11-cluster)
+(0.628 on 2.5% of edges) as a task property, not a law; state what
+[SGC precomputation](../lectures/11-scaling.qmd#eq-w11-sgc) reduces training
+and serving to, and its expressiveness price.
 
 **Week 12 · [Links & generation](../lectures/12-link-generation.qmd).**
-Compute CN/AA by hand (and explain AA's rare-witness weighting); name the
-four split buckets and write the auditor's key assert; explain the SEAL
-leak mechanism and why sub-random AUC (our 0.363) is *stronger* leak
-evidence than random AUC; grade a graph generator by statistics (TV
-distance) and state the evaluator's blind spot.
+Compute [CN/AA](../lectures/12-link-generation.qmd#eq-w12-heuristics) by hand
+(and explain AA's rare-witness weighting); name the
+[four split buckets](../lectures/12-link-generation.qmd#def-w12-buckets) and
+write the auditor's key assert; explain the
+[SEAL leak mechanism](../lectures/12-link-generation.qmd#alg-w12-seal) and why
+sub-random AUC (our 0.363) is *stronger* leak evidence than random AUC; grade
+a graph generator by statistics (TV distance) and state the evaluator's blind
+spot.
 
 **Week 13 · [Graph transformers](../lectures/13-transformers.qmd).**
-Prove-in-one-line that pure attention on uniform features is below 1-WL;
-compute RWSE on the triangle-with-tail and $C_4$ (odd-$k$ zeros =
-bipartite certificate); name Graphormer's three doors and what "bias, not
-feature" means; write the GPS block; read our matched-budget ladder
-(0.349 / 0.296 / 0.303 vs tuned 0.070) and state what it does and does
-not license; run the five paper-sorting questions on a described paper.
+[Prove-in-one-line](../lectures/13-transformers.qmd#prp-w13-attn-wl) that
+pure attention on uniform features is below 1-WL; compute
+[RWSE](../lectures/13-transformers.qmd#alg-w13-rwse) on the
+triangle-with-tail and $C_4$ (odd-$k$ zeros = bipartite certificate); name
+Graphormer's three doors and what
+["bias, not feature"](../lectures/13-transformers.qmd#def-w13-bias) means;
+write the [GPS block](../lectures/13-transformers.qmd#eq-w13-gps); read our
+matched-budget ladder (0.349 / 0.296 / 0.303 vs tuned 0.070) and state what
+it does and does not license; run the five paper-sorting questions on a
+described paper.
 
 **Week 14 · [Production](../lectures/14-production.qmd).** Derive
-LightGCN's three deletions; hand-propagate on a small bipartite graph
-(the widget's 0.250-at-$K{=}2$ style); write and unit-check BPR (the
-log-2 tie point); compute Recall@K and NDCG@K; defend the temporal split
-and quote the measured inflation (×1.77); explain why popularity beat
-MF on our honest split; TGN's memory / message / embedding loop and the
-one-batch-late trick; the RDL "database is a graph" correspondence.
+[LightGCN's three deletions](../lectures/14-production.qmd#eq-w14-lightgcn);
+hand-propagate on a small bipartite graph (the widget's 0.250-at-$K{=}2$
+style); write and unit-check
+[BPR](../lectures/14-production.qmd#def-w14-bpr) (the log-2 tie point);
+compute [Recall@K and NDCG@K](../lectures/14-production.qmd#def-w14-metrics);
+defend the temporal split and quote the measured inflation (×1.77); explain
+why popularity beat MF on our honest split;
+[TGN's memory / message / embedding loop](../lectures/14-production.qmd#alg-w14-tgn)
+and the one-batch-late trick; the
+[RDL "database is a graph" correspondence](../lectures/14-production.qmd#def-w14-rdl).
 
 ## The pre-midterm six (what reaches back)
 

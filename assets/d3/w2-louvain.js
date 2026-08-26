@@ -102,11 +102,11 @@
     const meter = g.append("g").attr("transform", "translate(90,258)")
       .attr("font-family", "'Source Sans 3', sans-serif");
     const QLO = -0.12, QHI = 0.5;                                // display range
-    const qx = (v) => 560 * (v - QLO) / (QHI - QLO);
-    meter.append("rect").attr("x", 0).attr("y", 0).attr("width", 560).attr("height", 12)
+    const qx = (v) => 540 * (v - QLO) / (QHI - QLO);
+    meter.append("rect").attr("x", 0).attr("y", 0).attr("width", 540).attr("height", 12)
       .attr("rx", 6).attr("fill", P.border);
     const frac = Math.max(0, Math.min(1, (q - QLO) / (QHI - QLO)));
-    meter.append("rect").attr("x", 0).attr("y", 0).attr("width", 560 * frac).attr("height", 12)
+    meter.append("rect").attr("x", 0).attr("y", 0).attr("width", 540 * frac).attr("height", 12)
       .attr("rx", 6).attr("fill", q > 0.3 ? P.green : P.accent);
     meter.append("line").attr("x1", qx(0)).attr("x2", qx(0)).attr("y1", -4).attr("y2", 16)
       .attr("stroke", P.text).attr("stroke-width", 1.2);
@@ -117,9 +117,10 @@
       .attr("stroke", P.green).attr("stroke-width", 1.4).attr("stroke-dasharray", "3,2");
     meter.append("text").attr("x", qx(qStar)).attr("y", -8).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.green).text("planted split");
-    meter.append("text").attr("x", 578).attr("y", 11).attr("font-size", 13.5)
+    meter.append("text").attr("x", 556).attr("y", 11).attr("font-size", 13.5)
       .attr("font-weight", 700).attr("fill", P.text).text(`Q = ${q.toFixed(3)}`);
-    meter.append("text").attr("x", 0).attr("y", 30).attr("font-size", 12.5).attr("fill", P.muted)
+    meter.append("text").attr("x", 280).attr("y", 30).attr("text-anchor", "middle")
+      .attr("font-size", 12.5).attr("fill", P.muted)
       .text(`${new Set(comm).size} communities · dashed ring = considered next · solid colored edges are inside a community`);
 
     g.append("text").attr("x", 365).attr("y", 315).attr("text-anchor", "middle")

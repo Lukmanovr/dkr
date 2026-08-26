@@ -69,7 +69,7 @@ for k, (x, y) in enumerate(ring):
     hot = k in (0, 1, 7)
     at.append(f'  <circle cx="{x:.0f}" cy="{y:.0f}" r="{10 if k == 0 else 8}" fill="{TEAL}" opacity="{1 if hot else 0.35}"/>')
 at.append(f'  <text x="120" y="252" text-anchor="middle" font-family="{SANS}" font-size="13" font-weight="700" fill="{TEAL}">message passing: reach = my edges</text>')
-at.append(f'  <text x="120" y="272" text-anchor="middle" font-family="{MONO}" font-size="12" fill="{MUTED}">cost per layer: O(E) · range: 1 hop</text>')
+at.append(f'  <text x="120" y="272" text-anchor="middle" font-family="{MONO}" font-size="12" fill="{MUTED}">cost/layer: O(E) · range: 1 hop</text>')
 # right: attention — all pairs from node 0
 for k in range(1, 8):
     x1, y1 = ring2[0]; x2, y2 = ring2[k]
@@ -80,7 +80,7 @@ for k in range(8):
 for k, (x, y) in enumerate(ring2):
     at.append(f'  <circle cx="{x:.0f}" cy="{y:.0f}" r="{10 if k == 0 else 8}" fill="{PURPLE}" opacity="{1 if k == 0 else 0.75}"/>')
 at.append(f'  <text x="560" y="252" text-anchor="middle" font-family="{SANS}" font-size="13" font-weight="700" fill="{PURPLE}">attention: reach = everyone, at once</text>')
-at.append(f'  <text x="560" y="272" text-anchor="middle" font-family="{MONO}" font-size="12" fill="{MUTED}">cost per layer: O(n&#xB2;) · the graph? gone</text>')
+at.append(f'  <text x="560" y="272" text-anchor="middle" font-family="{MONO}" font-size="12" fill="{MUTED}">cost/layer: O(n&#xB2;) · the graph? gone</text>')
 at.append(f'''  <g font-family="{SANS}">
     <rect x="70" y="292" width="620" height="30" rx="15" fill="{ACC}"/>
     <text x="380" y="312" text-anchor="middle" font-size="13" font-weight="700" fill="{BG}">attention deletes the edges along with the walls — the graph must re-enter as FEATURES</text>

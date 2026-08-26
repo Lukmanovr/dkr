@@ -50,7 +50,7 @@
 
     g.append("text").attr("x", 380).attr("y", 22).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted)
-      .text(`attention from the starred node, bias ${PROFILES[prof].name} — content terms zeroed to isolate the prior`);
+      .text(`attention from the starred node, bias ${PROFILES[prof].name} — content zeroed to isolate the prior`);
 
     EDGES.forEach(([a, b]) => {
       g.append("line").attr("x1", POS[a][0]).attr("y1", POS[a][1] + 20)

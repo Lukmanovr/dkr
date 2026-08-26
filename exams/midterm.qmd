@@ -31,41 +31,67 @@ density; explain why a random test split can leak when data points are connected
 
 **Week 2 · [Classical graph ML](../lectures/02-classical-graph-ml.qmd).** Compute
 degree, closeness, betweenness, and clustering coefficient on a ~5-node graph by
-hand; run 2–3 power iterations of simplified PageRank and find the fixed point;
-explain teleport (spider traps, dead ends); run WL color refinement on ~6-node
-graphs and state precisely what matching histograms do and do not prove;
-interpret modularity and the idea of the Louvain loop.
+hand; run 2–3 rounds of
+[PageRank power iteration](../lectures/02-classical-graph-ml.qmd#alg-w02-pagerank)
+(simplified, no teleport) and find the fixed point; explain teleport (spider
+traps, dead ends); run
+[WL color refinement](../lectures/02-classical-graph-ml.qmd#alg-w02-wl) on
+~6-node graphs and state precisely what matching histograms
+[do and do not prove](../lectures/02-classical-graph-ml.qmd#prp-wl); interpret
+[modularity](../lectures/02-classical-graph-ml.qmd#def-modularity) and the idea
+of the Louvain loop.
 
 **Week 3 · [Embeddings](../lectures/03-embeddings.qmd).** Write the skip-gram
-objective and explain negative sampling term by term (role of $k$, cost vs the
-full softmax, the shifted-PMI fixed point in one sentence); explain node2vec's
-$p$ and $q$ and match a regime to what it captures; name the four structural
-limitations that motivate GNNs (transductive, no features, no parameter sharing,
+objective and explain
+[negative sampling](../lectures/03-embeddings.qmd#def-w03-negsampling) term by
+term (role of $k$, cost vs the full softmax, the
+[shifted-PMI fixed point](../lectures/03-embeddings.qmd#prp-netmf) in one
+sentence); explain node2vec's $p$ and $q$ and match a regime to what it
+captures; name the [four walls](../lectures/03-embeddings.qmd#def-w03-transductive)
+that motivate GNNs (transductive, no features, no parameter sharing,
 $O(n)$ parameters); spot walk-based evaluation leaks.
 
 **Week 4 · [Knowledge graphs](../lectures/04-knowledge-graphs.qmd).** Score
-triples by hand for TransE and DistMult; prove one-line pattern results (TransE
-can't do symmetry; DistMult can't do asymmetry; why RotatE composes); compute raw
-vs filtered rank on a scored candidate list and justify filtering; state what a
-missing edge means under the open-world assumption.
+triples by hand for
+[TransE and DistMult](../lectures/04-knowledge-graphs.qmd#def-w04-scoring);
+prove one-line pattern results
+([TransE can't do symmetry](../lectures/04-knowledge-graphs.qmd#prp-transe-sym);
+[DistMult can't do asymmetry](../lectures/04-knowledge-graphs.qmd#prp-distmult-sym);
+why [RotatE composes](../lectures/04-knowledge-graphs.qmd#prp-rotate)); compute
+raw vs filtered rank on a scored candidate list
+([the filtered-ranking algorithm](../lectures/04-knowledge-graphs.qmd#alg-w04-filtered-rank))
+and justify filtering; state what a missing edge means under the open-world
+assumption.
 
 **Week 5 · [KG reasoning](../lectures/05-kg-reasoning.qmd).** Formalize a
-multi-hop question as a path/conjunctive query; explain why boxes (regions) are
-the right container for answer *sets* and what closure under intersection buys;
-contrast easy vs hard answers in evaluation; say when vector-RAG fails and what
-graph traversal adds.
+multi-hop question as a
+[path/conjunctive query](../lectures/05-kg-reasoning.qmd#def-w05-cq); explain
+why [boxes](../lectures/05-kg-reasoning.qmd#def-w05-box) (regions) are the
+right container for answer *sets* and what
+[closure under intersection](../lectures/05-kg-reasoning.qmd#prp-closure) buys;
+contrast [easy vs hard answers](../lectures/05-kg-reasoning.qmd#def-w05-easyhard)
+in evaluation; say when vector-RAG fails and what
+[graph traversal](../lectures/05-kg-reasoning.qmd#alg-w05-graphrag) adds.
 
 **Week 6 · [GCN](../lectures/06-gcn.qmd).** Build $\hat A = \tilde
 D^{-1/2}(A+I)\tilde D^{-1/2}$ for a tiny graph and propagate a feature vector one
-step by hand; explain each symbol's job in the GCN layer; state the low-pass /
-oversmoothing story in spectral terms; produce the uniform-features argument for
-why message passing can't separate WL-equivalent graphs.
+step by hand ([the hand rule](../lectures/06-gcn.qmd#eq-w06-handrule)); explain
+each symbol's job in the [GCN layer](../lectures/06-gcn.qmd#eq-w06-gcn); state
+the [low-pass / oversmoothing story](../lectures/06-gcn.qmd#prp-lowpass) in
+spectral terms; produce the
+[uniform-features argument](../lectures/06-gcn.qmd#exm-limits) for why message
+passing can't separate WL-equivalent graphs.
 
 **Week 7 · [The design space](../lectures/07-gnn-design.qmd).** Fill the
-MSG/AGG/UPDATE template for GCN, SAGE, GAT, GIN; compute a SAGE, GIN, or GAT
-(softmax) update on given numbers; fill the mean/max/sum confusion table for
-one-hot multisets and say why GIN sums; state static attention and the GATv2
-fix; explain what residuals repair at depth; recall the ablation discipline (one
+[MSG/AGG/UPDATE template](../lectures/07-gnn-design.qmd#def-w07-template) for
+GCN, SAGE, GAT, GIN; compute a SAGE, GIN, or GAT (softmax) update on given
+numbers; fill the
+[mean/max/sum confusion table](../lectures/07-gnn-design.qmd#prp-agg) for
+one-hot multisets and say why GIN sums; state
+[static attention](../lectures/07-gnn-design.qmd#prp-static) and the
+[GATv2 fix](../lectures/07-gnn-design.qmd#eq-w07-gatv2); explain what residuals
+repair at depth; recall the
+[ablation discipline](../lectures/07-gnn-design.qmd#alg-w07-ablation) (one
 factor, ≥3 seeds, error bars, claims cite cells).
 
 ## How to study (in order of payoff)
@@ -77,9 +103,11 @@ factor, ≥3 seeds, error bars, claims cite cells).
 3. **Redo the hand-computation lab cells** (Lab 2 centralities/PageRank, Lab 6
    propagation, Lab 7 exercise 1) *on paper* — the exam versions differ only in
    numbers.
-4. **Rebuild the two big tables from memory**: the Week-4 relation-pattern cheat
-   sheet, and the Week-7 template table (model × MSG/AGG/UPDATE). Both are
-   standing exam material.
+4. **Rebuild the two big tables from memory**: the
+   [Week-4 relation-pattern cheat sheet](../lectures/04-knowledge-graphs.qmd#def-w04-pattern),
+   and the
+   [Week-7 template table](../lectures/07-gnn-design.qmd#def-w07-template)
+   (model × MSG/AGG/UPDATE). Both are standing exam material.
 5. Re-read the propositions you can't yet reprove — each proof on the exam, if
    asked, is at most three lines.
 

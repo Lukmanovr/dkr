@@ -43,6 +43,19 @@ any proof step on request. Rubric, late policy, FAQ: see the
 [HW2 page](https://lukmanovr.github.io/dkr/homeworks/hw2.html).
 """),
 
+    md("""This assignment takes the deep half of the course apart and reassembles it with
+proofs attached. The through-line: each architecture's headline behavior is a
+*theorem*, not an empirical accident. Conjunctive queries live in boxes because
+boxes — unlike points — are closed under the intersection that conjunction demands
+([Ren et al., 2020](https://arxiv.org/abs/2002.05969)); stacked propagation smooths
+features at a rate you can read off the spectrum of the normalized adjacency
+operator; and GAT's attention is provably static while GATv2's is not
+([Brody et al., 2022](https://arxiv.org/abs/2105.14491)). Part A proves each
+statement, Part B measures it deterministically — the same numbers on every machine,
+every run — and Part C sends you back into the Week-7 ablation grid with one new
+axis and the same rules of evidence.
+"""),
+
     md("""## 0 · Setup"""),
 
     code("""import os, sys, random, math, statistics, itertools
@@ -176,6 +189,30 @@ The toy KG below places 10 biomedical entities in 2-D by hand. Relations act on
 the asserts then answer a real two-hop conjunctive query with them:
 *"proteins targeted by drugs that treat Inflammation AND Pain."*
 """ ),
+
+    md("""#### The spec for B1
+
+You are coding against the lecture's Query2box procedure
+([Ren et al., 2020](https://arxiv.org/abs/2002.05969)), in the hand-set 2-D form
+this exercise uses: relations act on boxes, conjunction is intersection, and the
+answer set is whatever lies inside the final box (exact membership stands in for
+the paper's soft box-distance ranking).
+
+**Algorithm 1 · Query2box-lite on a hand-set KG**
+
+**Input:** query DAG (anchor entities, relation edges, meets); entity coordinates; per-relation translation $t_r$ and widening $w_r$. **Output:** the query's answer set.
+
+1. **for** each anchor $a$: $\\text{box}(a) \\leftarrow (\\text{pos}(a),\\, \\mathbf 0)$ — a point is a zero-half-size box
+2. **for** each relation edge, in topological order: $c \\leftarrow c + t_r$; $\\ h \\leftarrow h + w_r$
+3. **for** each meet, per dimension: $\\text{lo} \\leftarrow \\max_i \\text{lo}_i$, $\\ \\text{hi} \\leftarrow \\min_i \\text{hi}_i$; **if** $\\text{lo} > \\text{hi}$ anywhere **then** the box is empty
+4. $(c^*, h^*) \\leftarrow$ the final box
+5. **return** $\\{e : |\\text{pos}(e) - c^*| \\le h^* \\text{ in every dimension}\\}$
+
+Steps 2, 3, and 5 are your `translate`, `intersect`, and `inside`; the asserts then
+run the whole DAG for the two-hop query — hop, hop, meet, hop — and check the
+answer set at every stage, including the empty intersection that must be reported
+as empty rather than faked.
+"""),
 
     todo("""ENT = {
     "Aspirin": (1.0, 1.0), "Ibuprofen": (1.0, 3.0), "Naproxen": (1.0, 5.0),
@@ -337,6 +374,30 @@ decimal places. Implement `build_ahat` and `contraction_rate`; the asserts
 compare your measured rate against the spectrum numpy computes.
 """),
 
+    md("""#### The spec for B2
+
+The rate you derived in A2 is measurable: propagate a random vector, subtract the
+component that survives forever, and watch the residual shrink by a constant factor
+per step. This is the quantitative core of the oversmoothing analyses of
+[Li et al., 2018](https://arxiv.org/abs/1801.07606) and
+[Oono & Suzuki, 2020](https://arxiv.org/abs/1905.10947), run on a 34-node graph.
+
+**Algorithm 2 · Measuring a propagation operator's contraction rate**
+
+**Input:** symmetric operator $\\hat A = \\tilde D^{-1/2}(A+I)\\,\\tilde D^{-1/2}$; start vector $x_0$; step budget $K$. **Output:** the measured per-step shrink factor of the non-dominant signal.
+
+1. $v_1 \\leftarrow$ eigenvector of $\\hat A$'s largest eigenvalue
+2. $x^* \\leftarrow (v_1^\\top x_0)\\, v_1$ — the projection that never decays
+3. $x \\leftarrow x_0$
+4. **for** $k = 1, \\ldots, K$ **do** $x \\leftarrow \\hat A\\, x$ **end for**
+5. **return** $\\|\\hat A x - x^*\\| \\,/\\, \\|x - x^*\\|$
+
+After $K$ steps every faster-dying direction is negligible, so the returned ratio
+converges to $|\\lambda_2|$ — which is exactly what the assert checks, to about two
+decimals, against the spectrum numpy computes independently. Theory column, measured
+column, same number: that agreement is the whole exercise.
+"""),
+
     todo("""KG = nx.karate_club_graph()   # careful: its edges carry weights — ignore them
 
 
@@ -433,8 +494,9 @@ print(f"B2 ✓ — theory |λ₂| = {lam2:.4f}, measured rate = {rate:.4f}: the 
 
     md("""### B3 (20 pts) · Static attention, caught by experiment
 
-Your A3 proof says every GAT receiver ranks senders identically. Implement both
-scoring functions; the asserts then (i) verify the theorem across 100 random
+Your A3 proof says every GAT
+([Veličković et al., 2018](https://arxiv.org/abs/1710.10903)) receiver ranks
+senders identically. Implement both scoring functions; the asserts then (i) verify the theorem across 100 random
 parameter draws — the argmax column is constant *every single time* — and (ii)
 exhibit GATv2 parameters (provided) under which each receiver prefers a
 *different* sender, the pattern your proof shows GAT can never produce.

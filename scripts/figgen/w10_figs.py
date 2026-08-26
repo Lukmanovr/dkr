@@ -88,7 +88,7 @@ for x1, y1, x2, y2, lbl, lx, ly in [
         het.append(f'  <text x="{lx}" y="{ly}" text-anchor="middle" font-family="{MONO}" font-size="12.5" fill="{MUTED}">{lbl}</text>')
 het.append(f'  <path d="M 62 180 C 30 150 30 120 62 96" fill="none" stroke="{MUTED}" stroke-width="1.8" marker-end="url(#w10-arr)"/>')
 # halo (paint-order stroke) lifts the label off its own arc
-het.append(f'  <text x="38" y="112" text-anchor="middle" font-family="{MONO}" font-size="12.5" fill="{MUTED}" '
+het.append(f'  <text x="42" y="112" text-anchor="middle" font-family="{MONO}" font-size="12.5" fill="{MUTED}" '
            f'paint-order="stroke" stroke="{BG}" stroke-width="4">cites</text>')
 het.append(f'  <text x="172" y="284" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="{MUTED}">4 node types · 4 edge types (+ inverses)</text>')
 # instance panel — the toy used in every computation this week

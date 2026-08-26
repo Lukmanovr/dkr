@@ -264,11 +264,11 @@ for name, what, sep, color, half in RUNGS:
     <text x="{x0 + 20}" y="{y + (39 if half else 47)}" font-size="12.5" fill="var(--dkr-text, #1c1c21)">{what} &#x2014; <tspan fill="var(--dkr-muted, #6e6e7a)">{sep}</tspan></text>
   </g>''')
     arrow_ys.append(y + h)
-    y += h + 14
+    y += h + 18
 for ay in arrow_ys[:-1]:
-    la.append(f'  <line x1="380" y1="{ay}" x2="380" y2="{ay + 14}" stroke="var(--dkr-muted, #8e8e9a)" '
+    la.append(f'  <line x1="380" y1="{ay}" x2="380" y2="{ay + 18}" stroke="var(--dkr-muted, #8e8e9a)" '
               f'stroke-width="2" marker-end="url(#w9-arr)"/>')
-    la.append(f'  <text x="394" y="{ay + 12}" font-family="{SANS}" font-size="12.5" '
+    la.append(f'  <text x="394" y="{ay + 14}" font-family="{SANS}" font-size="12.5" '
               f'fill="var(--dkr-muted, #6e6e7a)">+ power &#xB7; + cost</text>')
 la.insert(1, '''  <defs><marker id="w9-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
     <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--dkr-muted, #8e8e9a)"/></marker></defs>''')

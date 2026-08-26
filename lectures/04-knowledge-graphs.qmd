@@ -955,6 +955,12 @@ cell is the fastest way to understand any paper this field produces. Practice th
 move deliberately: next time a leaderboard paper crosses your feed, give yourself
 sixty seconds to name its changed cell before reading the abstract's adjectives.
 
+Close the loop — one minute, no notes: score one triple under TransE and under
+DistMult; the one-line proof DistMult cannot rank $(h, r, t)$ above $(t, r, h)$;
+the filtered-rank recomputation on a five-candidate list; the epoch shape of
+@alg-w04-transe-epoch — corrupt, margin, renormalize; and the lookup-baseline
+question you now ask of every KG paper.
+
 But look at what our best models still cannot do. The hero fact needed *two* hops and
 already strained everything (@cor-transitive); a real question — "which drugs target
 proteins associated with this disease?" — is a *path with variables in the middle*,

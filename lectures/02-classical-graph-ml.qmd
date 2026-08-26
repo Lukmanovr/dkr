@@ -958,6 +958,13 @@ none of them improves with data. Hold onto them anyway, as a permanent baseline
 discipline: every learned method in the rest of this course has to beat these ten
 lines of NetworkX before its extra machinery has earned anything.
 
+Close the loop — one minute, no notes: one power-iteration step of
+@alg-w02-pagerank on the three-page web; the Fiedler recipe and the two karate
+members it misplaces; what modularity's null model controls for; the WL verdict
+when the histograms match — and when they differ; and which of the five
+centralities answers "who brokers between groups?". Anything that stalls gets
+its section reread before Lab 2.
+
 Next week we stop designing features and start *learning* them: every node gets a
 vector of free parameters, and the graph itself — through random walks that you now
 understand as PageRank's cousins — trains those vectors so that nearby nodes land

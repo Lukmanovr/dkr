@@ -159,8 +159,10 @@ all propagation is a fixed linear filter applied offline.
 **Q9 (open).** Graph: edges $a\!-\!c$, $a\!-\!d$, $b\!-\!c$, $b\!-\!d$,
 $c\!-\!d$, $d\!-\!e$. For the candidate pairs $(a,b)$ and $(a,e)$, compute
 common-neighbors CN and Adamic–Adar
-$\mathrm{AA}(x,y) = \sum_{z \in N(x) \cap N(y)} 1/\ln d_z$, and rank the
-pairs.
+
+$$\mathrm{AA}(x,y) = \sum_{z \in N(x) \cap N(y)} 1/\ln d_z,$$
+
+and rank the pairs.
 
 ::: {.callout-note collapse="true" title="Solution"}
 Degrees: $d_c = 3$ (a, b, d), $d_d = 4$ (a, b, c, e). $(a,b)$: common
@@ -309,10 +311,12 @@ same time.
 
 ## Across the whole course (Weeks 1–8, integrative)
 
-**Q18 (open).** DistMult scores $f(h, r, t) = \langle e_h, w_r, e_t
-\rangle = \sum_i e_{h,i} w_{r,i} e_{t,i}$. (a) Show in one line why it
-cannot represent an *asymmetric* relation. (b) Name the model fixing this
-by design and the mechanism.
+**Q18 (open).** DistMult scores
+
+$$f(h, r, t) = \langle e_h, w_r, e_t \rangle = \sum_i e_{h,i} w_{r,i} e_{t,i}.$$
+
+(a) Show in one line why it cannot represent an *asymmetric* relation.
+(b) Name the model fixing this by design and the mechanism.
 
 ::: {.callout-note collapse="true" title="Solution"}
 (a) The trilinear form is symmetric in $h, t$: $f(h,r,t) = f(t,r,h)$ for

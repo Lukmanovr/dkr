@@ -960,6 +960,12 @@ age, experimental discipline compounds. That is also why Lab 7's grading weights
 the claims paragraph so heavily: writing three sentences that survive their own
 table is harder, and more valuable, than getting sixteen cells to run.
 
+Close the loop — one minute, no notes: the template's three slots; SAGE's
+separated $W_{\text{self}}/W_{\text{nbr}}$ update; the two-line reason static
+GAT attention cannot rank neighbors per-node, and the GATv2 fix; GIN's
+$\varepsilon$-sum and what it matches; and the ablation rules — one factor,
+three seeds, cells cited.
+
 Notice what every architecture today accepted without question: the *messages flow
 along edges, one hop per layer*. GraphSAGE sampled the edges, GAT weighted them, GIN
 counted across them — nobody defied them. Next week is the midterm (Weeks 1–7; a

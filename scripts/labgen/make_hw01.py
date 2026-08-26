@@ -42,6 +42,20 @@ proof step on request. Late policy and rubric details: see the
 [HW1 page](https://lukmanovr.github.io/dkr/homeworks/hw1.html).
 """),
 
+    md("""This assignment consolidates the first four weeks in the course's three working
+registers — proof, implementation, experiment — around one theme: *representations
+have provable properties, and those properties decide what a method can ever learn*.
+You will show that the adjacency spectrum is a relabeling-invariant fingerprint of a
+graph (and find exactly where it fails), derive the fixed point that makes skip-gram
+training a matrix factorization in disguise
+([Qiu et al., 2018](https://arxiv.org/abs/1710.02971)), and then catch both results
+in running code — including training the DistMult scorer of
+[Yang et al., 2015](https://arxiv.org/abs/1412.6575) for 1,500 steps into a wall your
+Part-A proof shows was there before the first gradient. The habit this homework
+builds is the one the rest of the course assumes: audit the geometry on paper before
+you spend the compute.
+"""),
+
     md("""## 0 · Setup"""),
 
     code("""import os, sys, random, math
@@ -235,8 +249,8 @@ directed pair like located_in / contains cannot be expressed, only merged. $\\sq
 
 *(d)* $h = (1, 1)$, $r = (1, 1)$, $t_1 = (2, 0)$, $t_2 = (0, 2)$:
 $f = 2$ for both, and $t_1 \\neq t_2$. Distinct tails, equal maximal enthusiasm —
-the similarity-scorer's escape from the crush that @A4-adjacent functional models
-(TransE, RotatE) provably cannot make. $\\square$
+the similarity-scorer's escape from the crush that the functional models in A4's
+neighborhood of the cheat sheet (TransE, RotatE) provably cannot make. $\\square$
 """),
 
     md("""---
@@ -350,6 +364,37 @@ Train a tiny SGNS on the cast graph (code adapted from Lab 3, provided) and test
 theory: learned scores $\\mathbf{z}_u^\\top \\mathbf{z}'_v$ should correlate strongly
 with $\\mathrm{PMI}(u,v) - \\log k$ across pairs. Your part: compute the empirical
 shifted-PMI matrix from the same walk corpus the trainer used.
+"""),
+
+    md("""#### The spec for B2
+
+The provided trainer runs the lecture's SGNS procedure — one update per observed
+pair, with $k$ negatives drawn from the context-unigram noise distribution (batched
+with Adam here, but the same gradient). Its fixed point is the object *you*
+implement: the shifted-PMI matrix that
+[Qiu et al., 2018](https://arxiv.org/abs/1710.02971) showed these "neural" methods
+implicitly factorize.
+
+**Algorithm 1 · One SGNS update** *(what `train_tiny_sgns` does, pair by pair)*
+
+**Input:** pair $(u, v)$; center table $Z$ and context table $Z'$; number of negatives $k$; noise distribution $P_n$; learning rate $\\eta$. **Output:** updated rows $z_u$, $z'_v$, $z'_{n_1}, \\ldots, z'_{n_k}$.
+
+1. draw fake contexts $n_1, \\ldots, n_k \\sim P_n$
+2. $g \\leftarrow 1 - \\sigma(z_u^\\top z'_v)$ — pull strength
+3. $\\Delta \\leftarrow g\\, z'_v$; then $z'_v \\leftarrow z'_v + \\eta\\, g\\, z_u$
+4. **for** $i = 1, \\ldots, k$ **do**
+5. &nbsp;&nbsp;&nbsp;&nbsp;$h \\leftarrow \\sigma(z_u^\\top z'_{n_i})$ — push strength
+6. &nbsp;&nbsp;&nbsp;&nbsp;$\\Delta \\leftarrow \\Delta - h\\, z'_{n_i}$; then $z'_{n_i} \\leftarrow z'_{n_i} - \\eta\\, h\\, z_u$
+7. **end for**
+8. $z_u \\leftarrow z_u + \\eta\\, \\Delta$
+9. **return**
+
+Your `shifted_pmi` computes the matrix
+$M_{uv} = \\log\\bigl(\\#(u,v)\\,|\\mathcal D| \\,/\\, \\#(u)\\,\\#(v)\\bigr) - \\log k$
+that this update converges toward (A3's derivation); the final assert measures how
+closely the two agree. Mind the roles: $\\#(u)$ counts $u$ as a *center* and
+$\\#(v)$ counts $v$ as a *context* — swapping them is the mistake the assert's
+message warns about.
 """),
 
     todo("""CAST = nx.Graph([(0, 1), (0, 2), (0, 3), (1, 2), (2, 4), (2, 5), (4, 5)])
@@ -511,6 +556,33 @@ Implement DistMult, train it on the Week-4 fragment, and demonstrate the theorem
 numbers: the model assigns *identical* scores to every fact and its reversal — so it
 cannot rank *(Kazan, capital_of, Tatarstan)* above *(Tatarstan, capital_of, Kazan)*,
 no matter how long you train.
+"""),
+
+    md("""#### The spec for B3
+
+The provided loop is the Week 4 training recipe — corruption sampling under the
+open-world assumption, the protocol of
+[Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html) —
+with the logistic loss and the bilinear-diagonal scorer of
+[Yang et al., 2015](https://arxiv.org/abs/1412.6575). Your part is the scorer in
+step 3; everything else is given verbatim in the cell.
+
+**Algorithm 2 · DistMult training epoch (corruption + logistic loss)**
+
+**Input:** triples $\\mathcal T$; entity table $E$; relation table $R$; learning rate $\\eta$. **Output:** updated $E$, $R$.
+
+1. **for** each batch $B \\subseteq \\mathcal T$ **do**
+2. &nbsp;&nbsp;&nbsp;&nbsp;$\\tilde B \\leftarrow$ replace head **or** tail (coin flip) with a uniform random entity
+3. &nbsp;&nbsp;&nbsp;&nbsp;$s^+ \\leftarrow f(B)$, $\\ s^- \\leftarrow f(\\tilde B)$, with $f(h,r,t) = \\sum_i E_{h,i}\\, R_{r,i}\\, E_{t,i}$
+4. &nbsp;&nbsp;&nbsp;&nbsp;$\\ell \\leftarrow -\\,\\mathrm{mean}\\log\\sigma(s^+) - \\mathrm{mean}\\log\\sigma(-s^-)$
+5. &nbsp;&nbsp;&nbsp;&nbsp;one Adam step on $\\ell$
+6. **end for**
+7. **return** $E$, $R$
+
+The point of the exercise is that no number of passes through this loop can
+separate $f(h,r,t)$ from $f(t,r,h)$: step 3's product is symmetric in $(h, t)$ —
+your A4(a) proof, executed — and the final assert verifies the forward and reversed
+scores agree to numerical precision even after training.
 """),
 
     todo("""ENT = ["IU", "KFU", "Innopolis", "Kazan", "Tatarstan", "Russia", "Volga",

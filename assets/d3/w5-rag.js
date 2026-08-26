@@ -114,7 +114,8 @@
       .attr("font-weight", 600).attr("fill", P.muted).text(title);
     contextLines.slice(0, 4).forEach((ln, i) => {
       g.append("text").attr("x", 44).attr("y", 90 + i * 24).attr("font-size", 12.5)
-        .attr("fill", ln.hot ? P.blue : P.text).text(ln.text.slice(0, 96));
+        .attr("fill", ln.hot ? P.blue : P.text)
+        .text(ln.text.length > 88 ? ln.text.slice(0, 86).replace(/\s+\S*$/, "") + " …" : ln.text);
     });
     if (!contextLines.length) {
       g.append("text").attr("x", 44).attr("y", 90).attr("font-size", 12.5)

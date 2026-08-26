@@ -1,0 +1,150 @@
+---
+title: "Week-0 self-check"
+subtitle: "Ten ungraded questions before the first lecture — if these feel comfortable, you are ready; each answer says where the course first leans on it"
+---
+
+This page is a diagnostic, not a test: nothing is collected, nothing is graded.
+Sit the ten questions cold, then open each answer. If a question stalls, the
+answer names exactly what to brush up and where — an evening usually suffices.
+The course assumes nothing beyond these plus curiosity; everything
+graph-specific is built from scratch starting in
+[Week 1](lectures/01-why-graphs.qmd).
+
+## Linear algebra
+
+**S1.** Let $\mathbf{A} = \begin{bmatrix} 0 & 1 \\ 1 & 0 \end{bmatrix}$ and
+$\mathbf{x} = (3, 5)^\top$. Compute $\mathbf{A}\mathbf{x}$ and
+$\mathbf{A}^2$. What does $\mathbf{A}^2$'s diagonal tell you here?
+
+<details><summary>Answer</summary>
+$\mathbf{A}\mathbf{x} = (5, 3)^\top$ (the matrix swaps coordinates), and
+$\mathbf{A}^2 = \mathbf{I}$. **Used from Week 1 on:** matrices act on
+vectors, and powers of a matrix compose that action — the course's first
+theorem reads triangle counts off $\mathbf{A}^3$'s diagonal. Brush-up: the
+first four videos of
+[3Blue1Brown's *Essence of Linear Algebra*](https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab).
+</details>
+
+**S2.** What does it mean, in one sentence each, for $\mathbf{v}$ to be an
+*eigenvector* of $\mathbf{M}$ with eigenvalue $\lambda$ — and why does
+repeatedly applying $\mathbf{M}$ to a random vector tend to align it with the
+eigenvector of the largest $|\lambda|$?
+
+<details><summary>Answer</summary>
+$\mathbf{M}\mathbf{v} = \lambda\mathbf{v}$: the matrix only rescales
+$\mathbf{v}$, by $\lambda$. Writing a random start as a mix of eigenvectors,
+each application multiplies component $i$ by $\lambda_i$ — so the largest
+$|\lambda|$'s component grows fastest and dominates. **Used in Week 2**
+(PageRank *is* this power iteration) and **Week 6** (the graph Fourier
+transform lives in an eigenbasis). Same brush-up playlist, video 14.
+</details>
+
+**S3.** For a symmetric matrix $\mathbf{L}$ and vector $\mathbf{x}$, the
+scalar $\mathbf{x}^\top \mathbf{L}\, \mathbf{x}$ is called a quadratic form.
+Expand it as a double sum. Why is it a *number*, not a vector?
+
+<details><summary>Answer</summary>
+$\mathbf{x}^\top \mathbf{L} \mathbf{x} = \sum_i \sum_j L_{ij}\, x_i x_j$ — a
+row vector times a matrix times a column vector collapses to a scalar.
+**Used from Week 1's** Laplacian onward: that scalar measures how much
+$\mathbf{x}$ *varies* across a graph's edges, and half the course's spectral
+story stands on it.
+</details>
+
+## Probability
+
+**S4.** A die is rolled twice, independently. What is the expected value of
+the sum? State the one property of expectation you used.
+
+<details><summary>Answer</summary>
+$\mathbb{E}[X + Y] = \mathbb{E}[X] + \mathbb{E}[Y] = 3.5 + 3.5 = 7$ —
+linearity of expectation, which needs no independence at all. **Used
+everywhere** from negative sampling (Week 3) to sampled neighborhood
+estimators (Week 11), where "unbiased" is a claim about an expectation.
+</details>
+
+**S5.** A university reports "the average class size is 30." A student
+surveys classmates and finds the average class they sit in has 90 people.
+Neither number is wrong. What is going on?
+
+<details><summary>Answer</summary>
+Size-biased sampling: sampling a *student* oversamples large classes in
+proportion to their size, so the student-experienced average exceeds the
+class-level average whenever sizes vary. **This exact effect, on graphs, is
+Week 1's friendship paradox** (4.6 vs 7.8 on the karate club) — and it
+returns as the scale villain of Week 11.
+</details>
+
+**S6.** What does $P(A \mid B)$ mean, and why is it generally different from
+$P(B \mid A)$? Give a one-line real example.
+
+<details><summary>Answer</summary>
+The probability of $A$ *given that* $B$ occurred — a renormalization to the
+worlds where $B$ holds. $P(\text{rain} \mid \text{clouds}) \ne
+P(\text{clouds} \mid \text{rain})$. **Used in Week 3's** skip-gram objective
+and every likelihood the course writes after it.
+</details>
+
+## Optimization & ML basics
+
+**S7.** You minimize $f(w) = (w - 3)^2$ by gradient descent with step size
+$0.1$ starting at $w = 0$. Compute the first update. What could go wrong
+with step size $1.5$?
+
+<details><summary>Answer</summary>
+$f'(w) = 2(w-3)$, so $w \leftarrow 0 - 0.1 \cdot (-6) = 0.6$. At step size
+$1.5$ the update overshoots and diverges ($w$ oscillates with growing
+magnitude). **Used from Week 3 on** — every model in this course trains by
+exactly this loop, just with more dimensions. Brush-up: chapter 4 of the
+[*Deep Learning* book](https://www.deeplearningbook.org/) (free online).
+</details>
+
+**S8.** Why do we hold out a test set instead of reporting accuracy on the
+training data? One sentence.
+
+<details><summary>Answer</summary>
+Training accuracy measures memorization plus generalization mixed together;
+held-out data isolates the part that transfers. **This course's obsession:**
+on graphs, where data points are *connected*, honest held-out evaluation is
+genuinely hard — leakage is a weekly theme, and two lectures measure exactly
+what dishonest splits inflate (Weeks 12 and 14).
+</details>
+
+## Python / NumPy
+
+**S9.** Without running it: what does this print?
+
+```python
+import numpy as np
+A = np.array([[0, 1, 1], [1, 0, 0], [1, 0, 0]])
+print(A.sum(axis=1), A @ A[:, 0])
+```
+
+<details><summary>Answer</summary>
+`[2 1 1]` (row sums — each node's degree, as it happens) and `[2 0 0]`
+(matrix–vector product with the first column). If `axis=` semantics or `@`
+feel shaky, spend thirty minutes with the
+[NumPy quickstart](https://numpy.org/doc/stable/user/quickstart.html) —
+**Lab 1 uses both in its first exercise.**
+</details>
+
+**S10.** What is the difference between a Python `dict` and a `list` for
+looking up whether an item is present, and why might that matter at
+$n = 100{,}000$?
+
+<details><summary>Answer</summary>
+`item in list` scans linearly ($O(n)$); `item in dict` (or `set`) hashes to
+the answer in $O(1)$ on average. At $10^5$ elements inside a loop, that is
+the difference between instant and minutes. **Used from Lab 1's** edge
+lookups to Week 11, where representation choices at scale are half the
+lecture.
+</details>
+
+## Scoring yourself
+
+Comfortable with 8–10: you are ready — see you in
+[Week 1](lectures/01-why-graphs.qmd). Shaky on 2–4: do the named brush-ups
+this week; the course re-explains each tool at first use, so you will not be
+lost, merely busier. Shaky on more: come to the first office hours and say
+so — the earlier we know, the easier it is to keep you on the boat, and
+[the FAQ](faq.qmd) lists every support channel.

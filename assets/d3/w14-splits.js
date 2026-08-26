@@ -23,8 +23,8 @@
     },
     temporal: {
       te: [11, 12], va: [10], score: "0.195", users: "66 test users survive the wall",
-      note: "a hard wall at the 80% timestamp: nothing after it is ever " +
-        "seen in training — deployment's actual contract",
+      note: "a hard wall at the 80% timestamp: nothing after it enters " +
+        "training — deployment's actual contract",
       verdict: "honest — and the number everyone else inflates",
     },
   };

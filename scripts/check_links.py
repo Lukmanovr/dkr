@@ -33,6 +33,11 @@ class LinkParser(HTMLParser):
         self.links: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
+        # preconnect/dns-prefetch hints name bare origins, not documents —
+        # fetching them 404s by design (caught by the first CI run 2026-08-26)
+        attr_map = dict(attrs)
+        if tag == "link" and attr_map.get("rel", "") in ("preconnect", "dns-prefetch"):
+            return
         for name, value in attrs:
             if value and name in ("href", "src", "data-src"):
                 self.links.append(value)
@@ -85,6 +90,14 @@ def check_external(url: str) -> str | None:
         except Exception as exc:
             last = f"{type(exc).__name__}: {str(exc)[:120]}"
             time.sleep(2 * (attempt + 1))
+    # Connection-level refusals (no HTTP status at all) are almost always
+    # bot-blocking of datacenter IPs, not dead links — e.g. ojs.aaai.org drops
+    # GitHub-runner connections for a URL that resolves fine from a browser.
+    # Verified-by-fetch-at-insertion is this course's citation policy, so these
+    # downgrade to warnings; real HTTP errors (404/410...) still fail.
+    if "RemoteDisconnected" in last or "ConnectionReset" in last or "TimeoutError" in last:
+        print(f"  WARN (unreachable from this network, not failing): {url} ({last})")
+        return None
     return f"{url} ({last})"
 
 

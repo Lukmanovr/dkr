@@ -96,8 +96,11 @@ with $r_X+r_Y+r_Z=1$: $\mathbf{(2/5,\ 2/5,\ 1/5)}$ — check: $\tfrac15+\tfrac15
 \tfrac25$. ✓
 :::
 
-**Q5 (MCQ).** Real PageRank adds a teleport term, $r = \beta M r + (1-\beta)
-\frac{1}{n}\mathbf{1}$. What goes wrong *without* it?
+**Q5 (MCQ).** Real PageRank adds a teleport term,
+
+$$r = \beta M r + (1-\beta)\frac{1}{n}\mathbf{1}.$$
+
+What goes wrong *without* it?
 
 a. Power iteration diverges to infinity on any graph with a cycle.
 b. Spider traps (groups with no way out) absorb all rank, and dead ends (no
@@ -352,10 +355,12 @@ $(1,1)$ **confused**; sum $(2,1)$ vs $(1,2)$ **separates**. Moral: over one-hot
 why GIN aggregates with sum; mean keeps proportions, max keeps only support.
 :::
 
-**Q19 (open).** GAT scores an edge as $e_{vu} = \text{LeakyReLU}\!\left(
-\mathbf a^\top [\mathbf W h_v \,\Vert\, \mathbf W h_u]\right)$. State the
-**static attention** limitation this creates (one sentence identifying *what*
-cannot be expressed), and give the GATv2 repair (one line).
+**Q19 (open).** GAT scores an edge as
+
+$$e_{vu} = \text{LeakyReLU}\!\left(\mathbf a^\top [\mathbf W h_v \,\Vert\, \mathbf W h_u]\right).$$
+
+State the **static attention** limitation this creates (one sentence identifying
+*what* cannot be expressed), and give the GATv2 repair (one line).
 
 ::: {.callout-note collapse="true" title="Solution"}
 Split $\mathbf a^\top[\cdot\Vert\cdot]$ into a receiver term plus a sender term:

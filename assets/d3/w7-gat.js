@@ -153,7 +153,7 @@
     heat(g, gv2.M, 450, 78, "GATv2 (2022)", gv2.correct, P, "#199473");
     g.append("text").attr("x", 380).attr("y", 30).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted)
-      .text(`task: query qᵢ must attend to key kᵢ · both trained ${STEPS} steps from seed ${seed} · outline = each row's argmax`);
+      .text(`task: query qᵢ must attend to key kᵢ · both trained ${STEPS} steps from seed ${seed} · outline = row argmax`);
     g.append("text").attr("x", 380).attr("y", 296).attr("text-anchor", "middle")
       .attr("font-size", 13).attr("font-weight", 600).attr("fill", P.text)
       .text("GAT's argmax column is (nearly) the same in every row — static attention, the theorem in pixels");

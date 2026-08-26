@@ -449,3 +449,14 @@ div.algorithm { overflow-x: auto; }
     padding-left: 0.7em;
   }
 }
+
+// A11y: breadcrumb links need >=24px touch targets (Lighthouse target-size,
+// live-site audit 2026-08-26 — the only finding between us and a11y 100).
+.quarto-page-breadcrumbs .breadcrumb-item a {
+  display: inline-block;
+  padding: 0.45rem 0.2rem;
+  margin: -0.2rem 0;
+}
+.quarto-page-breadcrumbs .breadcrumb-item + .breadcrumb-item {
+  padding-left: 0.65rem;
+}

@@ -19,6 +19,10 @@ After this lecture (and Lab 1) you can:
 3. **compute** degrees, the degree matrix, the Laplacian $\mathbf{L} = \mathbf{D} - \mathbf{A}$, and walk counts via powers of $\mathbf{A}$, by hand, on small graphs;
 4. **classify** any graph problem as node-, edge-, or graph-level and name a deployed industrial instance of each;
 5. **explain** why node ordering is storage rather than information, and what that will demand of every model in this course.
+
+Unsure whether your math and Python are ready? The ungraded
+[Week-0 self-check](../self-check.qmd) takes ten minutes and names the
+brush-ups.
 :::
 
 ## A club splits in two, and a graph sees it coming
@@ -984,6 +988,13 @@ centralities that found search engines, a relabeling trick from 1968 that will t
 to bound what neural networks can ever see on a graph, and the community-finding
 machinery that Zachary's little club launched. That is Week 2: **classical graph ML —
 structure as features.** Bring the Laplacian; it works there too.
+
+Close the loop before you go — one minute, no notes: reconstruct the handshake
+lemma and the check it gives you; the three storages of one graph and which
+survives when $m = O(n)$; why $(\mathbf{A}^3)_{vv}$ counts triangles; the
+friendship paradox's two averages (4.6 vs 7.8) and the sampling bias behind
+them; and the invariance sentence — node order is storage, not information.
+Whatever stalls, its section is a two-minute reread tonight.
 
 And keep today's three quiet theorems within reach as you go, because the whole
 semester leans on them: the handshake lemma (your data-sanity reflex), walks-by-powers

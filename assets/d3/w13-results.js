@@ -57,7 +57,7 @@
     }
     const msg = ref
       ? "same architecture family, 10× the budget, 4× better MAE — never compare across budgets"
-      : "the encoding paid (−0.053, free); the attention didn't (+0.007 at 2.7× time) — at THIS scale and budget";
+      : "the encoding paid (−0.053, free); the attention didn't (+0.007 at 2.7× time) — at THIS budget";
     g.append("text").attr("x", 380).attr("y", 250).attr("text-anchor", "middle")
       .attr("font-size", 13).attr("font-weight", 600).attr("fill", P.accentDark).text(msg);
     g.append("text").attr("x", 380).attr("y", 272).attr("text-anchor", "middle")

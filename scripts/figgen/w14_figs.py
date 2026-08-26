@@ -94,14 +94,14 @@ sp = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-si
 BARW = 130
 for k, (name, val, note, col) in enumerate(PROTO):
     cx = 155 + k * 225
-    h = round(val * 620)
+    h = round(val * 570)
     sp.append(f'  <rect x="{cx - BARW // 2}" y="{268 - h}" width="{BARW}" height="{h}" rx="8" fill="{col}" opacity="0.85"/>')
     sp.append(f'  <text x="{cx}" y="{252 - h}" text-anchor="middle" font-family="{MONO}" font-size="15" font-weight="700" fill="{TEXT}">{val:.3f}</text>')
     sp.append(f'  <text x="{cx}" y="{292}" text-anchor="middle" font-family="{SANS}" font-size="13" font-weight="700" fill="{col}">{name}</text>')
     sp.append(f'  <text x="{cx}" y="{312}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="{MUTED}">{note}</text>')
 # inflation bracket: step-down from the random bar's height to the temporal bar's top
-y_rand_top = 268 - round(K3_RAND * 620)
-y_temp_top = 268 - round(K3_T * 620)
+y_rand_top = 268 - round(K3_RAND * 570)
+y_temp_top = 268 - round(K3_T * 570)
 sp.append(f'  <path d="M 225 {y_rand_top} L 650 {y_rand_top} L 650 {y_temp_top - 7}" '
           f'stroke="{ACC}" stroke-width="2" fill="none" stroke-dasharray="6 4" marker-end="url(#w14sp-arr)"/>')
 sp.append(f'  <defs><marker id="w14sp-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
@@ -151,7 +151,7 @@ write("fig-w14-ladder", "\n".join(ld),
 tg = [f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="13" fill="{MUTED}">'
       f'temporal graph networks, one loop (schematic) — a memory that events keep writing to</text>']
 BOXES = [(95, "event", "(u, i, t, features)", TEAL),
-         (270, "message", "m = msg(s&#x1D64;, s&#x1D62;, &#x394;t, x)", GOLD),
+         (270, "message", "m = msg(s&#x1D64;,s&#x1D62;,&#x394;t,x)", GOLD),
          (455, "memory", "s &#x2190; GRU(s, m)", ACC),
          (640, "embed + predict", "h(t) from s + graph", GREEN)]
 for cx, title, sub, col in BOXES:

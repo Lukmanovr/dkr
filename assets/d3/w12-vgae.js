@@ -53,7 +53,7 @@
       .text(`true edges recovered ${tp}/${D.edges.length} · false edges invented ${fp} · missed ${missed}`);
     const verdict = thr <= 0.55 ? "low bar: nearly everything close gets an edge — recall bought with fiction"
       : thr >= 0.85 ? "high bar: only the surest pairs — precision bought with amnesia"
-      : "the trade every decoder makes: geometry proposes, the threshold disposes";
+      : "every decoder's trade: geometry proposes, the threshold disposes";
     g.append("text").attr("x", 380).attr("y", 322).attr("text-anchor", "middle")
       .attr("font-size", 13).attr("font-weight", 600).attr("fill", P.accentDark)
       .text(verdict + `  (baked model: recon AUC ${D.auc})`);

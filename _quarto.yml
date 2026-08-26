@@ -119,6 +119,8 @@ website:
             text: Reading list
           - href: notation.qmd
             text: Notation reference
+          - href: self-check.qmd
+            text: "Week-0 self-check"
           - href: datasets.qmd
             text: Datasets
           - href: policies.qmd

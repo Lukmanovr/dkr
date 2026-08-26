@@ -55,7 +55,7 @@
 
     g.append("text").attr("x", 380).attr("y", 26).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted)
-      .text("click a node to flip its color · +/− to resize · can you make two different multisets that fool ALL three?");
+      .text("click a node to flip its color · +/− to resize · can two different multisets fool ALL three?");
 
     // builder centered: label + up to 6 nodes + controls sit in the middle band
     drawSet(g, A, 258, 62, "N(a):", P);

@@ -13,7 +13,10 @@ embeddings, and KG embedding theory:
 - **Part A · Derivations (30 pts).** Four proofs, answered in markdown cells:
   relabeling and spectral invariance (plus finding where the invariant *fails*);
   why PageRank needs its teleport, on the smallest graph that breaks it; the SGNS
-  fixed point, derived; and the complete DistMult column of the Week 4 cheat sheet.
+  fixed point, derived — the shifted-PMI equivalence of
+  [Qiu et al., 2018](https://arxiv.org/abs/1710.02971); and the complete column of
+  the Week 4 cheat sheet for DistMult
+  ([Yang et al., 2015](https://arxiv.org/abs/1412.6575)).
 - **Part B · Implementation (60 pts, autograded).** Three exercises whose asserts you
   can read: spectral fingerprints that catch A1's cospectral pair; an empirical
   verification that SGNS converges to the shifted PMI (theory, then `corr > 0.9` in
@@ -44,7 +47,8 @@ run the same checks with different graphs and toy vectors. If your code is hones
 (no hard-coded answers), visible-pass ≈ hidden-pass.
 
 **May I use an AI assistant?** Yes, with disclosure in the final cell (tool + what
-for), per the [honor code]. You must be able to explain any line and any proof step
+for), per the [honor code](../policies.qmd#honor-code-ai-policy). You must be able
+to explain any line and any proof step
 in person; inability to explain is treated as undeclared use.
 
 **Part C says "at most three configurations" — can I run ten?** You can *run*

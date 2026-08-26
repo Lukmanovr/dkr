@@ -86,7 +86,11 @@ export function harnessFor(name, theme) {
     ? ["d3.v7.min.js", "_dkr.js", ...(DATA_DEPS[name] || []), `${name}.js`]
         .map((f) => `<script src="${pathToFileURL(join(WIDGETDIR, f)).href}"></script>`).join("")
     : "";
-  return `<!doctype html><html><head><meta charset="utf-8"><style>
+  return `<!doctype html><html><head><meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
     :root { ${vars} }
     body { margin: 0; padding: 16px; background: var(--dkr-bg); color: var(--dkr-text);
            font-family: sans-serif; }

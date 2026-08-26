@@ -1096,6 +1096,10 @@ $w_1 > 0$ region in Figure 2's filter mode — spectral methods, Week 13).
 - **Permutation invariance / equivariance** (@def-perm, @thm-equiv) — storage order is not information.
 :::
 
+Close the loop — no notes: build $\hat{\mathbf{A}}$ for the 3-node path and
+push $(1, 0, 0)$ through one step; the renormalization trick's spectrum claim;
+the low-pass sentence and the graph it fails on. One minute, then Lab 6.
+
 :::
 
 ::: {.content-visible when-format="html"}

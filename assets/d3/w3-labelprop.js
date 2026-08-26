@@ -125,7 +125,7 @@
       .attr("fill", stable ? P.green : P.text).text(msg);
     g.append("text").attr("x", 380).attr("y", 308).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted)
-      .text("majority vote of labeled neighbors, synchronous; ties keep their state. No vectors, no features, no learning.");
+      .text("majority vote of labeled neighbors, synchronous; ties keep their state — no vectors, no learning.");
   }
 
   document.getElementById("w3-lp-step").addEventListener("click", () => { sweep(); render(); });

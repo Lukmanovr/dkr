@@ -5,6 +5,10 @@ subtitle: "The questions that reach the instructor's inbox, answered once"
 
 ## Setup & running things
 
+**Am I prepared enough for this course?** Sit the ungraded
+[Week-0 self-check](self-check.qmd) — ten questions, each answer names
+exactly what to brush up and where the course first uses it.
+
 **Do I need my own GPU?** No. Every lab and homework runs top-to-bottom on
 free Colab (CPU included) within its stated time budget — the badge at the
 top of each lab links the exact notebook. A GPU shortens the training

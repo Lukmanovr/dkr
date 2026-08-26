@@ -40,6 +40,20 @@ code; you must be able to explain any line and any proof step on request.
 Rubric, late policy, FAQ: the [HW3 page](https://lukmanovr.github.io/dkr/homeworks/hw3.html).
 """),
 
+    md("""This closing assignment is about ceilings and honesty: what message passing can
+never distinguish, what typed and scaled variants actually cost, and what a link
+prediction score is worth once the evaluation stops leaking. You will prove the
+Weisfeiler–Leman ceiling on a concrete pair of graphs — the bound that makes
+expressiveness a design constraint rather than a benchmark race
+([Xu et al., 2019](https://arxiv.org/abs/1810.00826)) — audit parameter and memory
+budgets the way Weeks 10–11 audited them, and build the three tools (capacity
+auditor, split validator, ranking metrics) that separate defensible edge-prediction
+numbers from the inflated kind catalogued by
+[Sun et al., 2020](https://arxiv.org/abs/1911.03903). Everything in Part B is
+deterministic on purpose: the subject is engineering discipline, not the seed
+lottery.
+"""),
+
     md("""## 0 · Setup"""),
 
     code("""import os, sys, math
@@ -156,6 +170,30 @@ sampled batch's node count, then render the verdict strings the lecture
 rendered.
 """),
 
+    md("""#### The spec for B1
+
+Week 11's audit, as a reusable function. The full-batch bill has three float32
+lines — features, retained activations, per-edge messages — and the sampled
+alternative is priced by the geometric fanout bound that GraphSAGE's sampling
+contract introduced ([Hamilton et al., 2017](https://arxiv.org/abs/1706.02216)).
+
+**Algorithm 1 · The capacity audit**
+
+**Input:** node count $N$; directed edge count $E$; hidden width $d$; layer count $L$; GPU budget $M$ (MB); fanout $f$ for the sampled alternative. **Output:** memory bill in MB; a fits/OOM verdict; worst-case nodes touched per target.
+
+1. $\\text{bill} \\leftarrow \\bigl(N d \\,+\\, L\\, N d \\,+\\, L\\, E d\\bigr) \\times 4 \\ \\text{bytes} \\;/\\; 2^{20}$
+2. **if** $\\text{bill} < 0.8\\, M$ **then** verdict $\\leftarrow$ "fits" **else** verdict $\\leftarrow$ "OOM"
+3. $\\text{bound} \\leftarrow 1 + f + f^2 + \\cdots + f^L$
+4. **return** bill, verdict, bound
+
+Step 1 is the lecture's three-line bill — features, activations, messages — and the
+edge-message term dominates because messages are per-edge, not per-node. Step 2's
+20% headroom pays the bookkeeping tax of gradients and optimizer state. Step 3 is
+the worst case a sampled batch can touch per target node. The asserts run your
+audit on the lecture's ogbn-arxiv and ogbn-products numbers and expect the same
+verdicts the lecture reached.
+"""),
+
     todo("""def memory_bill_mb(N, E, d, layers):
     \"\"\"Approximate full-batch float32 residency in MB:
     features (N*d*4) + retained activations (layers * N*d*4)
@@ -230,6 +268,30 @@ each of four sabotaged ones. Violation codes: `"test_in_message"`,
 `"overlap"`, `"neg_is_positive"`, `"ok"`.
 """),
 
+    md("""#### The spec for B2
+
+Week 12's four-bucket split gives every edge exactly one job, and every leak in
+that lecture violated exactly one bucket's card. Modern benchmarks such as OGB
+([Hu et al., 2020](https://arxiv.org/abs/2005.00687)) institutionalized this
+discipline by shipping the splits themselves; here you write the auditor, with the
+checks in a fixed order so a multi-fault split reports its *first* violation
+deterministically.
+
+**Algorithm 2 · The split audit**
+
+**Input:** edge sets — message $M$, train positives $P_{tr}$, test positives $P_{te}$, test negatives $N_{te}$ (each a set of unordered pairs). **Output:** the first violation's name, or "ok".
+
+1. **if** $P_{te} \\cap M \\ne \\emptyset$ **then return** "test_in_message"
+2. **if** $P_{tr} \\cap P_{te} \\ne \\emptyset$ **then return** "overlap"
+3. **if** $N_{te} \\cap (P_{tr} \\cup P_{te}) \\ne \\emptyset$ **then return** "neg_is_positive"
+4. **return** "ok"
+
+Check 1 is the leak Week 3 measured at +17 AUC — the test answer visible in the
+message graph; check 2 is grading on the training set; check 3 poisons the answer
+key itself. The asserts hand your auditor one clean split and four sabotaged ones:
+it must pass the first and name each sabotage.
+"""),
+
     todo("""def check_split(message, train_pos, test_pos, test_neg):
     \"\"\"Each argument: a set of frozenset({u, v}) pairs. Return the FIRST
     violation found, checked in this order:
@@ -302,6 +364,32 @@ print("B2 \\u2713 — twelve lines that would have caught the 0.363")"""),
 
 Implement AUC (pairwise), Hits@K, and MRR. The asserts then reproduce the
 lecture's model-A/model-B story: high AUC with zero Hits@10, and the reverse.
+"""),
+
+    md("""#### The spec for B3
+
+Ranking metrics in the shared-candidate-pool form used here. The protocol descends
+from the raw/filtered ranking evaluation of
+[Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html) —
+Week 4's evaluation procedure — simplified: one shared pool of negatives, and no
+filtering step because the pool is constructed clean.
+
+**Algorithm 3 · Pool-ranking metrics**
+
+**Input:** positive scores $p_1, \\ldots, p_m$; negative scores $n_1, \\ldots, n_q$; cutoff $K$. **Output:** AUC, Hits@K, MRR.
+
+1. $\\text{AUC} \\leftarrow \\frac{1}{mq}\\sum_{i,j} \\bigl(\\,[p_i > n_j] + \\tfrac12\\,[p_i = n_j]\\,\\bigr)$
+2. **for** each positive $p_i$: $\\text{rank}_i \\leftarrow 1 + \\#\\{s \\text{ in the merged list} : s > p_i\\}$
+3. $\\text{Hits@}K \\leftarrow \\frac{1}{m}\\,\\#\\{i : \\text{rank}_i \\le K\\}$
+4. **for** each positive $p_i$: $r_i \\leftarrow 1 + \\#\\{j : n_j > p_i\\}$ — negatives only
+5. $\\text{MRR} \\leftarrow \\frac{1}{m}\\sum_i 1/r_i$
+6. **return** AUC, Hits@K, MRR
+
+Mind the two different ranks: Hits@K ranks each positive against the *merged* list
+(step 2) while MRR ranks against the *negatives only* (step 4) — the convention
+difference the docstrings spell out, and the source of most silent bugs here. The
+asserts finish by reproducing the lecture's disagreement: a model can win AUC while
+losing Hits@10, and which metric you report decides which model ships.
 """),
 
     todo("""def auc_pairwise(pos_scores, neg_scores):

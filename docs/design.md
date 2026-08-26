@@ -575,19 +575,58 @@ it", ≥4 manipulable widgets with suggested experiments, details-on-demand (hov
 glossary, collapsibles); (18–20) rigor with scaffolding: complete derivations, notation
 discipline, honest failures; (21–24) memory & transfer: cross-week callbacks, takeaway
 anchors, pitfalls-as-inoculation, a production touchpoint; (25) conversational
-second-person voice; (26) **depth target: 8,000–9,000 visible words per lecture**
-(instructor decision 2026-08-21; measured by the site's reading-time counter, i.e.
-visible prose — collapsed proofs/details do not count toward it). The words must be
-substance — worked examples, derivations, practice/deployment context — never padding;
-the Week-6 pilot (~8.4k) is the calibration reference.
+second-person voice; (26) **depth target: 8,000–10,000 visible words per lecture**
+(floor set 2026-08-21; ceiling raised from 9,000 to ~10,000 by instructor decision
+2026-08-25 for the academic-book pass; measured by the site's reading-time counter,
+i.e. visible prose — collapsed proofs/details do not count toward it). The words must
+be substance — worked examples, derivations, practice/deployment context — never
+padding. `node scripts/wordcount.mjs` enforces the band.
 
-*Measured 2026-08-21 (Lighthouse, localhost, simulated slow-4G): Accessibility 100 ·
-Best-practices 100 · Performance 55.* The performance score is dominated by ~2 MB of
-render-blocking framework CSS/JS (KaTeX + Bootstrap + fonts) under simulated 4G and by
-the dev server sending no cache headers (GitHub Pages does). **Perf backlog, honest:**
-vendor + subset KaTeX with `font-display: swap`; prune unused Bootstrap via a trimmed
-SCSS build; re-measure on the deployed Pages site where caching applies. Widgets already
-lazy-init and all scripts defer, so interactivity cost is near zero (TBT 0 ms, CLS 0.07).
+**(27–33) Academic-book standard (instructor brief 2026-08-25; full contract with
+the float syntax in `dkr-private/book-pass/book_standard.md`):**
+(27) **Algorithms**: ≥1, preferably 2, book-style algorithm floats per lecture AND
+per lab — `::: {#alg-wNN-slug .algorithm name="..."}` (Quarto auto-numbers #alg- ids;
+never write "Algorithm N" manually), first paragraph = what it computes, then
+**Input/Output**, ≤15 numbered steps of ≤~72 chars, bold control keywords, citation
+in the prose before the float; the listing must MATCH the lab implementation
+symbol-for-symbol, and the lab mirrors it as a markdown spec cell before the
+implementing exercise. (28) **Display math**: every formula a lecturer would point
+at is a `$$...$$ {#eq-wNN-slug}` display block followed by a where-list glossing
+EVERY symbol; inline math only for passing references; no symbol is ever used before
+it is disclosed; symbol collisions get explicit disambiguation. (29) **Definitions
+visible**: 2–5 load-bearing notions per lecture as `{#def-wNN-slug .definition}`
+environments, plus a `.notions` box ("Notions introduced this week") before the
+closing section. (30) **Citations**: methods and named results carry
+[Author et al., YEAR](url) links at first mention; every URL fetch-verified before
+insertion (audits have proposed wrong DOIs; unverifiable links are dropped, not
+guessed). (31) **Widget text**: SVG text SPECIFIED ≥12.5px — the site renders widget
+SVGs at ~0.89 scale, so 12px specs fail the 11px rendered floor that
+`scripts/figlint.mjs` enforces; the figqa harness mirrors the site's widget chrome
+(body color, card, controls), so its shots are the truth for both themes.
+(32) **Mobile math** (both theme SCSS files): `.katex-display` scrolls in its own
+box; at ≤700px display equations wrap (`white-space: normal !important` — katex.css
+loads after the theme, so !important is required) and equation numbers (`.katex-tag`,
+NOT `.tag`) flow inline after the math; verify with
+`node scripts/shot_page.mjs <page> <prefix> 375` (0px horizontal overflow required).
+(33) **Book register**: welcoming section openers that assume only previous weeks,
+paragraphs ≤~12 lines, every ## section carries a visual anchor (figure, widget,
+algorithm, definition, equation, or table), and every lecture ends with the
+retrieval close.
+
+*Measured 2026-08-26 (Lighthouse on the DEPLOYED Pages site, heaviest page 06-gcn,
+simulated slow-4G): Accessibility 97→100 after the breadcrumb target-size fix ·
+Best-practices 100 · Performance 40 (LCP/FCP 4.8 s, TBT ≈6 s, CLS 0.06).* The
+performance cost is now precisely attributed: ~5 s of Style & Layout from client-side
+KaTeX rendering ~150 display equations over 40k-pixel pages, plus ~2 s of quarto.js
+scroll-spy/ToC bootup — not network (preconnects exist, Pages caches, widgets
+lazy-init, scripts defer). **The honest fixes are architectural and both collide with
+the reading-time-badge standard** (the badge counts `main.innerText` post-KaTeX on
+load): (a) pre-rendering KaTeX at build time would change what the badge measures;
+(b) `content-visibility: auto` on below-fold sections would skip off-screen content in
+`innerText`, collapsing every badge. Either requires an instructor decision to
+recalibrate or redefine the badge first — recorded here as that decision item, not as
+free backlog. Real-user experience is materially better than the simulated score:
+content paints progressively and interaction cost after settle is near zero.
 
 **B · What makes a modern website great** — Core Web Vitals (LCP ≤ 2.5 s, INP ≤ 200 ms,
 CLS ≤ 0.1) with lazy widget init and preconnected swap fonts; 60–75-ch measure and a

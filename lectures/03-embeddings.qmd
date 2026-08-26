@@ -920,6 +920,10 @@ normalization reflex: a vector's norm and its direction can encode different
 things — frequency in one, meaning in the other — so choosing what to normalize
 is part of experimental design, not housekeeping.
 
+Close the loop — no notes: the SGNS update's two pushes for one positive pair;
+the matrix DeepWalk factorizes, in one phrase; which of $p, q$ drags the walk
+home; and the two leak detectors. One minute now beats ten in the exam hall.
+
 But look back at Lab 1's twelve Wikidata triples. *Innopolis University —
 located_in — Innopolis. Kazan — capital_of — Tatarstan.* Every edge today was a bare,
 anonymous link — while real knowledge comes as **typed, directed facts**, where
