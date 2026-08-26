@@ -508,7 +508,7 @@ convention and in-degrees in the other. This course fixes $\mathbf{A}[u,v] = 1 \
 (u,v) \in \mathcal{E}$, rows = sources; check any other source's fine print before
 copying its formulas.
 
-The theorem is the **friendship paradox**
+The theorem is the **[friendship paradox](https://en.wikipedia.org/wiki/Friendship_paradox)**
 [Feld, 1991](https://doi.org/10.1086/229693), and it is the heavy tail of §2 biting for
 the first time: *on average, your friends have more friends than you do.* Precisely —
 pick a random node and ask for its degree: expected value $\bar d = 2m/n$. Pick a
