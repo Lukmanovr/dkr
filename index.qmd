@@ -4,11 +4,6 @@ subtitle: "Graphs, knowledge graphs, and the machine learning that runs on them"
 toc: false
 ---
 
-::: {.margin-note}
-**Fall 2026 · Innopolis University** · Thursdays, Aug 27 – Dec 3 · one 90-minute lecture +
-one lab per week · 3rd-year BS, Data Science track
-:::
-
 Relational structure is the dominant untapped signal in industrial data. A working ML
 engineer meets it as the knowledge graph grounding an LLM system, as a recommender's
 user–item graph, as a fraud ring in a transaction network, as a molecule — and, most often,
