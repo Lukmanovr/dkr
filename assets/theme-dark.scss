@@ -564,3 +564,31 @@ main { counter-reset: dkrfig; }
   overflow-x: auto;
 }
 .live-py .py-editor-output:empty { display: none; }
+
+// Dark theme for the live Python editor (instructor request 2026-08-26).
+// CodeMirror's injected syntax palette is light with generated class names,
+// so the editor region is re-skinned wholesale: invert + hue-rotate flips
+// the ground dark while keeping each token's hue family. Chrome and output
+// recolor natively.
+.live-py {
+  background: #15171d;
+  box-shadow: none;
+}
+// CodeMirror mounts in a shadow root, unreachable by page CSS — but filter
+// on the shadow HOST re-renders the whole subtree, run button included.
+.live-py .py-editor-input {
+  filter: invert(1) hue-rotate(180deg) brightness(1.15) saturate(1.3);
+}
+.live-py .py-editor-output {
+  color: #d5d3dc;
+  background: #191b21;
+  border-top-color: #343742;
+}
+
+// Figure image shipped out of the worker as base64 (see lecture 1 observer)
+.live-py .py-editor-output img {
+  display: block;
+  max-width: 340px;
+  width: 100%;
+  margin: 0.3rem auto;
+}

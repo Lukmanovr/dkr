@@ -674,3 +674,16 @@ moments tied to this notebook's outputs + the AI-disclosure restated at submissi
 **[DECISION] items for Gate 1 sign-off:** §1 syllabus deltas (esp. dropping Mapper/TDA);
 §5.2 no-HW4; §5.4 final at 90 min; §5.6 project milestone dates; license proposal
 (CC BY-NC-SA 4.0 content / MIT code); everything else in this document.
+
+**Live in-browser Python (PyScript) — Week 1 pattern (2026-08-26).** Lecture pages may
+embed runnable, editable Python via PyScript `py-editor` blocks (`.live-py` chrome;
+loads nothing until first Run). Hard-won constraints: the editor ALWAYS runs in a web
+worker, and GitHub Pages sends no COOP/COEP headers, so `pyscript.display()` and all
+DOM access fail — ship figures out by printing `PNG::<base64>` (matplotlib on the
+`agg` backend, `transparent=True`) and let the page-side MutationObserver in the
+lecture swap it into an `<img>`. CodeMirror mounts lazily in a SHADOW ROOT: page CSS
+cannot reach `.cm-editor`; the dark theme is a `filter: invert(1) hue-rotate(180deg)`
+on the shadow host `.py-editor-input` (theme-dark.scss). Editors needing packages get
+their own `env` + `config` attribute so plain blocks stay download-free. The badge
+counts editor code as visible words; the instructor accepts slightly over 10k where
+live code earns it (2026-08-26).

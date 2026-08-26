@@ -569,3 +569,11 @@ main { counter-reset: dkrfig; }
   overflow-x: auto;
 }
 .live-py .py-editor-output:empty { display: none; }
+
+// Figure image shipped out of the worker as base64 (see lecture 1 observer)
+.live-py .py-editor-output img {
+  display: block;
+  max-width: 340px;
+  width: 100%;
+  margin: 0.3rem auto;
+}

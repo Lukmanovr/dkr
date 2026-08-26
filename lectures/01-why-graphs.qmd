@@ -59,12 +59,11 @@ Mr. Hi the source and the Officer the sink, and computed the **minimum cut**: th
 cheapest set of friendships whose removal disconnects the two leaders. His prediction:
 the club would tear along that cut, each member staying on their leader's side of it.
 No learning, no features, no probability — one combinatorial optimization on pure
-structure, and 33 of 34 members landed where the cut said they would. Hold the shape
-of that in mind: a quantity defined on edges (the cut), minimized over partitions,
-predicting node behavior. In §3 today you will meet the matrix that *measures* cuts;
-in Week 2 you will minimize it; by Week 6 a neural network will be descended from it.
-The karate club is the course's origin story; we will recompute it with better
-tools three more times.
+structure, and 33 of 34 members landed where the cut said they would. Hold that shape
+in mind: a quantity defined on edges (the cut), minimized over partitions,
+predicting node behavior. §3 introduces the matrix that *measures* cuts; Week 2
+minimizes it; by Week 6 a neural network descends from it. The karate club is the
+course's origin story; we recompute it with better tools three more times.
 
 That is the thesis of this course, in one 1977 result: **connections carry information
 that lives nowhere else.** No column in a spreadsheet about these 34 people — age, rank,
@@ -76,7 +75,7 @@ Half a century later, the systems around you run on the same idea at billion-nod
 {{< include ../assets/figures/fig-w1-systems.html >}}
 
 The scale is the point: Google's Knowledge Graph
-reported five *billion* entities and five hundred billion facts back in 2020
+reported five *billion* entities and five hundred billion facts in 2020
 [Google, 2020](https://blog.google/products/search/about-knowledge-graph-and-knowledge-panels/) — every
 search box query touches it. Pinterest's recommender propagates signals over a graph
 of billions of pins and boards [Ying et al., 2018](https://arxiv.org/abs/1806.01973);
@@ -84,19 +83,17 @@ Google Maps' ETA system, in production since 2020,
 treats road networks as graphs and runs a graph neural network over them for a billion
 users [Derrow-Pinion et al., 2021](https://arxiv.org/abs/2108.11482). The molecule panel: the 2020 discovery of the antibiotic halicin came from a graph-level model screening millions
 of candidate molecular graphs [Stokes et al., 2020](https://doi.org/10.1016/j.cell.2020.01.021)
-— structure-based prediction finding, in hours, what
-bench chemistry had missed for decades. And the quietest panel is the most universal:
+— finding in hours what bench chemistry had missed for decades. And the quietest panel is the most universal:
 every company's relational database *is* a graph wearing tables (foreign keys are
 edges), which is why Week 14's "relational deep learning" may be the most
-career-relevant session of the course. None of these systems could exist on
-spreadsheet features alone; all of them are Zachary's move — read the structure —
-industrialized.
+career-relevant session of the course. None could exist on spreadsheet features alone; all are
+Zachary's move — read the structure — industrialized.
 
 This course teaches you to **represent** such data (this week and next), to **learn**
 from it (embeddings, then graph neural networks), and to **reason** over it (knowledge
-graphs, up to the retrieval systems grounding today's LLMs). Today is the foundation
-everything stands on: what a graph is, how a computer holds one, the first numbers you
-can squeeze out of pure structure, and the three kinds of questions you can ask.
+graphs, up to the retrieval systems grounding today's LLMs). Today is the foundation: what a
+graph is, how a computer holds one, the first numbers pure structure yields, and the
+three kinds of questions you can ask.
 
 **Roadmap.** (1) Graphs and their types — a modeling decision. (2) Three ways to store a
 graph, and why the honest answer is "the cheap one". (3) First structure numbers:
@@ -314,6 +311,56 @@ print("degrees d  =", d)
 print("handshake  : sum(d) =", sum(d), "  2m =", 2 * len(E))
 </script>
 </div>
+```
+
+And the tensor draws — a circular layout plus one line per edge is all matplotlib
+needs. Mirror an edit from above, re-run, and the picture follows (first run
+downloads matplotlib; expect ~ten seconds):
+
+```{=html}
+<div class="live-py">
+<div class="live-py-head"><span class="live-py-dot"></span>Live Python — draw the graph from its edge list</div>
+<script type="py-editor" env="w1viz" config='{"packages":["matplotlib"]}'>
+import matplotlib
+matplotlib.use("agg")                 # headless backend
+import matplotlib.pyplot as plt
+from math import cos, sin, pi
+import io, base64
+
+E = [(0, 1), (0, 2), (1, 2), (2, 3)]  # same graph -- edit and re-run
+n = 4
+
+pos = {u: (cos(2*pi*u/n), sin(2*pi*u/n)) for u in range(n)}
+d = [0] * n
+
+fig, ax = plt.subplots(figsize=(4.4, 4.4))
+for u, v in E:
+    d[u] += 1; d[v] += 1
+    ax.plot(*zip(pos[u], pos[v]), color="#8e8e9a", lw=2.2, zorder=1)
+for u in range(n):
+    ax.scatter(*pos[u], s=1300, c="#d9603b", zorder=2)
+    ax.annotate(str(u), pos[u], ha="center", va="center", color="white", weight="bold")
+    ax.annotate(f"d={d[u]}", pos[u], xytext=(0, -30), textcoords="offset points",
+                ha="center", color="#0f8377", fontsize=9)
+ax.set_aspect("equal"); ax.margins(0.25); ax.axis("off")
+
+buf = io.BytesIO()                    # the editor runs in a worker, so
+fig.savefig(buf, format="png", transparent=True, bbox_inches="tight")
+print("PNG::" + base64.b64encode(buf.getvalue()).decode())  # ship it out
+</script>
+</div>
+<script>
+// The py-editor worker cannot touch the page; it prints the figure as
+// base64 and this observer swaps the text for the actual image.
+new MutationObserver(() => {
+  document.querySelectorAll(".live-py .py-editor-output").forEach(o => {
+    const m = o.textContent.match(/PNG::([A-Za-z0-9+\/=]+)/);
+    if (m) {
+      o.innerHTML = "<img alt='the graph drawn from its edge list' src='data:image/png;base64," + m[1] + "'>";
+    }
+  });
+}).observe(document.body, {subtree: true, childList: true, characterData: true});
+</script>
 ```
 
 {{< include ../assets/figures/fig-w1-representations.html >}}
@@ -839,8 +886,8 @@ sparse ops reflexively; Lab 1 starts the habit.
 
 ::: {.callout-warning title="Pitfall 2 · Symmetrizing a directed relation without noticing" icon="false"}
 Loading citations, follows, or web links into an undirected structure silently asserts
-"X cites Y" ≡ "Y cites X" — destroying, for citation networks, the entire notion of
-influence direction. Libraries do this *for* you if you use the wrong loader flag. Know
+"X cites Y" ≡ "Y cites X" — destroying the entire notion of influence direction.
+Libraries do this *for* you under the wrong loader flag. Know
 which of your relations are truly symmetric; it is a modeling claim, not a default.
 :::
 
@@ -855,17 +902,17 @@ circulating versions differ enough to move published numbers by a point.
 
 ::: {.callout-warning title="Pitfall 4 · Judging a graph by its hairball" icon="false"}
 Force-directed drawings of more than a few hundred nodes are decoration, not analysis —
-layout algorithms invent geometry that is not in the data. Judge graphs by statistics
+layout algorithms invent geometry not present in the data. Judge graphs by statistics
 (degrees, components, clustering — Week 2) and by task performance; draw only what is
-small enough to read, as our figures do.
+small enough to read.
 :::
 
 ::: {.callout-warning title="Pitfall 5 · Assuming your graph behaves like the karate club" icon="false"}
 Today's success story ran on homophily: friends chose alike. Transaction graphs,
 dating graphs, and protein interactions routinely violate it — connected nodes
-*differ* systematically. Every structure-based method you will learn makes an
-assumption of this kind somewhere; the professional habit is to check it (Week 2 gives
-you the tools) before believing any result.
+*differ* systematically. Every structure-based method you will learn assumes
+something of this kind; the professional habit is to check it (Week 2 gives the
+tools) before believing any result.
 :::
 
 ## In this week's lab
