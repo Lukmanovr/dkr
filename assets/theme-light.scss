@@ -479,3 +479,16 @@ main { counter-reset: dkrfig; }
   content: "Figure " counter(dkrfig) ". ";
   font-weight: 700;
 }
+
+// Sidebar site title: a quiet wordmark, not a shouting heading
+// (instructor request 2026-08-26).
+.sidebar-title a {
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  line-height: 1.4;
+  color: $dkr-text-2;
+  text-decoration: none;
+}
+.sidebar-title a:hover { color: $dkr-accent-dark; }
