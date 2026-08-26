@@ -506,3 +506,61 @@ main { counter-reset: dkrfig; }
   white-space: nowrap;
   padding-top: 0;
 }
+
+// Live in-browser Python (Week 1, instructor request 2026-08-26): PyScript
+// py-editor running Algorithm 1. We style the container chrome; the editor
+// itself is CodeMirror injected by PyScript, whose default syntax palette is
+// dark-on-light — so the code surface stays a light "paper card" in BOTH
+// themes, deliberately, and only our chrome follows the theme.
+.live-py {
+  margin: 1.4rem 0 1.9rem;
+  border: 1px solid $border-color;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fdfcfa;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.live-py-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.95rem;
+  background: $dkr-margin-bg;
+  border-bottom: 1px solid $border-color;
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.035em;
+  color: $dkr-text-2;
+}
+.live-py-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: $dkr-accent;
+  flex: 0 0 auto;
+}
+.live-py .py-editor-box { margin: 0; }
+.live-py .cm-editor {
+  background: #fdfcfa;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.35rem;
+}
+.live-py .cm-editor.cm-focused { outline: none; }
+.live-py .cm-gutters {
+  background: #fdfcfa;
+  border-right: 1px solid #eceae4;
+  color: #b4b1a8;
+}
+.live-py .py-editor-output {
+  font-family: var(--bs-font-monospace, monospace);
+  font-size: 0.83rem;
+  line-height: 1.5;
+  color: #2f2e36;
+  background: #f5f4ef;
+  border-top: 1px dashed #ddd9d0;
+  padding: 0.6rem 0.95rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+.live-py .py-editor-output:empty { display: none; }

@@ -256,9 +256,9 @@ and under the name `edge_index` it is the representation PyTorch Geometric
 [Fey & Lenssen, 2019](https://arxiv.org/abs/1903.02428) — and
 therefore this course's labs — runs on.
 
-The construction is short enough to state completely, and worth stating, because
-Lab 1's first two exercises implement it line by line — read @alg-w01-edge-index as
-the spec you will code against.
+The construction is short enough to state completely — and Lab 1's first two
+exercises implement it line by line, so read @alg-w01-edge-index as the spec you
+will code against.
 
 ::: {#alg-w01-edge-index .algorithm name="Edge list → COO edge_index, with degrees"}
 Builds the tensor representation the whole course runs on — plus the degree vector —
@@ -278,16 +278,48 @@ straight from a raw undirected edge list.
 
 Line 3 is the convention that trips everyone once: PyG stores an *undirected* edge as
 *two directed ones*, which is why the tensor is $2 \times 2m$ rather than
-$2 \times m$. Line 7 is a single `torch.bincount` call in practice — and because both
-directions are present, counting row-0 occurrences counts each undirected edge once
-per endpoint, so the result really is the degree. Total cost: one pass over the
+$2 \times m$. Line 7 is a single `torch.bincount` call in practice — counting row-0
+occurrences gives the true degree precisely because both directions are present.
+Total cost: one pass over the
 edges, $O(m)$ time and memory. Every loaded dataset should then pass the sanity
 check $\sum_u d_u = 2m$ — the handshake lemma, which §3 proves.
 
+The spec runs: here is @alg-w01-edge-index as live Python — edit the edge list,
+press run, and watch the outputs track your changes (the first run fetches the
+Python runtime; give it a few seconds):
+
+```{=html}
+<link rel="stylesheet" href="https://pyscript.net/releases/2025.11.1/core.css">
+<script type="module" src="https://pyscript.net/releases/2025.11.1/core.js"></script>
+<div class="live-py">
+<div class="live-py-head"><span class="live-py-dot"></span>Live Python — Algorithm 1 in your browser</div>
+<script type="py-editor">
+E = [(0, 1), (0, 2), (1, 2), (2, 3)]  # undirected edge set, m = 4
+n = 4                                 # node count
+
+P = []                                # step 1
+for (u, v) in E:                      # steps 2-4: both directions
+    P.append((u, v))
+    P.append((v, u))
+
+edge_index = [[p[0] for p in P],      # step 5: transpose -> shape (2, 2m)
+              [p[1] for p in P]]
+
+d = [0] * n                           # step 6
+for u in edge_index[0]:               # step 7: torch.bincount in the lab
+    d[u] += 1
+
+print("edge_index =", edge_index)
+print("degrees d  =", d)
+print("handshake  : sum(d) =", sum(d), "  2m =", 2 * len(E))
+</script>
+</div>
+```
+
 {{< include ../assets/figures/fig-w1-representations.html >}}
 
-Build the intuition with your hands — edit the graph and watch every representation
-track it:
+Build the intuition with your hands — edit the graph; every representation tracks
+it:
 
 {{< include ../assets/d3/w1-builder.html >}}
 
@@ -307,9 +339,8 @@ without ever materializing the matrix — you will meet this trick as "sparse ma
 Week 6 and live inside it from then on.
 :::
 
-Since we are following the money, follow it one level deeper — into what each
-representation makes *fast*, because that, not storage alone, decides what production
-systems use. Four operations cover most of graph computing: **edge query** ("are $u$
+Follow the money one level deeper — into what each representation makes *fast*,
+because that, not storage alone, decides what production systems use. Four operations cover most of graph computing: **edge query** ("are $u$
 and $v$ connected?"), **neighbor iteration** ("give me all of $u$'s neighbors"),
 **edge iteration** ("stream every edge once"), and **matrix products** ("propagate a
 signal one hop"). The dense matrix answers edge queries in $O(1)$ and multiplies
@@ -818,8 +849,8 @@ Someone chose those edges — a logging pipeline, a thresholded similarity, a k-
 builder, a business rule. Different choice, different graph, different conclusions.
 Interrogate the edge definition of any dataset before trusting results on it; when
 *you* build the graph, report the recipe as part of the model. Even Cora — the
-field's fruit fly — is a set of curatorial choices about which citations count, and
-its several circulating versions differ enough to move published numbers by a point.
+field's fruit fly — embodies curatorial choices about which citations count, and its
+circulating versions differ enough to move published numbers by a point.
 :::
 
 ::: {.callout-warning title="Pitfall 4 · Judging a graph by its hairball" icon="false"}
