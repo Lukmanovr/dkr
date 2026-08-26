@@ -67,7 +67,7 @@
 
     const attr = view === "engraving"
       ? "engraving: Merian-Erben, 1652 — public domain, via Wikimedia Commons"
-      : "illustration: AI-generated (Gemini · Nano Banana, 2026) from the historical bridge layout";
+      : "illustration — the seven bridges in their historical arrangement";
     g.append("text").attr("x", W / 2).attr("y", H - 12).attr("text-anchor", "middle")
       .attr("font-size", 12.5).attr("fill", P.muted).text(attr);
   }
