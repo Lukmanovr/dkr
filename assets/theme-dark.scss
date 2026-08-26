@@ -475,15 +475,34 @@ main { counter-reset: dkrfig; }
   font-weight: 700;
 }
 
-// Sidebar site title: a quiet wordmark, not a shouting heading
-// (instructor request 2026-08-26).
-.sidebar-title a {
-  font-family: "Source Sans 3", sans-serif;
-  font-size: 0.92rem;
-  font-weight: 600;
-  letter-spacing: 0.045em;
-  line-height: 1.4;
-  color: $dkr-text-2;
-  text-decoration: none;
+// Sidebar header (instructor request 2026-08-26): logo-only mark on the
+// left — the course name is dropped from the sidebar chrome (it stays in
+// the browser title and for screen readers) — with the theme toggle and
+// search icon vertically centered on the same row.
+.sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
-.sidebar-title a:hover { color: $dkr-accent-dark; }
+.sidebar-title > a {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0;            // text node hidden visually, still read by AT
+  color: transparent;
+  text-decoration: none;
+  width: 34px;
+  height: 34px;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><g fill='none' stroke='%238e8e9a' stroke-width='3.2' stroke-linecap='round'><path d='M23 41 Q33 27 45 21'/><path d='M23 41 Q34 48 45 45'/><path d='M45 21 Q49 33 45 45'/><path d='M23 41 Q18 27 19 14'/></g><circle cx='19' cy='14' r='5' fill='%238e8e9a'/><circle cx='45' cy='21' r='8' fill='%230f8377'/><circle cx='45' cy='45' r='7' fill='%23d9a62e'/><circle cx='23' cy='41' r='10.5' fill='%23d9603b'/></svg>") center / contain no-repeat;
+  opacity: 0.92;
+  transition: opacity 0.15s ease;
+}
+.sidebar-title > a:hover { opacity: 1; }
+.sidebar-title .sidebar-tools-main {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  padding-top: 0;
+}
