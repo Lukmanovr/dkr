@@ -794,7 +794,10 @@ to an MLP is neither, which is the theorem-shaped version of the trap above. Eve
 representation this course constructs — centralities, WL colors, walk embeddings (up
 to a subtlety Week 3 will confess), message passing — earns its place by passing this
 test, and the one method that fails it will fail it in public, in Week 6, with a
-seven-hundred-twenty-way contradiction as the exhibit.
+seven-hundred-twenty-way contradiction as the exhibit. Run both checks with
+your own hands before moving on:
+
+{{< include ../assets/d3/w1-permute.html >}}
 
 ## Common pitfalls
 

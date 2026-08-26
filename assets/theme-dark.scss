@@ -455,3 +455,11 @@ div.algorithm { overflow-x: auto; }
 .quarto-page-breadcrumbs .breadcrumb-item + .breadcrumb-item {
   padding-left: 0.65rem;
 }
+
+// Breadcrumb separator rides high next to the padded links (instructor
+// report 2026-08-26, side effect of the touch-target fix): put every
+// breadcrumb item on one centered flex baseline.
+.quarto-page-breadcrumbs .breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+}
