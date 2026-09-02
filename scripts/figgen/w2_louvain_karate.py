@@ -17,7 +17,8 @@ Reproducibility
     exact call with weight=None, so the figure measures that graph. (For the record the
     weighted defaults also give four communities and the same lone exception, member 8,
     with Q = 0.444 vs 0.391.)
-  * Lab 2 runs the identical call with its own seed (LAB_SEED = 42). Louvain is
+  * Lab 2 runs the identical call with seed 0 (2026-09-02) and then, as a seed-sensitivity
+    check, with its general SEED = 42 (= LAB_SEED here). Louvain is
     seed-sensitive on a 34-node graph: measured, seed 42 stops at THREE communities
     (Q = 0.385, still above the two-faction split), while seeds 0, 8, 26, 28, ... give
     this figure's four. The generator measures the lab-seed result and writes it into
@@ -299,9 +300,9 @@ caption = (
     f"the Fiedler vector misplaces). This is not a bug but the resolution lesson: Q is maximized at whatever scale its "
     f"null model makes cheapest, and on {M} unweighted ties two tight sub-groups per faction beat the coarser "
     f"sociology, so the resolution parameter, not more optimization, is what would move the answer. Lab 2 runs this "
-    f"exact call on this graph — set seed={SEED} there to reproduce the picture; the lab's own seed {LAB_SEED} stops "
-    f"at a {WORDS[LAB_K]}-way local optimum with Q = {LAB_Q:.3f}, still above the two-way split, because greedy "
-    f"Louvain is seed-sensitive on 34 nodes.")
+    f"exact call with the same seed, so its output reproduces the picture; the lab then reruns it with seed {LAB_SEED} "
+    f"and greedy Louvain stops at a {WORDS[LAB_K]}-way local optimum with Q = {LAB_Q:.3f} — still above the two-way "
+    f"split, but a different answer from a different sweep order, which on 34 nodes is the whole warning.")
 
 svg = (f"```{{=html}}\n<figure class=\"dkr-fig\">\n"
        f"<svg viewBox=\"0 0 {W} {H}\" role=\"img\" aria-label=\"{aria}\">\n"

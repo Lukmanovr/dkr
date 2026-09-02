@@ -326,10 +326,14 @@ Now the real algorithm. There is nothing to implement here — the next cell is 
 read it and run it. You implemented Louvain's objective ($Q$); the library performs the
 greedy moves and aggregation. The cell scores the communities Louvain finds against the
 real 1977 split using the adjusted Rand index, where 0 means roughly random agreement
-and 1 means identical partitions.
+and 1 means identical partitions. The call uses `seed=0`, the same seed as the lecture's
+Louvain figure, so with a current `networkx` you should see its four communities and
+$Q = 0.420$; the lecture's two-faction split scores only $0.358$.
 """),
 
-    code("""louvain = nx.community.louvain_communities(G, seed=SEED, weight=None)
+    code("""# seed=0 reproduces the lecture's figure; greedy Louvain is seed-sensitive on
+# 34 nodes, so a different seed can stop at a different local optimum (see below).
+louvain = nx.community.louvain_communities(G, seed=0, weight=None)
 q_louvain = modularity(G, louvain)
 truth = [1 if G.nodes[v]["club"] == "Mr. Hi" else 0 for v in G]
 found = [next(i for i, c in enumerate(louvain) if v in c) for v in G]
@@ -348,7 +352,12 @@ nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=120)
 plt.title(f"Louvain communities (Q = {q_louvain:.3f}) — finer than the 2-way split, and honestly so")
 plt.axis("off"); plt.show()
 print("Louvain sees sub-factions inside each camp — 1977's binary choice was the")
-print("politics; the friendship structure itself has more texture. Both are real.")"""),
+print("politics; the friendship structure itself has more texture. Both are real.")
+
+# Seed sensitivity, measured: the same greedy algorithm from a different starting order.
+alt = nx.community.louvain_communities(G, seed=SEED, weight=None)
+print(f"same algorithm, seed={SEED}: {len(alt)} communities, Q = {modularity(G, alt):.3f} — "
+      "a different local optimum; on 34 nodes the sweep order matters")"""),
 
     md("""## 5 · One eigenvector against reality  *(exercise 4 — skill: spectral bisection)*
 
