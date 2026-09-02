@@ -474,7 +474,8 @@ div.algorithm { overflow-x: auto; }
 // inserting a widget renumbers everything downstream with zero edits.
 // Captions must NOT hard-code "Figure N." any more.
 main { counter-reset: dkrfig; }
-.interactive-container > .fig-caption::before {
+.interactive-container > .fig-caption::before,
+figure.dkr-fig > figcaption.fig-caption::before {
   counter-increment: dkrfig;
   content: "Figure " counter(dkrfig) ". ";
   font-weight: 700;

@@ -1,0 +1,32 @@
+```{=html}
+<div class="interactive-container" id="w2-sp-widget">
+  <div class="fig-label">Interactive · Zero eigenvalues count the pieces; the Fiedler vector finds the seam</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-graph="cast" type="button">cast graph</button>
+    <button class="pill-btn" data-graph="pieces" type="button">two pieces</button>
+    <button class="pill-btn" data-graph="barbell" type="button">barbell</button>
+  </div>
+  <div id="w2-sp-svg" role="img" aria-label="Left, a small graph whose nodes are coloured by the sign of their Fiedler-vector entry and labelled with the entry; edges crossing the sign boundary are dashed red and counted. Right, all eigenvalues of the Laplacian L = D minus A on a vertical strip, zero eigenvalues in green and lambda two in terracotta. For the cast graph the eigenvalues are 0, 0.63, 1.47, 3.00, 3.79 and 5.11, eigenvalue 0 appears once so there is one component, and the Fiedler vector cuts A, B, D from C, E, F by severing 2 edges, the cheapest 3-versus-3 split. Deleting C to E and C to F gives eigenvalues 0, 0, 1, 2, 3, 4: eigenvalue 0 appears twice, two components, and the second zero-eigenvector is constant on each piece. The barbell of two 4-cliques joined by a bridge has lambda two equal to 0.35, eigenvalue 4 repeated five times, and a Fiedler split of 4 versus 4 whose only cut edge is the bridge."></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Its
+    point: the eigenvalue 0 of the Laplacian appears once per connected component (once
+    for the cast graph, twice once C–E and C–F are deleted), and on a connected graph
+    the eigenvector of λ₂ — the Fiedler vector, λ₂ = 0.63 for the cast graph and 0.35
+    for a barbell — thresholded at zero cuts the graph where it is cheapest: {A, B, D}
+    from {C, E, F} at a cost of 2 edges, and the barbell exactly at its bridge.</p>
+  </noscript>
+  <p class="fig-caption">Two facts about the Laplacian L = D − A, computed live from the
+  edge list. First, eigenvalue 0 appears once per connected component: the cast graph
+  has one, and deleting C–E and C–F makes it two. Second, on a connected graph the
+  eigenvector of λ<sub>2</sub> — the Fiedler vector — thresholded at zero cuts the
+  graph where it is cheapest: {A, B, D} from {C, E, F} for the price of 2 edges, the
+  best any 3 | 3 split can do, and on the barbell exactly at the bridge. This is
+  relaxation at work: allow the 0/1 labels to become real numbers and an NP-hard
+  balanced-cut problem turns into an eigenvector you can compute in milliseconds.
+  <strong>Try this:</strong> switch to <em>barbell</em> and read λ<sub>2</sub> — it
+  drops from 0.63 to 0.35, and the one dashed edge is the bridge — then to <em>two
+  pieces</em> and count the labels reading 0.00: there are two, and the vector shown is
+  constant on each piece, which is exactly why a disconnected graph has no single
+  Fiedler vector to threshold.</p>
+</div>
+```

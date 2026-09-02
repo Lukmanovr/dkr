@@ -1,0 +1,38 @@
+```{=html}
+<div class="interactive-container" id="w2-nm-widget">
+  <div class="fig-label">Interactive · Modularity's null model: cut, re-splice, count</div>
+  <div class="widget-controls">
+    <button class="pill-btn" id="w2-nm-once" type="button">rewire once</button>
+    <button class="pill-btn" id="w2-nm-many" type="button">rewire 100×</button>
+    <button class="pill-btn" id="w2-nm-reset" type="button">reset</button>
+    <span style="opacity:.5">·</span>
+    <button class="pill-btn active" data-pair="AC" type="button">track A–C</button>
+    <button class="pill-btn" data-pair="DE" type="button">track D–E</button>
+  </div>
+  <div id="w2-nm-svg" role="img" aria-label="Left: the cast graph of six people A to F with every one of its seven edges cut in half, so each person keeps as many short coloured stubs as their degree, fourteen stubs in all. Pressing rewire once splices the fourteen loose ends into a fresh random pairing and redraws the result honestly, including self-loops drawn as small loops around a node and repeated edges drawn as bowed duplicates. Right: for the tracked pair, by default A and C, the formula value d(A) times d(C) over 2m equals 3 times 4 over 14 equals 0.857 is drawn as one bar, and the running mean number of A to C edges across all rewirings so far is drawn as a second bar that settles near it; a dashed line marks the exact stub-matching value 12 over 13, about 0.923. Below, the real graph's one A to C edge minus the expected 0.857 gives plus 0.143, the modularity-matrix entry for that pair; for D and E the expectation is 2 over 14, about 0.143, and the entry is minus 0.143."></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Its
+    point: cutting every edge of the cast graph in half and re-splicing the 14 loose
+    stubs uniformly at random produces, on average, about 0.86 edges between A and C
+    (the formula 3·4/14) but only about 0.14 between D and E (1·2/14), so the one real
+    A–C edge is barely above chance while a D–E edge would be strong evidence.</p>
+  </noscript>
+  <p class="fig-caption">The null model is a physical procedure, not a formula: cut
+  every edge in half so each person keeps as many loose stubs as their degree, splice
+  the 2m = 14 stubs back together uniformly at random, and ask how many edges a given
+  pair ends up with on average. A and C own 7 of the 14 stubs between them, so they
+  collide by chance in almost every rewiring and their one real edge is worth only
+  +0.143 above expectation; D and E own 3, almost never meet, and so an edge between
+  them would be strong evidence of togetherness — that is why hubs earn a community
+  almost no credit. The "observed minus expected" readout is exactly one entry of the
+  modularity matrix <strong>B</strong><sub>Q</sub> = <strong>A</strong> −
+  <strong>dd</strong><sup>T</sup>/2m (<a href="#eq-w02-modmatrix">the modularity
+  matrix</a>), built here from scratch. <strong>Try this:</strong> press <em>rewire
+  once</em> a few times and count the self-loops and doubled edges the splicing
+  produces — they are allowed, which is why the lecture writes
+  d<sub>u</sub>d<sub>v</sub>/2m with an "-ish"; then press <em>rewire 100×</em> and
+  watch the empirical bar settle within a few hundredths of the dashed exact value
+  12/13 ≈ 0.923, a little above the 0.857 the formula promises, and switch to
+  <em>track D–E</em> to see both bars shrink to about 0.15.</p>
+</div>
+```

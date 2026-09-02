@@ -1,0 +1,34 @@
+```{=html}
+<div class="interactive-container" id="w2-cc-widget">
+  <div class="fig-label">Interactive · One node's clustering, and two ways to average it</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-view="node" type="button">one node's C<sub>u</sub></button>
+    <button class="pill-btn" data-view="global" type="button">C̄ versus T</button>
+  </div>
+  <div id="w2-cc-svg" role="img" aria-label="Two views. First view: the cast graph of six people A to F with one person in focus, C by default. C's four friends A, B, E and F are ringed; the two friend-pairs that are themselves joined, A with B and E with F, are drawn as shaded triangles, and the four unjoined pairs as dashed arcs. The readout gives d_C = 4, so 6 pairs; 2 of the 6 pairs are edges; C_C = 2/6 = 0.33; and (A cubed)[C,C] = 4 = 2 times 2 triangles. Beneath it, all six local values (A 0.33, B 1.00, C 0.33, D 0 by convention, E 1.00, F 1.00) and the whole graph's average clustering 0.61 and transitivity 0.50 as two bars. Second view: a windmill graph of one hub and six triangles, where the average clustering is 0.93 but the transitivity 0.23, beside a five-clique with ten leaves, where the average clustering is 0.13 but the transitivity 0.40; each has two bars and a verdict line stating that the two measures disagree in opposite directions."></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Its
+    point: on the cast graph node C has four friends, two of whose six pairs are
+    themselves friends, so C<sub>C</sub> = 2/6 = 0.33 and the diagonal entry
+    (A³)[C,C] = 4 counts those two triangles twice; and the two "global" clustering
+    numbers can disagree in either direction — a windmill graph has average clustering
+    0.93 but transitivity 0.23, while a five-clique with ten leaves has average
+    clustering 0.13 but transitivity 0.40.</p>
+  </noscript>
+  <p class="fig-caption">Clustering is a fraction: for a node <em>u</em>,
+  C<sub>u</sub> counts the pairs of <em>u</em>'s neighbors that are themselves joined
+  by an edge and divides by all C(d<sub>u</sub>, 2) pairs — and the diagonal of
+  A<sup>3</sup> hands you the numerator, because every triangle at <em>u</em> is a
+  closed three-step walk taken both ways round. The two "global" versions do not
+  agree: the average clustering C̄ is the plain mean of the local values, one vote per
+  node, while the transitivity T is three times the number of triangles divided by the
+  number of wedges, one vote per two-edge path, so the hubs that own most wedges
+  dominate it. The second view shows the two verdicts crossing — C̄ far above T on the
+  windmill, far below it on the clique with leaves — and on heavy-tailed real graphs
+  the gap can reach an order of magnitude, so a reported "clustering of 0.6" is not a
+  claim until the definition is named. <strong>Try this:</strong> click D, whose single
+  friend leaves no pair to check, and read how the convention reports it; then click A
+  and confirm by eye that exactly one of its three friend-pairs is closed, giving
+  C<sub>A</sub> = 1/3 with (A<sup>3</sup>)[A,A] = 2.</p>
+</div>
+```

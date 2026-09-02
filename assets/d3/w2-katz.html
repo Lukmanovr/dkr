@@ -1,0 +1,33 @@
+```{=html}
+<div class="interactive-container" id="w2-kz-widget">
+  <div class="fig-label">Interactive · Katz centrality: one dial from degree to the eigenvector</div>
+  <div class="widget-controls">
+    <button class="pill-btn" data-beta="low" type="button">low β · 5 % of 1/λ<sub>max</sub></button>
+    <button class="pill-btn active" data-beta="mid" type="button">mid β · 50 %</button>
+    <button class="pill-btn" data-beta="high" type="button">high β · 95 %</button>
+    <label for="w2-kz-beta" style="font-size:0.85rem">or drag β
+      <input type="range" id="w2-kz-beta" min="0.5" max="98" step="1.5" value="50" style="width:170px">
+      <span id="w2-kz-betaval" style="font-family:'JetBrains Mono',monospace"></span>
+    </label>
+  </div>
+  <div id="w2-kz-svg" role="img" aria-label="A ten-node graph built so that degree and eigenvector centrality disagree: a hub S with five pendant leaves L1 to L5 on the left, joined by a single edge to a four-clique K1 to K4 on the right, twelve edges in all. Each node is drawn with radius proportional to its current Katz score, and a ranked bar chart on the right shows the ten scores normalized so the top score is one, re-sorting as the walk discount beta changes, with ghost ticks marking where each node would sit under pure degree and under pure eigenvector centrality. A dial along the bottom runs from beta equals zero to one over lambda max, which is 0.315 because lambda max is 3.18, and marks the tipping point beta star equals 0.200. Below the tipping point S is the top node; above it K1 and the clique outrank the hub."></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Its
+    point: on a hub-plus-clique graph, Katz centrality ranks the hub S first for small
+    walk discounts β, exactly as degree does, and ranks the clique member K1 first once
+    β passes the tipping point β* = 0.200, on the way to 1/λ<sub>max</sub> ≈ 0.315, where
+    the leading eigenvector takes over.</p>
+  </noscript>
+  <p class="fig-caption">Katz centrality counts every walk that ends at a node and
+  discounts a walk of length k by β<sup>k</sup>, so the single number β decides how far an
+  endorsement travels. Near β = 0 only one-step walks count and Katz is degree in
+  disguise: the hub S, with six edges, leads. As β climbs toward 1/λ<sub>max</sub> ≈ 0.315
+  the long walks dominate and the leading eigenvector takes over: the clique's members
+  keep endorsing one another while a leaf can only pass on an endorsement it never
+  received, so K1 overtakes S at the tipping point β* = 0.200 — this graph is built so
+  that the two extremes disagree. <strong>Try this:</strong> drag the slider slowly to
+  the right until the top bar changes and note the β at which it happens; then watch
+  each bar's end travel from its degree tick toward its eigenvector tick, which is the
+  whole degree → Katz → eigenvector sequence performed by one dial.</p>
+</div>
+```

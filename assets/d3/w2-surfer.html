@@ -1,0 +1,39 @@
+```{=html}
+<div class="interactive-container" id="w2-sf-widget">
+  <div class="fig-label">Interactive · Dead ends, spider traps, and the teleport that fixes both</div>
+  <div class="widget-controls">
+    <button class="pill-btn active" data-scen="healthy" type="button">healthy web</button>
+    <button class="pill-btn" data-scen="dead" type="button">dead end</button>
+    <button class="pill-btn" data-scen="trap" type="button">spider trap</button>
+    <span style="opacity:.5">·</span>
+    <button class="pill-btn active" data-beta="1" type="button">β = 1 (no teleport)</button>
+    <button class="pill-btn" data-beta="0.85" type="button">β = 0.85</button>
+    <span style="opacity:.5">·</span>
+    <button class="pill-btn" id="w2-sf-step" type="button">step</button>
+    <button class="pill-btn" id="w2-sf-run" type="button">run 30 steps</button>
+    <button class="pill-btn" id="w2-sf-reset" type="button">reset</button>
+  </div>
+  <div id="w2-sf-svg" role="img" aria-label="A six-page toy web, P1 to P6, drawn as a wheel around the hub page P4 with every link an arrow. Each page is a disc whose area is proportional to the surfer's current mass, with the mass printed beside it; six bars on the right repeat the masses, a total bar shows the sum of r, and readouts give the step count and, in the spider-trap scenario, the mass inside the trap. Every page starts at 0.167. In the healthy web with beta equal to 1 the hub P4 leads with 0.261 after 30 steps and the total stays 1.000. In the dead-end scenario P6 loses both outlinks and with beta equal to 1 the total falls to 0.027 after 30 steps. In the spider-trap scenario P5 and P6 link only to each other and with beta equal to 1 the trap holds 0.978 after 30 steps. With teleport at beta equal to 0.85 the total stays 1.000 in every scenario and the trap settles near 0.575."></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Its
+    point: on a six-page web with a dead end, the plain random walk loses mass every step
+    and the total falls to 0.027 after 30 steps; with a spider trap the two trapped pages
+    hold 0.978 of the mass; with teleport at β = 0.85 the total stays exactly 1 and the
+    trap settles near 0.575.</p>
+  </noscript>
+  <p class="fig-caption">The plain fixed point r = Mr is only as good as the web it runs
+  on. Delete P6's outlinks and the corresponding column of M is all zeros, so every step
+  discards whatever mass reached P6 and the only fixed point left is r = 0; wire P5 and
+  P6 into a closed pair and mass that enters can never leave, so the trap ends up with
+  nearly everything even though it receives just one third of the hub's clicks. Teleport
+  is not a patch bolted onto the theorem — it is what makes the theorem true: with
+  β = 0.85 the update r ← βMr + (1−β)·1/n is a contraction on the probability simplex,
+  which is exactly why the total stays 1, why dangling mass is spread rather than lost,
+  and why the trap gives up 15% of what it holds at every step. <strong>Try this:</strong>
+  choose <em>spider trap</em> and press <em>run 30 steps</em> with β = 1 — the trap reads
+  0.978. Now select β = 0.85 and press <em>run 30 steps</em> again: the trap drains to
+  about 0.58 while Σ r shows 1.000 throughout. Notice that the trap still holds more than
+  its fair share (two pages of six would be 0.333) — teleport bounds a trap's advantage,
+  it does not erase it, and that is the honest reading of the damping factor.</p>
+</div>
+```

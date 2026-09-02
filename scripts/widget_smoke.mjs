@@ -17,7 +17,7 @@ const strip = (f) =>
 
 const body = ["w1-hero.html", "w1-permute.html", "w1-multigraph.html", "w1-konigsberg.html", "w1-closure.html", "w1-walks.html", "w1-lap.html", "w6-message-passing.html", "w6-spectral.html", "w6-normalization.html", "w6-permutation.html", "w6-eq-linked.html",
   "w1-builder.html", "w1-cost.html", "w1-types.html", "w1-tasks.html",
-  "w2-centrality.html", "w2-pagerank.html", "w2-wl.html", "w2-louvain.html",
+  "w2-centrality.html", "w2-pagerank.html", "w2-wl.html", "w2-louvain.html", "w2-katz.html", "w2-surfer.html", "w2-poweriter.html", "w2-clustering.html", "w2-graphlets.html", "w2-nullmodel.html", "w2-resolution.html", "w2-spectral.html", "w2-baseline.html",
   "w3-walks.html", "w3-pq.html", "w3-embed.html", "w3-labelprop.html",
   "w4-transe.html", "w4-patterns.html", "w4-negatives.html", "w4-rank.html",
   "w5-query.html", "w5-boxes.html", "w5-rag.html", "w5-extract.html",
@@ -50,7 +50,7 @@ const run = (name, src) => {
 
 for (const f of ["d3.v7.min.js", "_dkr.js", "w6-message-passing.js", "w6-spectral.js", "w6-normalization.js", "w6-permutation.js", "w6-eq-linked.js",
   "w1-hero.js", "w1-permute.js", "w1-multigraph.js", "w1-konigsberg.js", "w1-closure.js", "w1-walks.js", "w1-lap.js", "w1-builder.js", "w1-cost.js", "w1-types.js", "w1-tasks.js",
-  "w2-centrality.js", "w2-pagerank.js", "w2-wl.js", "w2-louvain.js",
+  "w2-centrality.js", "w2-pagerank.js", "w2-wl.js", "w2-louvain.js", "w2-katz.js", "w2-surfer.js", "w2-poweriter.js", "w2-clustering.js", "w2-graphlets.js", "w2-nullmodel.js", "w2-resolution.js", "w2-spectral.js", "w2-baseline.js",
   "w3-walks.js", "w3-pq.js", "w3-embed.js", "w3-labelprop.js",
   "w4-transe.js", "w4-patterns.js", "w4-negatives.js", "w4-rank.js",
   "w5-query.js", "w5-boxes.js", "w5-rag.js", "w5-extract.js",
@@ -683,6 +683,317 @@ else console.log("  w14-map: fraud sector cites Weeks 2, 10, 14 ✓");
   if (!/xᵀLx  =  20/.test(lp) || !/16\.8/.test(lp) || !/heterophily/.test(lp)) {
     failures++; console.error("  FAIL w1-lap disagree preset (want 20 vs same 16.8, heterophily): " + lp.slice(0, 400));
   } else console.log("  w1-lap: friends disagree -> 20 against the SAME 16.8 baseline, heterophily ✓");
+}
+
+
+
+// ===== week-2 additions (2026-09-02): nine new widgets, probes authored per widget =====
+// week-2 Katz probes: the same ten-node graph must crown the hub S at a low walk
+// discount and the clique member K1 at a high one, with the tipping point β* = 0.200
+// and λmax = 3.18 (1/λmax = 0.315) computed live from the 12-edge list.
+{
+  const T = (id) => [...window.document.querySelectorAll(`#${id} svg text`)].map((t) => t.textContent).join(" | ");
+  const kzClick = (preset) => {
+    for (const b of window.document.querySelectorAll("#w2-kz-widget [data-beta]")) {
+      if (b.getAttribute("data-beta") === preset) b.dispatchEvent(new window.Event("click", { bubbles: true }));
+    }
+  };
+  kzClick("low");
+  let kz = T("w2-kz-svg");
+  if (!/ranked \(top node = 1\) \| S \| 1\.000 \| K1 \|/.test(kz) || !/top node: S, the popular hub/.test(kz) ||
+      !/β = 0\.016   \(λmax = 3\.18, so β must stay below 1\/λmax = 0\.315\)/.test(kz) || !/β\* = 0\.200/.test(kz)) {
+    failures++; console.error("  FAIL w2-katz low preset (want S on top, β = 0.016, λmax = 3.18, β* = 0.200): " + kz.slice(0, 600));
+  } else console.log("  w2-katz: low β -> S tops the ranking, β* = 0.200 shown ✓");
+
+  kzClick("high");
+  kz = T("w2-kz-svg");
+  if (!/ranked \(top node = 1\) \| K1 \| 1\.000 \| K2 \|/.test(kz) || !/β = 0\.299/.test(kz) ||
+      !/top node: K1 — past the tipping point β\* = 0\.200:/.test(kz) ||
+      !/the well-connected clique now outranks the popular hub/.test(kz)) {
+    failures++; console.error("  FAIL w2-katz high preset (want K1 on top at β = 0.299, past β* = 0.200): " + kz.slice(0, 600));
+  } else console.log("  w2-katz: high β -> K1 overtakes S past the tipping point β* = 0.200 ✓");
+  kzClick("mid");
+}
+
+// week-2 surfer probes: a dead end leaks mass at β = 1, a spider trap swallows it,
+// and teleport (β = 0.85) restores Σ r = 1 while draining the trap to ~0.58.
+{
+  const T = (id) => [...window.document.querySelectorAll(`#${id} svg text`)].map((t) => t.textContent).join(" | ");
+  const sfClick = (sel) => {
+    const el = window.document.querySelector(`#w2-sf-widget ${sel}`);
+    if (el) el.dispatchEvent(new window.Event("click", { bubbles: true }));
+  };
+
+  sfClick('[data-scen="dead"]'); sfClick("#w2-sf-run");           // β = 1 is the default
+  let sf = T("w2-sf-svg");
+  if (!/Σ r = 0\.027/.test(sf) || !/step k = 30/.test(sf) || !/mass is leaking out of the web/.test(sf)) {
+    failures++; console.error("  FAIL w2-surfer dead end at β=1 (want Σ r = 0.027 after 30 steps, leaking verdict): " + sf.slice(0, 500));
+  } else console.log("  w2-surfer: dead end, β = 1 -> Σ r = 0.027 after 30 steps, mass is leaking ✓");
+
+  sfClick('[data-scen="trap"]'); sfClick("#w2-sf-run");
+  sf = T("w2-sf-svg");
+  if (!/mass inside the trap = 0\.978/.test(sf) || !/Σ r = 1\.000/.test(sf) || !/the trap is swallowing everything/.test(sf)) {
+    failures++; console.error("  FAIL w2-surfer spider trap at β=1 (want trap = 0.978, Σ r = 1.000, swallowing verdict): " + sf.slice(0, 500));
+  } else console.log("  w2-surfer: spider trap, β = 1 -> the trap holds 0.978 after 30 steps ✓");
+
+  sfClick('[data-beta="0.85"]'); sfClick("#w2-sf-run");           // continues from the saturated trap
+  sf = T("w2-sf-svg");
+  if (!/Σ r = 1\.000/.test(sf) || !/mass inside the trap = 0\.576/.test(sf) || !/step k = 60/.test(sf) ||
+      !/teleport keeps Σ r = 1 and the trap leaks 15% per step/.test(sf)) {
+    failures++; console.error("  FAIL w2-surfer spider trap at β=0.85 (want Σ r = 1.000, trap = 0.576 at k = 60, teleport verdict): " + sf.slice(0, 500));
+  } else console.log("  w2-surfer: β = 0.85 -> Σ r = 1.000 and the trap drains to 0.576 ✓");
+
+  sfClick('[data-beta="1"]'); sfClick('[data-scen="healthy"]');    // leave the widget at its defaults
+}
+
+// week-2 power-iteration probes: the lecture's hand-worked steps must print verbatim
+// (fractions, X Y Z in order), "run" must land on the fixed point the widget computed
+// by iterating 200 times, and the (1, 0, 0) start must take a different route.
+{
+  const T = (id) => [...window.document.querySelectorAll(`#${id} svg text`)].map((t) => t.textContent).join(" | ");
+  const piClick = (id) => window.document.getElementById(id).dispatchEvent(new window.Event("click", { bubbles: true }));
+  const piStart = (s) => {
+    for (const b of window.document.querySelectorAll("#w2-pi-widget [data-start]")) {
+      if (b.getAttribute("data-start") === s) b.dispatchEvent(new window.Event("click", { bubbles: true }));
+    }
+  };
+  piStart("uniform");
+  piClick("w2-pi-step");
+  let pi = T("w2-pi-svg");
+  if (!/X \| 1\/3 \| Y \| 1\/2 \| Z \| 1\/6 \| r⁽¹⁾ = \(1\/3, 1\/2, 1\/6\)/.test(pi) || !/1\/2·1\/3 \+ 1·1\/3 = 1\/2/.test(pi)) {
+    failures++; console.error("  FAIL w2-poweriter step 1 (want (1/3, 1/2, 1/6) and the Y sum): " + pi.slice(0, 500));
+  } else console.log("  w2-poweriter: uniform start, one step -> (1/3, 1/2, 1/6), r_Y = 1/2·1/3 + 1·1/3 = 1/2 ✓");
+
+  piClick("w2-pi-step");
+  pi = T("w2-pi-svg");
+  if (!/X \| 1\/2 \| Y \| 1\/3 \| Z \| 1\/6 \| r⁽²⁾ = \(1\/2, 1\/3, 1\/6\)/.test(pi) || !/Σ = 1 \| Σ = 1 \| Σ = 1/.test(pi)) {
+    failures++; console.error("  FAIL w2-poweriter step 2 (want (1/2, 1/3, 1/6), columns summing to 1): " + pi.slice(0, 500));
+  } else console.log("  w2-poweriter: second step -> (1/2, 1/3, 1/6), every column of M sums to 1 ✓");
+
+  piClick("w2-pi-run");
+  pi = T("w2-pi-svg");
+  if (!/X \| 0\.400 \| Y \| 0\.400 \| Z \| 0\.200 \| r⁽⁴⁰⁾ = \(0\.400, 0\.400, 0\.200\)/.test(pi) ||
+      !/r\* = \(0\.400, 0\.400, 0\.200\)/.test(pi) || !/converged: r = \(0\.400, 0\.400, 0\.200\) — X and Y tie/.test(pi)) {
+    failures++; console.error("  FAIL w2-poweriter run (want (0.400, 0.400, 0.200) = r*, converged verdict): " + pi.slice(-600));
+  } else console.log("  w2-poweriter: run to 40 -> (0.400, 0.400, 0.200), equal to the 200-iteration r*, X and Y tie ✓");
+
+  piStart("allx");
+  piClick("w2-pi-step");
+  pi = T("w2-pi-svg");
+  if (!/X \| 0 \| Y \| 1\/2 \| Z \| 1\/2 \| r⁽¹⁾ = \(0, 1\/2, 1\/2\)/.test(pi)) {
+    failures++; console.error("  FAIL w2-poweriter all-on-X start, one step (want (0, 1/2, 1/2)): " + pi.slice(0, 500));
+  } else console.log("  w2-poweriter: (1, 0, 0) start, one step -> (0, 1/2, 1/2) ✓");
+  piStart("uniform");
+}
+
+// week-2 clustering probes: the node view must do the lecture's worked example on the
+// real adjacency matrix (C_C = 2/6, (A³)[C,C] = 4 = 2 × 2 triangles), report D's
+// undefined coefficient honestly, and the global view must show the two "global
+// clustering" numbers disagreeing in opposite directions on the two built graphs
+// (windmill C̄ 0.93 vs T 0.23; clique-with-leaves C̄ 0.13 vs T 0.40).
+{
+  const T = (id) => [...window.document.querySelectorAll(`#${id} svg text`)].map((t) => t.textContent).join(" | ");
+  const clickView = (v) => {
+    for (const b of window.document.querySelectorAll("#w2-cc-widget [data-view]")) {
+      if (b.getAttribute("data-view") === v) b.dispatchEvent(new window.Event("click", { bubbles: true }));
+    }
+  };
+  let cc = T("w2-cc-svg");
+  if (!/d_C = 4 → C\(4,2\) = 6 pairs/.test(cc) || !/C_C = 2\/6 = 0\.33/.test(cc) ||
+      !/\(A³\)\[C,C\] = 4 = 2 × 2 triangles/.test(cc) || !/0\.61/.test(cc) || !/0\.50/.test(cc)) {
+    failures++; console.error("  FAIL w2-clustering node view at C (want 2/6 = 0.33, (A³)[C,C] = 4, C̄ 0.61, T 0.50): " + cc.slice(0, 500));
+  } else console.log("  w2-clustering: focus C -> C_C = 2/6 = 0.33 and (A³)[C,C] = 4 = 2 × 2 triangles; cast C̄ = 0.61, T = 0.50 ✓");
+
+  const dNode = window.document.querySelector('#w2-cc-svg circle[data-node="D"]');
+  if (dNode) dNode.dispatchEvent(new window.Event("click", { bubbles: true }));
+  cc = T("w2-cc-svg");
+  if (!/d_D = 1 → C\(1,2\) = 0 pairs/.test(cc) || !/C_D undefined — fewer than two friends,/.test(cc) ||
+      !/reported as 0 by convention/.test(cc) || !/\(A³\)\[D,D\] = 0 = 2 × 0 triangles/.test(cc)) {
+    failures++; console.error("  FAIL w2-clustering node view at D (want undefined, 0 by convention, (A³)[D,D] = 0): " + cc.slice(0, 500));
+  } else console.log("  w2-clustering: focus D -> undefined, reported as 0 by convention, (A³)[D,D] = 0 ✓");
+
+  const aNode = window.document.querySelector('#w2-cc-svg circle[data-node="A"]');
+  if (aNode) aNode.dispatchEvent(new window.Event("click", { bubbles: true }));
+  cc = T("w2-cc-svg");
+  if (!/1 of 3 pairs is an edge/.test(cc) || !/C_A = 1\/3 = 0\.33/.test(cc) || !/\(A³\)\[A,A\] = 2 = 2 × 1 triangle/.test(cc)) {
+    failures++; console.error("  FAIL w2-clustering node view at A (want 1/3 = 0.33, (A³)[A,A] = 2): " + cc.slice(0, 500));
+  } else console.log("  w2-clustering: focus A -> C_A = 1/3 = 0.33 and (A³)[A,A] = 2 = 2 × 1 triangle ✓");
+
+  clickView("global");
+  cc = T("w2-cc-svg");
+  const wind = /n = 13, m = 18, 6 triangles, 78 wedges/.test(cc) && /hub H: C = 6\/66 = 0\.09/.test(cc) &&
+               /C̄ \| 0\.93 \| mean of 13 C_u \| T \| 0\.23 \| 3·6 \/ 78 wedges/.test(cc) &&
+               /C̄ says tight-knit, T says sparse \(4\.0×\)/.test(cc);
+  const cliq = /n = 15, m = 20, 10 triangles, 75 wedges/.test(cc) && /5 clique nodes: C = 6\/15 = 0\.40 each/.test(cc) &&
+               /C̄ \| 0\.13 \| mean of 15 C_u \| T \| 0\.40 \| 3·10 \/ 75 wedges/.test(cc) &&
+               /C̄ says sparse, T says tight-knit \(3\.0×\)/.test(cc);
+  if (!wind || !cliq) {
+    failures++; console.error("  FAIL w2-clustering global view (want windmill C̄ 0.93 / T 0.23 and clique C̄ 0.13 / T 0.40, opposite verdicts): " + cc.slice(0, 700));
+  } else console.log("  w2-clustering: windmill C̄ 0.93 vs T 0.23, clique-with-leaves C̄ 0.13 vs T 0.40 — opposite verdicts ✓");
+  clickView("node");
+}
+
+// week-2 graphlet probes: P and Q agree on degree (3) and clustering (0.33) but the
+// induced-orbit census separates them — square 1 vs 0 by default, 4-path-middle 1 vs 2 —
+// and moving P to a same-degree, different-clustering node (node 3) flips the verdict.
+{
+  const T = (id) => [...window.document.querySelectorAll(`#${id} svg text`)].map((t) => t.textContent).join(" | ");
+  let gl = T("w2-gl-svg");
+  if (!/degree: P = Q = 3 · clustering: P = Q = 0\.33/.test(gl) ||
+      !/shaded — square: 1 at P, 0 at Q/.test(gl) ||
+      !/identical by degree and clustering — told apart by graphlets/.test(gl)) {
+    failures++; console.error("  FAIL w2-graphlets default (want deg 3 = 3, C 0.33 = 0.33, square 1 vs 0, graphlet verdict): " + gl.slice(0, 400));
+  } else console.log("  w2-graphlets: P = Q on degree 3 and C = 0.33, squares 1 vs 0, told apart by graphlets ✓");
+
+  for (const b of window.document.querySelectorAll("#w2-gl-widget [data-orbit]")) {
+    if (b.getAttribute("data-orbit") === "p4Mid") b.dispatchEvent(new window.Event("click", { bubbles: true }));
+  }
+  gl = T("w2-gl-svg");
+  if (!/shaded — 4-path, middle: 1 at P, 2 at Q/.test(gl) || !/wedge, end \| 2 \| 1 \|/.test(gl)) {
+    failures++; console.error("  FAIL w2-graphlets 4-path-middle (want 1 at P, 2 at Q; wedge-end 2 vs 1): " + gl.slice(0, 400));
+  } else console.log("  w2-graphlets: 4-path middle 1 vs 2 and wedge end 2 vs 1 — three orbits differ ✓");
+
+  // node 3 has degree 3 like Q but clustering 0: the cheaper feature already separates them
+  const node3 = window.document.querySelector("#w2-gl-svg svg > g > circle:nth-of-type(3)");
+  if (node3) node3.dispatchEvent(new window.Event("click", { bubbles: true }));
+  gl = T("w2-gl-svg");
+  if (!/degree: P = 3, Q = 3 · clustering: P = 0\.00, Q = 0\.33/.test(gl) || !/same degree, different clustering/.test(gl)) {
+    failures++; console.error("  FAIL w2-graphlets node-3-as-P (want deg 3 vs 3, C 0.00 vs 0.33, clustering verdict): " + gl.slice(0, 400));
+  } else console.log("  w2-graphlets: node 3 as P -> same degree, clustering 0.00 vs 0.33 already separates ✓");
+
+  const reset = window.document.getElementById("w2-gl-reset");
+  if (reset) reset.dispatchEvent(new window.Event("click", { bubbles: true }));
+  for (const b of window.document.querySelectorAll("#w2-gl-widget [data-orbit]")) {
+    if (b.getAttribute("data-orbit") === "square") b.dispatchEvent(new window.Event("click", { bubbles: true }));
+  }
+}
+
+// week-2 null-model probes: the formula d_u d_v / 2m with the numbers substituted, the
+// modularity-matrix entry observed − expected, and the empirical stub-matching mean after
+// 100 seeded rewirings (exact value 12/13 = 0.923; the 100-draw mean must land near it).
+{
+  const T = (id) => [...window.document.querySelectorAll(`#${id} svg text`)].map((t) => t.textContent).join(" | ");
+  const clickSel = (sel) => window.document.querySelector(sel).dispatchEvent(new window.Event("click", { bubbles: true }));
+  clickSel("#w2-nm-reset");
+  let nm = T("w2-nm-svg");
+  if (!/3·4\/14 = 0\.857/.test(nm) || !/1 − 0\.857 = \+0\.143/.test(nm) || !/mean of 0 rewirings/.test(nm)) {
+    failures++; console.error("  FAIL w2-nullmodel default (want 3·4/14 = 0.857, +0.143, 0 rewirings): " + nm.slice(0, 500));
+  } else console.log("  w2-nullmodel: A–C formula 3·4/14 = 0.857, B_Q[A,C] = +0.143 ✓");
+
+  clickSel("#w2-nm-many");
+  nm = T("w2-nm-svg");
+  const mm = nm.match(/mean of 100 rewirings so far = (\d\.\d{3})/);
+  const emp = mm ? Number(mm[1]) : NaN;
+  if (!mm || Math.abs(emp - 0.92) > 0.25 || !/rewiring #100/.test(nm)) {
+    failures++; console.error("  FAIL w2-nullmodel after 100 rewirings (want mean within 0.25 of 0.92): " + nm.slice(0, 500));
+  } else console.log(`  w2-nullmodel: 100 rewirings -> empirical A–C mean ${emp} against exact 0.923 ✓`);
+
+  for (const b of window.document.querySelectorAll("#w2-nm-widget [data-pair]")) {
+    if (b.getAttribute("data-pair") === "DE") b.dispatchEvent(new window.Event("click", { bubbles: true }));
+  }
+  nm = T("w2-nm-svg");
+  if (!/1·2\/14 = 0\.143/.test(nm) || !/0 − 0\.143 = −0\.143/.test(nm) || !/mean of 100 rewirings/.test(nm)) {
+    failures++; console.error("  FAIL w2-nullmodel D–E (want 1·2/14 = 0.143, −0.143, tallies kept): " + nm.slice(0, 500));
+  } else console.log("  w2-nullmodel: D–E formula 1·2/14 = 0.143, B_Q[D,E] = −0.143, tallies survive the switch ✓");
+  clickSel("#w2-nm-reset");
+}
+
+// week-2 resolution-limit probes: a ring of c k-cliques scored two ways from the
+// definition of Q. At the lecture's 24 triangles (m = 96) merged pairs must beat the
+// ground truth (0.792 vs 0.708); at c = 6 the same triangles must be kept apart; and
+// with 5-cliques the crossover must move to c = 22.
+{
+  const T = (id) => [...window.document.querySelectorAll(`#${id} svg text`)].map((t) => t.textContent).join(" | ");
+  let rl = T("w2-rl-svg");
+  if (!/c = 24, k = 3, m = 96/.test(rl) || !/Q\(truth\) = 0\.708/.test(rl) || !/Q\(pairs\) = 0\.792/.test(rl) ||
+      !/pairs beat truth for c > 8/.test(rl) || !/prefers to MERGE perfect communities/.test(rl) ||
+      !/√\(2m\) = 13\.9 internal edges are at risk/.test(rl)) {
+    failures++; console.error("  FAIL w2-resolution default (want c=24 k=3 m=96, Q(truth)=0.708 < Q(pairs)=0.792, c*=8, merge verdict): " + rl.slice(0, 600));
+  } else console.log("  w2-resolution: 24 triangles, m = 96 -> Q(truth) = 0.708 < Q(pairs) = 0.792, crossover c > 8, MERGE verdict ✓");
+
+  const rlSlider = window.document.getElementById("w2-rl-c");
+  rlSlider.value = "6";
+  rlSlider.dispatchEvent(new window.Event("input", { bubbles: true }));
+  rl = T("w2-rl-svg");
+  if (!/c = 6, k = 3, m = 24/.test(rl) || !/Q\(truth\) = 0\.583/.test(rl) || !/Q\(pairs\) = 0\.542/.test(rl) ||
+      !/keeps every clique separate/.test(rl) || /MERGE/.test(rl)) {
+    failures++; console.error("  FAIL w2-resolution c=6 (want m=24, Q(truth)=0.583 > Q(pairs)=0.542, separate verdict): " + rl.slice(0, 600));
+  } else console.log("  w2-resolution: 6 triangles, m = 24 -> Q(truth) = 0.583 > Q(pairs) = 0.542, kept separate ✓");
+
+  for (const b of window.document.querySelectorAll("#w2-rl-widget [data-k]")) {
+    if (b.getAttribute("data-k") === "5") b.dispatchEvent(new window.Event("click", { bubbles: true }));
+  }
+  rl = T("w2-rl-svg");
+  if (!/c = 6, k = 5, m = 66/.test(rl) || !/pairs beat truth for c > 22/.test(rl)) {
+    failures++; console.error("  FAIL w2-resolution k=5 (want m=66 at c=6, crossover c > 22): " + rl.slice(0, 600));
+  } else console.log("  w2-resolution: cliques of 5 -> m = 66 at c = 6, crossover moves to c > 22 ✓");
+
+  // restore the defaults for anything probed later
+  rlSlider.value = "24";
+  rlSlider.dispatchEvent(new window.Event("input", { bubbles: true }));
+  for (const b of window.document.querySelectorAll("#w2-rl-widget [data-k]")) {
+    if (b.getAttribute("data-k") === "3") b.dispatchEvent(new window.Event("click", { bubbles: true }));
+  }
+}
+
+// week-2 spectral probes: zero eigenvalues count components (1 for the cast graph,
+// 2 once C–E and C–F are deleted) and the Fiedler split lands on the cheapest cut
+// (2 edges on the cast graph, exactly the bridge on the barbell). All numbers were
+// checked against numpy: cast λ₂ = 0.6314, barbell λ₂ = 0.3542.
+{
+  const T = (id) => [...window.document.querySelectorAll(`#${id} svg text`)].map((t) => t.textContent).join(" | ");
+  const pick = (name) => {
+    for (const b of window.document.querySelectorAll("#w2-sp-widget [data-graph]")) {
+      if (b.getAttribute("data-graph") === name) b.dispatchEvent(new window.Event("click", { bubbles: true }));
+    }
+  };
+  let sp = T("w2-sp-svg");
+  if (!/appears once → 1 component/.test(sp) || !/cut = 2 edges: \{A, B, D\} \| \{C, E, F\}/.test(sp) || !/λ₂ = 0\.63/.test(sp)) {
+    failures++; console.error("  FAIL w2-spectral cast (want 1 component, cut = 2 edges {A, B, D} | {C, E, F}, λ₂ = 0.63): " + sp.slice(0, 500));
+  } else console.log("  w2-spectral: cast graph -> 1 component, λ₂ = 0.63, Fiedler cut {A, B, D} | {C, E, F} = 2 edges ✓");
+
+  pick("pieces");
+  sp = T("w2-sp-svg");
+  const zeroLabels = (sp.match(/= 0\.00/g) || []).length;
+  if (!/appears twice → 2 components/.test(sp) || zeroLabels !== 2 || !/cut = 0 edges: \{A, B, C, D\} \| \{E, F\}/.test(sp)) {
+    failures++; console.error(`  FAIL w2-spectral two pieces (want 2 components, exactly two "= 0.00" labels, got ${zeroLabels}, cut = 0): ` + sp.slice(0, 500));
+  } else console.log("  w2-spectral: two pieces -> eigenvalue 0 twice, 2 components, zero-eigenvector constant on each piece ✓");
+
+  pick("barbell");
+  sp = T("w2-sp-svg");
+  if (!/cut = 1 edge: \{1, 2, 3, 4\} \| \{5, 6, 7, 8\}/.test(sp) || !/λ₂ = 0\.35/.test(sp) || !/appears once → 1 component/.test(sp)) {
+    failures++; console.error("  FAIL w2-spectral barbell (want cut = 1 edge {1, 2, 3, 4} | {5, 6, 7, 8}, λ₂ = 0.35): " + sp.slice(0, 500));
+  } else console.log("  w2-spectral: barbell -> λ₂ = 0.35, Fiedler split 4 | 4, the bridge is the only cut edge ✓");
+  pick("cast");
+}
+
+// week-2 baseline probes: the four lecture accuracies are all drawn, the default
+// (62%) panel reads position as a hard one-hot with the words never read, the
+// verdict computes the 43-point jump from the table, and the GCN panel reads the words.
+{
+  const T = (id) => [...window.document.querySelectorAll(`#${id} svg text`)].map((t) => t.textContent).join(" | ");
+  let bl = T("w2-bl-svg");
+  const missing = ["14%", "19%", "62%", "81%"].filter((v) => !bl.split(" | ").includes(v));
+  if (missing.length) {
+    failures++; console.error("  FAIL w2-baseline value labels missing " + missing.join(", ") + ": " + bl.slice(0, 400));
+  } else console.log("  w2-baseline: 14% / 19% / 62% / 81% value labels present ✓");
+
+  if (!/statistics \+ community one-hot \| statistics \| how central \/ clustered \| position \| region, as a one-hot \| words \| never read/.test(bl)
+      || !/topic lives in where/.test(bl)) {
+    failures++; console.error("  FAIL w2-baseline default panel (want position as a one-hot, words never read): " + bl.slice(-700));
+  } else console.log("  w2-baseline: default 62% row -> position chip filled as a one-hot, words never read ✓");
+
+  if (!/The 43-point jump comes from position, not from a better statistic\./.test(bl)) {
+    failures++; console.error("  FAIL w2-baseline verdict (want the 43-point jump, 62 − 19): " + bl.slice(-200));
+  } else console.log("  w2-baseline: verdict computes the 43-point jump (62 − 19) ✓");
+
+  for (const b of window.document.querySelectorAll("#w2-bl-widget [data-row]")) {
+    if (b.getAttribute("data-row") === "gcn") b.dispatchEvent(new window.Event("click", { bubbles: true }));
+  }
+  bl = T("w2-bl-svg");
+  if (!/GCN on structure and words \| statistics \| learned implicitly \| position \| region, learned \| words \| the paper's text/.test(bl)) {
+    failures++; console.error("  FAIL w2-baseline GCN panel (want words = the paper's text): " + bl.slice(-700));
+  } else console.log("  w2-baseline: GCN row -> words chip filled, the paper's text ✓");
 }
 
 // week-1 permutation-invariance probes

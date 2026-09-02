@@ -1,0 +1,39 @@
+```{=html}
+<div class="interactive-container" id="w2-pi-widget">
+  <div class="fig-label">Interactive · Two power iterations by hand, animated</div>
+  <div class="widget-controls">
+    <button class="pill-btn" id="w2-pi-step" type="button">step</button>
+    <button class="pill-btn" id="w2-pi-run" type="button">run to step 40</button>
+    <button class="pill-btn" id="w2-pi-reset" type="button">reset</button>
+    <span style="font-size:0.85rem;margin-left:0.5rem">start:</span>
+    <button class="pill-btn active" data-start="uniform" type="button">uniform (1/3, 1/3, 1/3)</button>
+    <button class="pill-btn" data-start="allx" type="button">all on X (1, 0, 0)</button>
+  </div>
+  <div id="w2-pi-svg" role="img" aria-label="The lecture's three-page web, X linking to Y and Z, Y linking back to X, and Z linking to Y, drawn as three circles whose fill level is the current rank mass, each labelled with its exact value. Beside it the column-stochastic matrix M, with each column summing to one, is multiplied by the current vector and the three sums are written out entry by entry: from the uniform start the first step gives one third, one half, one sixth, the second gives one half, one third, one sixth. A chart on the right plots the L1 distance to the fixed point at each step on a log scale, and after forty steps the vector reads 0.400, 0.400, 0.200, with X and Y tied although X has one inlink and Y has two."></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Its
+    point: on the lecture's three-page web with no teleport, repeated multiplication by
+    the column-stochastic matrix M carries the uniform start through (1/3, 1/2, 1/6) and
+    (1/2, 1/3, 1/6) to the fixed point (0.400, 0.400, 0.200), and the all-on-X start
+    (1, 0, 0) reaches the same fixed point by a different route.</p>
+  </noscript>
+  <p class="fig-caption">Each press of <em>step</em> applies r ← Mr once. Watch the mass
+  at every page split equally down its outlinks — half of X's to Y and half to Z, all of
+  Y's to X, all of Z's to Y — which is exactly what the columns of M say, and read the
+  three sums in the middle, which are the matrix–vector product written out. From the
+  uniform start the first two steps reproduce the lecture's r⁽¹⁾ = (1/3, 1/2, 1/6) and
+  r⁽²⁾ = (1/2, 1/3, 1/6), and by step 20 the vector has settled at (0.400, 0.400, 0.200).
+  X and Y tie even though X has a single inlink, because that inlink is Y's only outlink
+  and so delivers all of Y's mass, while Y's two inlinks bring only half of X's mass plus
+  Z's smaller share; the fixed point is precisely the balance at which what flows in
+  equals what is already there. The chart on the right shows the distance to r* shrinking
+  by roughly ×0.7 per step, tracking the modulus 1/√2 ≈ 0.71 of M's second eigenvalue,
+  in a stair-step pattern because on this small cycle the walk rotates as well as
+  contracts. <strong>Try
+  this:</strong> switch the start to <em>all on X</em>, so r⁽⁰⁾ = (1, 0, 0), and step
+  twice. The trajectory is completely different, (0, 1/2, 1/2) and then (1/2, 1/2, 0),
+  yet <em>run</em> lands on the same (0.400, 0.400, 0.200): the fixed point does not
+  depend on where you start, which is what the proposition guarantees and why nobody
+  worries about warm-starting PageRank.</p>
+</div>
+```

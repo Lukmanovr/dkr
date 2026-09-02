@@ -1,0 +1,42 @@
+```{=html}
+<div class="interactive-container" id="w2-gl-widget">
+  <div class="fig-label">Interactive · Same degree, same clustering, different graphlets</div>
+  <div class="widget-controls">
+    <button class="pill-btn" data-orbit="wedgeEnd" type="button">wedge · end</button>
+    <button class="pill-btn" data-orbit="wedgeMid" type="button">wedge · center</button>
+    <button class="pill-btn" data-orbit="triangle" type="button">triangle</button>
+    <button class="pill-btn" data-orbit="p4End" type="button">4-path · end</button>
+    <button class="pill-btn" data-orbit="p4Mid" type="button">4-path · middle</button>
+    <button class="pill-btn" data-orbit="starMid" type="button">3-star · center</button>
+    <button class="pill-btn active" data-orbit="square" type="button">square</button>
+    <span style="opacity:.5">·</span>
+    <button class="pill-btn" id="w2-gl-reset" type="button">reset P</button>
+  </div>
+  <div id="w2-gl-svg" role="img" aria-label="An eleven-node graph on the left with two highlighted nodes, P in terracotta and Q in teal. Both have degree 3 and local clustering coefficient 0.33: each has three friends of whom exactly two know each other, forming one triangle. At P the third friend closes back through a fourth node, so P sits on a square; at Q the third friend leads away down a path that never closes. On the right, seven orbit rows, each with a tiny glyph marking the position counted, carry a pair of bars for P and Q: wedge end 2 versus 1, wedge center 2 versus 2, triangle 1 versus 1, 4-path end 2 versus 2, 4-path middle 1 versus 2, 3-star center 0 versus 0, square 1 versus 0. A header reads degree P equals Q equals 3, clustering P equals Q equals 0.33, and a verdict band reads identical by degree and clustering, told apart by graphlets."></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Its
+    point: two nodes P and Q share degree 3 and clustering coefficient 0.33, yet P lies
+    on one square and Q on none, P is the end of two induced wedges and Q of one, and P
+    is the middle of one induced 4-path against Q's two — the graphlet degree vector
+    separates what degree and clustering cannot.</p>
+  </noscript>
+  <p class="fig-caption">The graphlet degree vector is a census: for every small shape
+  — wedge, triangle, 4-path, 3-star, square — and every position a node can hold in
+  it (an <em>orbit</em>), count how many copies of that shape contain the node at that
+  position, with a copy counting only when no extra edge sits among its nodes. Degree
+  is the first entry of that census and the clustering coefficient is a ratio of two
+  more, so P and Q, with three friends apiece of whom exactly two are friends with each
+  other, are identical on both — yet the census tells them apart three times over,
+  because P's third friend circles back through a square while Q's leads away down a
+  path. The price is written in the enumeration: this widget checks every 3- and 4-node
+  subset, and the number of k-node subsets grows like n<sup>k</sup>, which is why exact
+  counts stop at five-node shapes in practice and why §5 replaces the census with an
+  iterative fingerprint that costs one pass over the edges per round.
+  <strong>Try this:</strong> select <em>4-path · middle</em> and watch Q's row read 2
+  against P's 1, with each counted path shaded on the graph. Then click node 7 to make
+  it P: its degree and clustering match Q's as well, and the verdict holds because the
+  census still finds three rows that differ. Click node 3 or node 4 instead and the
+  band changes to "same degree, different clustering" — the census is the tool you
+  reach for once the cheaper features have failed, not before.</p>
+</div>
+```

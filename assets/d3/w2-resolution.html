@@ -1,0 +1,42 @@
+```{=html}
+<div class="interactive-container" id="w2-rl-widget">
+  <div class="fig-label">Interactive · The resolution limit: when merging perfect communities raises Q</div>
+  <div class="widget-controls">
+    <label for="w2-rl-c">cliques c = <strong id="w2-rl-cval">24</strong></label>
+    <input type="range" id="w2-rl-c" min="4" max="30" step="2" value="24" style="width:170px" aria-label="number of cliques in the ring">
+    <span style="opacity:.5">·</span>
+    <span>clique size</span>
+    <button class="pill-btn active" data-k="3" type="button">k = 3 · triangles</button>
+    <button class="pill-btn" data-k="4" type="button">k = 4</button>
+    <button class="pill-btn" data-k="5" type="button">k = 5</button>
+  </div>
+  <div class="widget-controls">
+    <span>color the ring by</span>
+    <button class="pill-btn active" data-part="truth" type="button">ground truth · one clique each</button>
+    <button class="pill-btn" data-part="pairs" type="button">merged pairs</button>
+  </div>
+  <div id="w2-rl-svg" role="img" aria-label="A ring of 24 triangles joined by single edges, drawn as colored discs around a circle, beside a chart of two modularity curves against the number of cliques from 4 to 30: the ground-truth partition with one community per triangle, and the partition that merges adjacent triangles in pairs. The curves cross at c equals 8, and at the default of 24 triangles, with 96 edges, the ground truth scores 0.708 while the merged pairs score 0.792, so a verdict band states that modularity prefers to merge perfect communities. A slider changes the number of cliques, buttons change the clique size to 4 or 5 nodes, and a second pair of buttons recolors the ring by either partition."></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Its
+    point: on a ring of 24 triangles joined by single edges (m = 96), the ground-truth
+    partition scores Q = 0.708 while merging adjacent triangles in pairs scores 0.792,
+    so maximizing modularity fuses perfect communities — the resolution limit.</p>
+  </noscript>
+  <p class="fig-caption">Every clique on this ring is a perfect community, yet once the
+  ring is long enough the partition that fuses neighbors in pairs scores higher: on 24
+  triangles the ground truth reaches Q = 0.708 while the merged pairs reach 0.792, so a
+  maximum-modularity optimizer would fuse them on purpose. This is the resolution limit:
+  Q judges every partition against a null model whose scale is set by the whole graph's
+  m, so communities with fewer than about √(2m) internal edges (13.9 here, against the 3
+  inside a triangle) can be swallowed — and that threshold grows with the graph, not with
+  the community. The √(2m) figure is a scale, not a sharp line; the chart marks the exact
+  crossover for this ring, c = 8 for triangles, 14 for cliques of four and 22 for cliques
+  of five. When small groups are the object of interest, scan a resolution parameter γ
+  (both <code>networkx</code> implementations accept one) or run Leiden with a different
+  objective such as the Constant Potts Model, which has no such limit, rather than
+  trusting plain Q. <strong>Try this:</strong> drag the slider down to c = 6 and watch the
+  verdict flip — the same triangles, unchanged, are now kept apart, because only m
+  changed. Then pick k = 5 and slide again: larger cliques hold out longer, but every
+  clique size is overtaken once the ring is long enough.</p>
+</div>
+```

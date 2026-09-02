@@ -1,0 +1,33 @@
+```{=html}
+<div class="interactive-container" id="w2-bl-widget">
+  <div class="fig-label">Interactive · The ceiling: what each pipeline can see</div>
+  <div class="widget-controls">
+    <button class="pill-btn" data-row="chance" type="button">chance</button>
+    <button class="pill-btn" data-row="stats" type="button">statistics only</button>
+    <button class="pill-btn active" data-row="community" type="button">+ community one-hot</button>
+    <button class="pill-btn" data-row="gcn" type="button">GCN · Week 6 preview</button>
+  </div>
+  <div id="w2-bl-svg" role="img" aria-label="A horizontal bar chart of accuracy on Cora node classification with seven topics, four bars: chance at 14 percent, seven structural statistics at 19 percent, the same classifier plus a one-hot of the node's Louvain community at 62 percent, all three Lab 2 measurements, and a GCN computing on structure and the papers' words at 81 percent, a Week 6 preview. A faint vertical line marks chance. A panel beside the bars shows, for the selected pipeline, three chips in a fixed order, statistics, position and words, filled when that pipeline uses them and hollow when it does not, with a short description of how each is used and one sentence explaining the jump or the plateau. A verdict line reads: the 43-point jump comes from position, not from a better statistic."></div>
+  <noscript>
+    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Its
+    point: on Cora, seven structural statistics score 19% against 14% chance, adding a
+    one-hot of the node's community lifts the same classifier to 62%, and a Week 6 GCN
+    that computes on structure and the papers' words together reaches 81% — the
+    43-point jump comes from position, not from a better statistic.</p>
+  </noscript>
+  <p class="fig-caption">Four pipelines on the same task — predicting which of seven
+  topics a Cora paper belongs to — with the same classifier wherever a classifier is
+  fitted. Seven structural statistics barely clear chance, because how central or
+  tight-knit a paper is says almost nothing about what it is about. Adding a one-hot of
+  the node's Louvain community lifts the identical classifier to 62%: under homophily,
+  topic lives in where you sit, so the jump comes from position, not from a better
+  statistic. That 62% is also a ceiling — a hard partition is a lossy, task-blind
+  compression of position, and nothing in the pipeline ever reads the papers' words —
+  which is why the Week 6 model, computing on structure and words jointly, reaches
+  81%. <strong>Try this:</strong> flip between the <em>statistics only</em> and
+  <em>+ community one-hot</em> rows and read the chips: the only chip that changes is
+  <em>position</em>, and the bar moves 43 points. Then select the GCN row and watch
+  <em>words</em> fill for the first time — that chip, not a better statistic, is what
+  the remaining 19 points are made of.</p>
+</div>
+```

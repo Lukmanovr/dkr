@@ -687,3 +687,17 @@ on the shadow host `.py-editor-input` (theme-dark.scss). Editors needing package
 their own `env` + `config` attribute so plain blocks stay download-free. The badge
 counts editor code as visible words; the instructor accepts slightly over 10k where
 live code earns it (2026-08-26).
+
+**Automatic figure numbering, extended (2026-09-02).** The `dkrfig` CSS counter now also
+numbers `figure.dkr-fig > figcaption.fig-caption`, so a captioned static figure takes its
+place in the same sequence as the interactive ones (Lecture 2 was the first page with
+captioned statics; no other page was affected). Static figures without a caption stay
+unnumbered. Never hand-write "Figure N." anywhere; refer to figures descriptively.
+
+**Lecture 2 figure build (2026-09-02).** Nine widgets and two data-derived statics were
+built in parallel against a shared brief (scratch), each with its own measured smoke
+probes; `scripts/widget_one.mjs` mounts a single widget in jsdom for authoring probes in
+isolation. Two findings worth keeping: `networkx.karate_club_graph()` carries edge
+weights in networkx 3.x, so modularity/Louvain must be called with `weight=None` to match
+the lecture's unweighted definition; and greedy Louvain is seed-sensitive on 34 nodes
+(seed 0 gives four communities, Q = 0.420; Lab 2's seed 42 stops at three, Q = 0.385).
