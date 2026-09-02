@@ -363,10 +363,7 @@ caption = (
     f"for member {V}, whom Louvain files with the Officer's core although he followed Mr. Hi (the same boundary member "
     f"the Fiedler vector misplaces). This is not a bug but the resolution lesson: Q is maximized at whatever scale its "
     f"null model makes cheapest, and on {M} unweighted ties two tight sub-groups per faction beat the coarser "
-    f"sociology, so the resolution parameter, not more optimization, is what would move the answer. Lab 2 runs this "
-    f"exact call with the same seed, so its output reproduces the picture; the lab then reruns it with seed {LAB_SEED} "
-    f"and greedy Louvain stops at a {WORDS[LAB_K]}-way local optimum with Q = {LAB_Q:.3f} — still above the two-way "
-    f"split, but a different answer from a different sweep order, which on 34 nodes is the whole warning.")
+    f"sociology, so the resolution parameter, not more optimization, is what would move the answer.")
 
 svg = (f"```{{=html}}\n<figure class=\"dkr-fig\">\n"
        f"<svg viewBox=\"0 0 {W} {H}\" role=\"img\" aria-label=\"{aria}\">\n"

@@ -79,7 +79,7 @@
   }
 
   const PRESETS = { low: 5, mid: 50, high: 95 };  // percent of 1/λmax
-  let pct = PRESETS.mid;
+  let pct = PRESETS.low;
   const beta = () => (pct / 100) * betaMax;
   const f3 = (v) => v.toFixed(3);
 

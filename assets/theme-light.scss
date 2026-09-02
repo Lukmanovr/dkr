@@ -608,3 +608,15 @@ figure.dkr-fig > figcaption.fig-caption::before {
     text-align: right;
   }
 }
+
+// A worked example opens with the formula it applies, set apart from the title line
+// (readability audit 2026-09-03): `::: {.recall}` inside an example env.
+.recall {
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.92rem;
+  margin: 0.55rem 0 0.8rem;
+  padding: 0.35rem 0 0.35rem 0.85rem;
+  border-left: 3px solid var(--dkr-blue);
+  color: var(--dkr-text);
+  p { margin: 0; }
+}

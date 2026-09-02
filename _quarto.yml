@@ -154,3 +154,7 @@ format:
 
 execute:
   freeze: auto
+
+filters:
+  - quarto
+  - assets/algorithm-refs.lua

@@ -31,16 +31,20 @@ counted — a link *from an important page* should count for more, which is circ
 importance defined in terms of importance.
 
 ::: {.predict}
-**Commit before you look.** Page Q has **one** incoming link. Page V has **four**. Which
-page should a search engine rank higher — or can't you tell yet?
+**Commit before you look.** Page Q has **one** incoming link. Page V has **four**. By
+link count V wins. What would have to be true of Q's single link for a search engine to
+be right to rank Q *above* V — or is that impossible?
 
 ::: {.predict-answer}
-**You can't tell yet — and that is the entire idea.** If Q's single link comes from a
-major hub while V's four come from pages nobody links to, Q outranks V. Counting links
-is degree centrality; *weighting them by the linker's own importance* is the recursion
-that made a search engine. The figure below shows exactly this happening on a toy web.
+**It is not only possible; it is the entire idea.** If Q's one link comes from a major
+hub while V's four come from pages nobody links to, Q should outrank V. Counting links
+is degree centrality; *weighting each link by the linker's own importance* is the
+recursion that made a search engine.
 :::
 :::
+
+Below, a toy web where exactly that happens: one link into Q, four into V, and the
+numbers on the discs are what the recursion settles on.
 
 {{< include ../assets/figures/fig-w2-hero.html >}}
 
@@ -57,7 +61,7 @@ features into vectors, feed them to any classifier from your ML course, and you 
 graph ML as the field practiced it for decades. At the end we will find the precise
 place where this recipe stalls — which is the door the rest of the course walks through.
 
-**Roadmap.** (1) *Who matters?* — four centralities and how to pick one. (2) PageRank:
+**Roadmap.** (1) *Who matters?* — four centralities (five, once Katz joins them) and how to pick one. (2) PageRank:
 importance as a fixed point, plus the two knobs (damping, teleport) that make it work
 and the personalized variant that powers recommendations. (3) *How tight-knit?* —
 triangles, clustering coefficients, graphlets. (4) *Who belongs together?* — cuts and
@@ -93,8 +97,8 @@ unfamiliar mid-lecture, come back here.
   the number of edges inside it.
 :::
 
-The cast graph itself, drawn with its degrees and its adjacency matrix. Every hand
-calculation this week runs on it, so it is reprinted wherever one begins:
+The cast graph itself, drawn with its degrees and its adjacency matrix. Most of this
+week's hand calculations run on it, so it is reprinted where they begin:
 
 {{< include ../assets/figures/fig-w2-cast.html >}}
 
@@ -122,18 +126,6 @@ distances are $1,1,2,1,1$ (to $A,B,D,E,F$) — sum $6$, closeness $5/6 \approx 0
 From $D$: $1,2,2,3,3$ — sum $11$, closeness $5/11 \approx 0.45$. If you are placing a
 warehouse, a fire station, or a broadcast source, this is your question.
 
-::: {.predict}
-**Commit before you compute.** Does the degree champion $C$ also win on betweenness —
-and who is second: $A$ (degree $3$), or one of the degree-2 nodes $B$, $E$, $F$?
-
-::: {.predict-answer}
-**$C$, with $6$; then $A$ with $4$; everyone else $0$.** Every shortest route from
-$\{A,B,D\}$ to $\{E,F\}$ passes through $C$, and every route out of $D$ passes through
-$A$. Degree and betweenness agree at the top here and part company beneath it: three
-nodes of identical degree are, for traffic, identical zeros.
-:::
-:::
-
 **Betweenness** — how often *on the way*. Take any two nodes $s$ and $t$ and ask what
 fraction of their shortest routes pass through a third node $v$; add that fraction up
 over every pair. A large total marks a node that many pairs cannot route around. The
@@ -144,7 +136,20 @@ $$ {#eq-w02-betweenness}
 where the sum runs over all unordered node pairs $\{s, t\}$ avoiding $v$,
 $\sigma_{st}$ counts shortest $s$–$t$ paths, and $\sigma_{st}(v)$ counts those passing
 through $v$. It measures brokerage: remove a high-betweenness node and traffic reroutes
-or dies. On the cast graph you can enumerate by hand: every shortest path between
+or dies.
+
+::: {.predict}
+**Commit before you compute.** Does the degree champion $C$ also win on betweenness —
+and who is second: $A$ (degree $3$), or one of the degree-2 nodes $B$, $E$, $F$?
+
+::: {.predict-answer}
+**$C$ with $6$, then $A$ with $4$, everyone else $0$** — the enumeration follows. Degree
+and betweenness agree at the top here and part company beneath it: three nodes of
+identical degree are, for traffic, identical zeros.
+:::
+:::
+
+On the cast graph you can enumerate by hand: every shortest path between
 $\{A,B,D\}$-side and $\{E,F\}$-side threads through $C$ — six pairs, all with a unique
 shortest path — so $c_{\text{btw}}(C) = 6$; the paths from $D$ to everything except $A$
 thread through $A$, giving $c_{\text{btw}}(A) = 4$; everyone else scores $0$.
@@ -161,14 +166,14 @@ where $x_u$ is node $u$'s score, $\mathcal{N}(u)$ denotes the set of $u$'s neigh
 $\lambda$ is the eigenvalue that turns the proportionality into an equality. The
 importance vector is the leading eigenvector of $\mathbf{A}$, computable by repeated
 multiplication (power iteration — sum your neighbors, normalize, repeat until it stops
-changing). This is the recursion from the hero figure, one teleport short of PageRank.
-
-{{< include ../assets/figures/fig-w2-cast.html >}}
+changing). This is the recursion from the opening toy-web figure, one teleport short of PageRank.
 
 ::: {#exm-eig-hand .example name="Power iteration, three rounds by hand"}
+::: {.recall}
 **Recall** @eq-w02-eigvec: score each node by the sum of its neighbors' scores,
 $\mathbf{x} \leftarrow \mathbf{A}\mathbf{x}$, then rescale and repeat until the vector
 stops changing.
+:::
 
 Start every node at score $1$ and apply "sum your neighbors" on the cast graph. One round
 gives the degrees, $\mathbf{A}\mathbf{1} = (3, 2, 4, 1, 2, 2)$ for $A$ through $F$. A
@@ -178,15 +183,15 @@ $3$, and $E$ and $F$ each collect $C$'s $4$ plus the other's $2$, giving $6$:
 $\mathbf{A}^2\mathbf{1} = (7, 7, 9, 3, 6, 6)$. A third round gives
 $(19, 16, 26, 7, 15, 15)$. Scale each vector so its largest entry is $1$ and watch it
 settle: after one round $(0.75, 0.50, 1, 0.25, 0.50, 0.50)$, after three
-$(0.73, 0.62, 1, 0.27, 0.58, 0.58)$, and in the limit — the leading eigenvector, with
-$\lambda_{\max} \approx 2.63$ — $(0.74, 0.66, 1, 0.28, 0.61, 0.61)$. $C$ leads at every
+$(0.73, 0.62, 1, 0.27, 0.58, 0.58)$, and in the limit — the leading eigenvector, whose eigenvalue, call it
+$\lambda_{\max}$, is $\approx 2.63$ — $(0.74, 0.66, 1, 0.28, 0.61, 0.61)$. $C$ leads at every
 stage, but notice $B$ pulling ahead of $E$ and $F$ despite equal degrees: $B$'s two
 neighbors are the two best-connected nodes in the graph, and that is exactly what the
 recursion rewards.
 :::
 
-Two footnotes on the computations, for the reader who wants the machinery rather than
-the library call. Betweenness looks like it needs all-pairs shortest paths, and
+<details><summary>How betweenness is actually computed (Brandes, 2001) — for the reader who wants the machinery</summary>
+Betweenness looks like it needs all-pairs shortest paths, and
 naively it does; the algorithm everyone uses —
 [Brandes, 2001](https://doi.org/10.1080/0022250X.2001.9990249) — gets the same
 numbers in $O(nm)$ by a two-pass trick per source: a BFS forward pass counts, for
@@ -196,9 +201,10 @@ telescopes down the BFS tree). One BFS-shaped computation per source instead of 
 per pair — it is the reason betweenness is computable at all on graphs of a few
 hundred thousand nodes, and the reason it still is *not* at web scale, where sampled
 approximations (run Brandes from a few hundred random sources) are standard.
+</details>
 
-Second footnote: between plain degree and full eigenvector centrality sits **Katz
-centrality** ([Katz, 1953](https://doi.org/10.1007/BF02289026)), and Week 1's
+One more centrality before the widget. Between plain degree and full eigenvector
+centrality sits **Katz centrality** ([Katz, 1953](https://doi.org/10.1007/BF02289026)), and Week 1's
 walk-counting proposition makes it transparent:
 $$
 \mathbf{x}_{\text{Katz}} \;=\; \sum_{k=1}^{\infty} \beta^k \mathbf{A}^k \mathbf{1}
@@ -211,18 +217,21 @@ this $\beta$ is Katz's discount; the same letter returns below with a different 
 as PageRank's damping — tradition, not identity.) In words:
 "count every walk that ends at me, discounting length-$k$ walks by $\beta^k$." When $\beta$ is small the $k = 1$ term dominates and Katz is essentially degree; as
 $\beta$ climbs toward $1/\lambda_{\max}$, where the series stops converging, long walks
-dominate and the leading eigenvector takes over. Katz matters to us for
-two reasons — it fixes eigenvector centrality's zero-score problem on directed graphs — in Katz's
-original formulation every node receives a constant term before any walk is counted,
-so a page with no inlinks scores that constant rather than zero, and passes it on, and its "damped walks plus a baseline"
-design is one small step from the fixed point we derive next. The conceptual sequence
+dominate and the leading eigenvector takes over. Katz matters to us for two
+reasons. First, it fixes eigenvector centrality's zero-score problem on directed
+graphs: in Katz's original formulation every node receives a constant term before any
+walk is counted, so a page with no inlinks scores that constant rather than zero, and
+passes it on. Second, its "damped walks plus a baseline" design is one small step from
+the fixed point we derive next. The conceptual sequence
 degree → Katz → PageRank is one dial being turned, and knowing it turns exam questions
 about "compare these centralities" into recitations of a single idea.
 
 ::: {#exm-katz-hand .example name="Katz with a small discount, by hand"}
+::: {.recall}
 **Recall** @eq-w02-katz: $\mathbf{x}_{\text{Katz}} = \sum_{k \ge 1} \beta^{k}
 \mathbf{A}^{k} \mathbf{1}$, where the $k$-th term counts the length-$k$ walks ending at
 each node and $\beta^{k}$ discounts them.
+:::
 
 Take $\beta = 0.1$ on the cast graph, well inside the safe range since
 $1/\lambda_{\max} \approx 0.38$. The series starts with the walk counts you just
@@ -237,10 +246,12 @@ $(0.74, 0.65, 1, 0.28, 0.61, 0.61)$, which agrees with the leading eigenvector o
 example above to within a hundredth in every entry.
 :::
 
-Turn the dial yourself. The widget has one slider, $\beta$: at the left end the
-ranking is degree's, in the middle Katz's, and as $\beta$ nears $1/\lambda_{\max}$ it
-becomes the eigenvector's. Watch where ties break first, and find the $\beta$ past
-which the order flips and stays flipped.
+Turn the dial yourself. The widget switches to a ten-node graph built so that the two
+extremes disagree: a hub $S$ with five leaves, joined by a single edge to a four-clique
+$K_1 \ldots K_4$. Three presets and a slider set $\beta$, and it opens at a small
+$\beta$, where the ranking is degree's and the hub leads. Drag toward
+$1/\lambda_{\max}$ and find the $\beta$ past which the clique overtakes the hub and
+stays ahead.
 
 {{< include ../assets/d3/w2-katz.html >}}
 
@@ -283,10 +294,11 @@ counterpart in every real network you will ever analyze.
 ## 2. PageRank: importance as a fixed point
 
 Eigenvector centrality has two cracks on directed graphs, and the web is very directed.
-A page with no inlinks scores zero — and then contributes nothing to the pages it links
-to, so zeros propagate. Worse, on a graph that is not strongly connected the leading
-eigenvector can concentrate all mass in one corner and ignore the rest. Both cracks are
-sealed by one story.
+The first you just watched Katz patch with a constant: a page with no inlinks scores
+zero and passes zero on. PageRank's teleport is that patch made probabilistic. The
+second crack is new: on a graph that is not strongly connected, the leading eigenvector
+can concentrate all mass in one corner and ignore the rest. Both are sealed by one
+story.
 
 **The random surfer.** Imagine someone clicking links forever: at a page with $d^{\text{out}}_u$
 outlinks they follow one uniformly at random. Define importance as *the fraction of time
@@ -302,7 +314,10 @@ $$
 M_{vu} \;=\; \begin{cases} 1/d^{\text{out}}_u & \text{if } u \to v \\ 0 & \text{otherwise,}\end{cases}
 $$ {#eq-w02-M}
 where $d^{\text{out}}_u$ counts $u$'s outlinks and *column-stochastic* means each
-column sums to $1$ (column $u$ says where the mass at $u$ flows). Importance must
+column sums to $1$ (column $u$ says where the mass at $u$ flows). Concretely, on a
+three-page web where $X$ links to $Y$ and $Z$, $Y$ links to $X$ and $Z$ links to $Y$,
+column $X$ is $(0, \tfrac12, \tfrac12)$: half of $X$'s mass to $Y$, half to $Z$. The
+worked example below writes the whole matrix out. Importance must
 satisfy a fixed point — what flows in equals what is there:
 $$
 \mathbf{r} \;=\; M\mathbf{r},
@@ -319,11 +334,8 @@ hands back unchanged.
 every step. Where does that mass go next, and what happens to the total $\sum_u r_u$?
 
 ::: {.predict-answer}
-**Nowhere — it vanishes, and the total shrinks every step.** The page's column of $M$
-is all zeros, so whatever arrives is never passed on, and on a web where every page
-can reach a dead end the iteration converges to the zero vector. The mirror image —
-mass entering a cycle it never leaves — is just as fatal. Both are named, and fixed,
-next.
+**Nowhere — it vanishes, and the total shrinks every step.** The mirror image, mass
+entering a cycle it never leaves, is just as fatal. Both are named, and fixed, next.
 :::
 :::
 
@@ -346,10 +358,10 @@ before boredom, a number chosen empirically in 1998 and never seriously dethrone
 traps (the trap leaks $1-\beta$ of its mass per step).
 
 Watch both pathologies happen, then get fixed. Mass is drawn as the size of each
-page's disc: with teleport off, a dead end drains the web toward zero and a spider
-trap swallows everything; switch teleport on and watch leaked mass reappear
-everywhere, the trap start bleeding, and the masses settle to one distribution
-wherever you start.
+page's disc. Choose *dead end* and press *run 30 steps* with *β = 1* selected: the web
+drains toward zero. Choose *spider trap* and run again: two pages swallow everything.
+Then switch to *β = 0.85* and run once more — the leaked mass reappears everywhere, the
+trap starts bleeding, and the masses settle to one distribution wherever you start.
 
 {{< include ../assets/d3/w2-surfer.html >}}
 
@@ -421,9 +433,11 @@ error by a factor $\beta$ — which is how $K$ gets chosen, as we quantify below
 2's exercise 1 is this listing verbatim, checked against `networkx` to six decimals.
 
 ::: {#exm-pr-hand .example name="Two power iterations, by hand"}
+::: {.recall}
 **Recall** @eq-w02-poweriter: $\mathbf{r}^{(k+1)} = \beta M \mathbf{r}^{(k)} +
 (1 - \beta)\tfrac{1}{n}\mathbf{1}$, where column $u$ of $M$ spreads the mass at page $u$
 evenly over its outlinks (@eq-w02-M).
+:::
 
 A three-page web: $X$ links to $Y$ and $Z$; $Y$ links back to $X$; $Z$ links to $Y$.
 Take $\beta = 1$ for clean fractions (no teleport — this tiny web has no dead ends).
@@ -436,9 +450,10 @@ $$
 so that in $M\mathbf{r}$ each row reads "what arrives here". Start uniform,
 $\mathbf{r}^{(0)} = (\tfrac13, \tfrac13, \tfrac13)$:
 $$
-\mathbf{r}^{(1)} = \left(\tfrac13,\; \tfrac16 + \tfrac13,\; \tfrac16\right) = \left(\tfrac13, \tfrac12, \tfrac16\right),
-\qquad
-\mathbf{r}^{(2)} = \left(\tfrac12,\; \tfrac16+\tfrac16,\; \tfrac16\right) = \left(\tfrac12, \tfrac13, \tfrac16\right).
+\begin{aligned}
+\mathbf{r}^{(1)} &= \left(\tfrac13,\; \tfrac16 + \tfrac13,\; \tfrac16\right) = \left(\tfrac13, \tfrac12, \tfrac16\right), \\
+\mathbf{r}^{(2)} &= \left(\tfrac12,\; \tfrac16+\tfrac16,\; \tfrac16\right) = \left(\tfrac12, \tfrac13, \tfrac16\right).
+\end{aligned}
 $$
 The exact fixed point solves $x = y$, $y = \tfrac{x}{2} + z$, $z = \tfrac{x}{2}$:
 $\mathbf{r} = (0.4, 0.4, 0.2)$. Notice $X$ and $Y$ tie even though $X$ has a single inlink and $Y$ has two:
@@ -459,9 +474,9 @@ between $X$ and $Y$, narrowly in $Y$'s favor.
 :::
 
 The same computation, animated, with the example's fractions beside every step. Match
-each update to the one you just read; then start from $(1, 0, 0)$ and watch
-$(0, \tfrac12, \tfrac12)$, then $(\tfrac12, \tfrac12, 0)$ — a different road to the
-same $(0.4, 0.4, 0.2)$, which is @prp-pagerank's uniqueness in front of you.
+each update to the one you just read; then switch the start to *all on X* and watch a
+different road reach the same $(0.4, 0.4, 0.2)$ — @prp-pagerank's uniqueness in front
+of you. (The check questions at the end ask you to trace that road by hand first.)
 
 {{< include ../assets/d3/w2-poweriter.html >}}
 
@@ -474,9 +489,7 @@ you can detect with a single `sum()` assertion (Lab 2's does). **Stopping:** the
 contraction guarantees error shrinks by $\beta$ per step, so to reach tolerance
 $\varepsilon$ you need $\log \varepsilon / \log \beta$ iterations — about 90 for
 $\varepsilon = 10^{-6}$ at $\beta = 0.85$; note the *ranking* usually stabilizes far
-earlier than the values, which matters when the ranking is all you ship.
-
-**Scale:**
+earlier than the values, which matters when the ranking is all you ship. **Scale:**
 each iteration is one sparse matrix–vector product, $O(m)$ — PageRank on the full web
 was, and remains, a triumph of exactly the sparse-representation discipline Week 1
 preached; nobody has ever materialized the web's adjacency matrix.
@@ -541,25 +554,11 @@ triangle at $u$ traversed in one of its 2 orientations. The trace then counts ea
 triangle twice at each of its 3 vertices. $\square$
 </details>
 
-::: {.predict}
-**Predict.** "The clustering coefficient of the graph" can mean two things: average
-the six per-node $C_u$, or take the fraction of all *wedges* — two-edge paths — that
-close into a triangle. On the cast graph, which is larger, and could the two ever
-differ by more than a factor of $2$?
-
-::: {.predict-answer}
-**The per-node average, $11/18 \approx 0.61$ against $0.5$ — and yes, on heavy-tailed
-graphs the gap reaches an order of magnitude.** With $D$ scored $0$ (the degree-1
-convention) the local values are $\tfrac13, 1, \tfrac13, 0, 1, 1$: $B$, $E$, $F$ each
-own one closed wedge and cast a full vote of $1$, while the wedge count hands $C$ six
-votes, only two closed. Whoever owns the wedges wins one measure; whoever has the
-head count wins the other.
-:::
-:::
-
 ::: {#exm-tri-hand .example name="Triangles from the matrix, by hand"}
+::: {.recall}
 **Recall** @eq-w02-triangles: $(\mathbf{A}^3)[u,u] = 2 \times \#\{\text{triangles
 at } u\}$ and $\operatorname{tr}(\mathbf{A}^3) = 6 \times \#\{\text{triangles}\}$.
+:::
 
 On the cast graph the diagonal of $\mathbf{A}^3$ reads $(2, 2, 4, 0, 2, 2)$ for $A$
 through $F$. Halve it and you have each node's triangle count: one triangle at each of
@@ -585,15 +584,31 @@ little triangles among degree-2 nodes dominate it. The **global transitivity**
 $T$ gives every wedge one vote — so hubs, who own most
 wedges, dominate it. Hand-check both on the cast graph: wedges from the degree
 formula, $\sum_u \binom{d_u}{2} = 3 + 1 + 6 + 0 + 1 + 1 = 12$; triangles, two ($ABC$
-and $CEF$); so $T = 3 \cdot 2 / 12 = 0.5$, while $\bar C$ averages the six local values — $\tfrac13, 1, \tfrac13, 0, 1, 1$ for
-$A$ through $F$, with $D$ scored $0$ by the degree-1 convention — to $11/18 \approx 0.61$. On heavy-tailed graphs the two can differ by an order of magnitude, and
+and $CEF$); so $T = 3 \cdot 2 / 12 = 0.5$. For $\bar C$ you need the six local values —
+$\tfrac13, 1, \tfrac13, 0, 1, 1$ for $A$ through $F$, with $D$ scored $0$ by the
+degree-1 convention — and their average is the next block's question. On heavy-tailed
+graphs the two can differ by an order of magnitude, and
 "clustering coefficient = 0.6" is not a claim until you say which one. When reading
 any network paper, this is the first definition to check; when writing one, state it.
 
+::: {.predict}
+**Predict.** Average those six local values. Is $\bar C$ larger or smaller than
+$T = 0.5$ on the cast graph — and which kind of node decides it?
+
+::: {.predict-answer}
+**Larger: $\bar C = 11/18 \approx 0.61$.** $B$, $E$ and $F$ each own a single closed
+wedge and cast a full vote of $1$, while the wedge count hands $C$ six votes with only
+two closed. Whoever owns the wedges wins one measure; whoever has the head count wins
+the other — and the widget's two prepared graphs push that disagreement to a factor of
+three or four, in opposite directions.
+:::
+:::
+
 Click a node in the widget: its neighbor pairs light up, the closed ones are counted,
 and beside $C_u$ you see $(\mathbf{A}^3)[u,u]$ — twice the triangle count, as
-@prp-triangles promised (for $C$ it reads $4$). Then switch to the two prepared
-graphs, built so that $\bar C$ and $T$ disagree in opposite directions.
+@prp-triangles promised (for $C$ it reads $4$). Then switch to the *C̄ versus T* view,
+whose two prepared graphs are built so that $\bar C$ and $T$ disagree in opposite
+directions.
 
 {{< include ../assets/d3/w2-clustering.html >}}
 
@@ -680,13 +695,15 @@ have cut the graph where it is cheapest.
 {{< include ../assets/figures/fig-w2-cast.html >}}
 
 ::: {#exm-fiedler-hand .example name="Checking an eigenvector by hand"}
-**Recall** @def-w02-fiedler: the Fiedler vector $\mathbf{v}$ satisfies
-$\mathbf{L}\mathbf{v} = \lambda_2 \mathbf{v}$ with $\mathbf{L} = \mathbf{D} - \mathbf{A}$,
-and entry by entry $(\mathbf{L}\mathbf{v})_u = d_u v_u - \sum_{w \in \mathcal{N}(u)} v_w$
-([Week 1](01-why-graphs.qmd#eq-w01-lapaction)).
+::: {.recall}
+**Recall** @def-w02-fiedler — the Fiedler vector $\mathbf{v}$ satisfies
+$\mathbf{L}\mathbf{v} = \lambda_2 \mathbf{v}$ with $\mathbf{L} = \mathbf{D} - \mathbf{A}$ — and,
+from [Week 1](01-why-graphs.qmd#eq-w01-lapaction), the entrywise action of the
+Laplacian, $(\mathbf{L}\mathbf{v})_u = d_u v_u - \sum_{w \in \mathcal{N}(u)} v_w$.
+:::
 
 You can verify a Fiedler vector without computing one. On the cast graph
-$\lambda_2 \approx 0.63$, and the widget below prints the vector, rounded, as
+$\lambda_2 \approx 0.63$, and the Fiedler vector (the next widget prints it too) is, rounded,
 $(-0.26, -0.07, 0.16, -0.71, 0.44, 0.44)$ for $A$ through $F$. The entrywise formula turns each entry into a one-line check.
 At the leaf $D$: $1 \cdot (-0.71) - (-0.26) = -0.45$, against
 $\lambda_2 v_D = 0.63 \cdot (-0.71) = -0.45$. At $A$:
@@ -701,20 +718,11 @@ eigenvector with eigenvalue $0$ — one such vector per component, as @prp-compo
 promised.
 :::
 
-Three small graphs first, whose spectra you can read by eye. On the two-piece graph,
-count the zero eigenvalues and you have counted components, as @prp-components says;
-on the cast graph and the barbell, watch $\lambda_2$ lift off zero and color each
-node by the sign of its Fiedler entry — the sign boundary is the cheapest cut, and on
-the barbell it is the bridge. Note where the cast graph is cut: $\{A, B, D\}$ from
-$\{C, E, F\}$, for two edges — remember that partition, because §4.2's modularity
-example arrives at the same one from an entirely different objective.
-
-{{< include ../assets/d3/w2-spectral.html >}}
-
 ::: {.predict}
 **Commit before you look.** One eigenvector of the karate club's Laplacian, thresholded
 at zero, against the real 1977 split. Zachary's hand-built min-cut model got 33 of 34.
-How many does this fully automatic spectral method get?
+How many does this fully automatic spectral method get? (The club's figure comes after
+the next widget.)
 
 ::: {.predict-answer}
 **32 of 34.** The two misses are boundary members with ties into both camps — exactly
@@ -722,6 +730,18 @@ where a smooth signal must pass through zero. No labels, no training, no model o
 conflict: one eigenvector of a matrix you already knew.
 :::
 :::
+
+Three small graphs first, whose spectra you can read by eye. On the two-piece graph,
+count the zero eigenvalues and you have counted components, as @prp-components says;
+on the cast graph and the barbell, watch $\lambda_2$ lift off zero and color each
+node by the sign of its Fiedler entry — the sign boundary is the cheapest cut, and on
+the barbell it is the bridge. Remember the partition the example just produced:
+§4.2's modularity example arrives at the same one from an entirely different
+objective.
+
+{{< include ../assets/d3/w2-spectral.html >}}
+
+Now the club itself, all 34 members, split by one eigenvector:
 
 {{< include ../assets/figures/fig-w2-fiedler.html >}}
 
@@ -775,12 +795,12 @@ and $E$.
 
 {{< include ../assets/d3/w2-nullmodel.html >}}
 
-{{< include ../assets/figures/fig-w2-cast.html >}}
-
 ::: {#exm-q-hand .example name="Modularity by hand, and a lesson"}
+::: {.recall}
 **Recall** @eq-w02-modularity in its community form: $Q = \sum_{c} \left[ e_c / m -
 \left( D_c / 2m \right)^{2} \right]$ — edges inside each community, minus the share the
 null model expects.
+:::
 
 Cast graph, $m = 7$. Partition $\{A,B,C,D\}\,|\,\{E,F\}$: internal edges
 $AB, AC, AD, BC$ and $EF$ — $e$-total $5$; degree sums $10$ and $4$. So
@@ -793,7 +813,9 @@ group whose expected internal edges its degree was inflating. Modularity is *not
 count; it is a comparison against chance.
 :::
 
-**Maximizing Q: Louvain.** Exact maximization is NP-hard; the algorithm everyone
+### 4.3 Maximizing Q: Louvain
+
+Exact maximization is NP-hard; the algorithm everyone
 actually runs — from the 2008 Louvain paper
 ([Blondel et al., 2008](https://arxiv.org/abs/0803.0476)), one of the most-used
 algorithms in all of network science — is aggressive greed in two phases. **Phase 1 (local moves):** start
@@ -831,13 +853,20 @@ above is the whole computation. Production implementations maintain $D_c$ and
 $k_{i \to c}$ incrementally, which is how Louvain handles hundreds of millions of edges.
 </details>
 
+The widget after this example runs on a ten-node graph, drawn here with its degrees so
+that every number below can be checked against it:
+
+{{< include ../assets/figures/fig-w2-tenweb.html >}}
+
 ::: {#exm-dq-hand .example name="Three moves of phase 1, by hand"}
+::: {.recall}
 **Recall** @eq-w02-deltaq: $\Delta Q = k_{i \to c} / m - D_c\, d_i / 2m^{2}$, real
 connections into $c$ minus the connections the null model expected.
+:::
 
-The widget below runs on a ten-node graph with $m = 18$ edges: two dense groups,
-$\{0, \ldots, 4\}$ and $\{5, \ldots, 9\}$, joined through node $4$. Follow its first
-moves with a pencil; every number here reappears on the widget's panel.
+The graph above has $m = 18$ edges: two dense groups, $\{0, \ldots, 4\}$ and
+$\{5, \ldots, 9\}$, joined through node $4$. Follow the first moves with a pencil;
+every number here reappears on the widget's panel.
 
 *Node 0 joins node 1.* Both are alone, both have degree $3$, and they share one edge, so
 $k_{i \to c} = 1$, $d_i = 3$, $D_c = 3$:
@@ -854,15 +883,21 @@ $$
 \Delta Q \;=\; \frac{2}{18} - \frac{6 \cdot 4}{648} \;=\; 0.1111 - 0.0370 \;\approx\; +0.074 .
 $$
 
-*Node 4, the hinge, chooses a side.* By its turn the left group is $\{0, 1, 2, 3\}$ with
-$D_c = 3 + 3 + 4 + 4 = 14$, and node $4$ has two edges into it; on the right, node $5$
-is still alone with degree $4$ and one edge to node $4$:
+*Node 4, the hinge, chooses a side.* Node $1$ stays put on its turn (it is already with
+node $0$) and node $3$ joins the trio by the same arithmetic, so by node $4$'s turn the
+left group is $\{0, 1, 2, 3\}$ with $D_c = 3 + 3 + 4 + 4 = 14$, and node $4$ has two
+edges into it; on the right, node $5$ is still alone with degree $4$ and one edge to
+node $4$:
 $$
-\Delta Q_{\text{left}} \;=\; \frac{2}{18} - \frac{14 \cdot 4}{648} \;\approx\; +0.025,
-\qquad
-\Delta Q_{\text{right}} \;=\; \frac{1}{18} - \frac{4 \cdot 4}{648} \;\approx\; +0.031 .
+\begin{aligned}
+\Delta Q_{\text{left}} \;&=\; \frac{2}{18} - \frac{14 \cdot 4}{648} \;\approx\; +0.025, \\
+\Delta Q_{\text{right}} \;&=\; \frac{1}{18} - \frac{4 \cdot 4}{648} \;\approx\; +0.031 .
+\end{aligned}
 $$
-Two real edges into the left group lose to one edge into a lone node, because the left
+(Node $6$, also alone with degree $4$ and one edge to node $4$, offers the identical
+$+0.031$, which is why the widget's caption calls node $4$ the hinge with two edges into
+each camp; the sweep takes the first.) Two real edges into the left group lose to one
+edge into a lone node, because the left
 group's degree sum has grown large enough that the null model expects node $4$ to touch
 it anyway. The hinge goes right — a small, local, entirely greedy choice, and the seed of
 the stall you are about to watch.
@@ -890,8 +925,10 @@ when split off. A higher $Q$ is not the same thing as the right answer.
 
 {{< include ../assets/figures/fig-w2-louvain-karate.html >}}
 
-Two more facts complete your modularity education. First, the objective connects back
-to §4.1's spectra: [Newman, 2006](https://arxiv.org/abs/physics/0602124) showed that
+### 4.4 Modularity's spectrum, and its resolution limit
+
+Two more facts complete your modularity education. The first connects the objective
+back to §4.1's spectra: [Newman, 2006](https://arxiv.org/abs/physics/0602124) showed that
 maximizing $Q$ over bisections relaxes to an eigenvector problem for the **modularity
 matrix**
 $$
@@ -905,8 +942,10 @@ eigenvector did for cuts. Two different objectives, one spectral escape hatch;
 recognizing the pattern is worth more than either instance.
 
 ::: {#exm-bq-hand .example name="Three entries of the modularity matrix, by hand"}
+::: {.recall}
 **Recall** @eq-w02-modmatrix: $\mathbf{B}_Q[u,v] = \mathbf{A}[u,v] - d_u d_v / 2m$,
 observed minus expected, one pair at a time.
+:::
 
 On the cast graph $2m = 14$. For the pair $A, C$ — degrees $3$ and $4$, joined by an
 edge — the entry is $1 - \tfrac{3 \cdot 4}{14} \approx +0.14$: an edge exists, but two
@@ -935,7 +974,7 @@ the threshold and a ring of $24$ triangles where it bites.
 :::
 :::
 
-Second, the famous **resolution limit**
+The second fact is the famous **resolution limit**
 ([Fortunato & Barthélemy, 2007](https://arxiv.org/abs/physics/0607100)), with numbers
 instead of folklore. Take a ring of $c$ cliques, each of $k$ nodes ($k$ is a clique size here, not §4.1's
 number of communities), joined by single
@@ -943,17 +982,18 @@ edges — an unambiguous ground truth if there ever was one. Work out the $\Delt
 merging two adjacent cliques (the exact algebra is Lab 2's stretch goal) and the
 punchline is checkable: once the graph is big enough — precisely, when cliques have
 fewer than $\sim\sqrt{2m}$ internal edges — the merge *increases* $Q$, and the
-optimizer happily fuses perfect communities into pairs. On a ring of 24 triangles ($m = 96$),
-maximum-modularity solutions merge neighbors — the ground truth is not the optimum.
-Moral: $Q$ compares partitions *at a scale set by the whole graph's* $m$; small
+optimizer happily fuses perfect communities into pairs. The example below proves it on a ring of
+triangles. Moral: $Q$ compares partitions *at a scale set by the whole graph's* $m$; small
 structure is invisible to it by design, not by accident. When small communities are
 the object of interest — fraud rings, protein complexes — use a resolution parameter
 (both `networkx` implementations accept one) and scan it, or use methods with a
 different null.
 
 ::: {#exm-ring-hand .example name="The ring of triangles, by hand"}
+::: {.recall}
 **Recall** @eq-w02-modularity: $Q = \sum_{c} \left[ e_c / m - \left( D_c / 2m
 \right)^{2} \right]$, summed over the communities of the partition being scored.
+:::
 
 Take $c$ triangles in a ring, each joined to the next by one edge, so $m = 4c$. Score
 the honest partition, one community per triangle: each community holds $e_c = 3$
@@ -977,9 +1017,8 @@ cases — only $m$ did.
 :::
 
 Build the ring yourself. The slider adds cliques two at a time — merged pairs need an
-even count — and plots $Q$ for the ground truth, one community per clique, against $Q$
-for merged adjacent pairs. For triangles the curves cross at $c = 8$; from the ninth
-clique on, the wrong answer wins. Nothing about the cliques changed — only $m$ did.
+even count — and plots $Q$ for the ground truth against $Q$ for merged adjacent pairs,
+with the crossover marked.
 
 {{< include ../assets/d3/w2-resolution.html >}}
 
@@ -997,9 +1036,19 @@ cheaply.
 
 **Color refinement.** Give every node the same color. Then repeat: each node's new
 color is a hash of *(its color, the multiset of its neighbors' colors)* — identical
-inputs, identical new color. @alg-w02-wl states the procedure exactly as Weisfeiler
-and Leman conceived it, and exactly as Lab 2's exercise 5 implements it, down to the
-shared signature table.
+inputs, identical new color. Two rounds on the cast graph, before any formalism:
+
+{{< include ../assets/figures/fig-w2-wl.html >}}
+
+Read the figure bottom-up: the hash table *is* the algorithm. Round 1 rediscovers
+degree — but round 2 sees deeper. $B$, $E$, and $F$ all have degree 2 and share a color
+after round 1; in round 2, $B$ splits away, because $B$'s neighbor-colors are
+$\{1, 3\}$ (a degree-3 node and the hub) while $E$'s and $F$'s are $\{2, 3\}$ (the hub
+and *each other's* class). The refinement sees *structure around* a node, not just its
+degree: after $k$ rounds, a node's color encodes the shape of its entire $k$-hop
+neighborhood. @alg-w02-wl states the procedure exactly as Weisfeiler and Leman
+conceived it, and exactly as Lab 2's exercise 5 implements it, down to the shared
+signature table.
 
 ::: {#alg-w02-wl .algorithm name="Weisfeiler–Leman Color Refinement"}
 Computes a color histogram per graph — comparable across graphs of any size.
@@ -1035,15 +1084,19 @@ node's $h$-hop neighborhood, is invariant to node renumbering, and — per @prp-
 below — certifies difference but never sameness.
 :::
 
-{{< include ../assets/figures/fig-w2-wl.html >}}
+::: {.predict}
+**Predict.** Two triangles side by side, or one hexagon: six nodes, six edges, every
+node of degree $2$ in both. Will color refinement ever tell the two graphs apart?
 
-Read the figure bottom-up: the hash table *is* the algorithm. Round 1 rediscovers
-degree — but round 2 sees deeper. $B$, $E$, and $F$ all have degree 2 and share a color
-after round 1; in round 2, $B$ splits away, because $B$'s neighbor-colors are
-$\{1, 3\}$ (a degree-3 node and the hub) while $E$'s and $F$'s are $\{2, 3\}$ (the hub
-and *each other's* class). The refinement sees *structure around* a node, not just its
-degree: after $k$ rounds, a node's color encodes the shape of its entire $k$-hop
-neighborhood.
+::: {.predict-answer}
+**Never.** In both graphs every node has two neighbors of its own color at every round,
+so the histograms agree forever. The test proves difference but never sameness — the
+proposition after the widget makes that precise.
+:::
+:::
+
+Run the refinement yourself, one round per click, on the cast graph and then on the
+two ring graphs of the prediction:
 
 {{< include ../assets/d3/w2-wl.html >}}
 
@@ -1062,8 +1115,8 @@ preserving colors makes the histograms equal. So differing histograms forbid any
 isomorphism. Incompleteness: in both ring graphs every node has exactly two neighbors,
 and by induction every node has the same color as every other in *both* graphs at every
 round (round $k{+}1$ hashes identical pairs everywhere). The histograms agree forever,
-yet one graph is connected and the other is not — you just watched this in the widget's
-second scene. $\square$
+yet one graph is connected and the other is not (the widget's *two 3-rings vs one
+6-ring* scene shows it). $\square$
 </details>
 
 **From test to feature: the WL kernel.**
@@ -1076,9 +1129,11 @@ kernels on most chemistry benchmarks. For a decade this was *the* way to classif
 graphs, and it is the classifier you will build for protein graphs in the lab.
 
 ::: {#exm-wl-kernel .example name="One kernel value, by hand"}
+::: {.recall}
 **Recall** the kernel: run $h$ rounds of @alg-w02-wl on both graphs with one shared
 signature table, count each graph's colors round by round, and let $K(G_1, G_2)$ be
 the inner product of the two count vectors.
+:::
 
 Compute one kernel value by hand, because the mechanism is simpler than the notation
 suggests. Let $G_1$ be our cast graph and $G_2$ the cast graph with edge $EF$ deleted.
@@ -1125,7 +1180,20 @@ task may change what the features are.
 {{< include ../assets/figures/fig-w2-pipeline.html >}}
 
 This *is* a complete ML pipeline — assemble features, fit a classical model — and Lab 2
-runs it three times, with a twist you should predict now. On Cora's citation graph,
+runs it three times.
+
+::: {.predict}
+**Predict.** Seven structural statistics of a paper — its centralities, clustering and
+friends — feed a logistic regression that must guess one of Cora's seven topics. Chance
+is 14%. Above or below 30%?
+
+::: {.predict-answer}
+**Below — about 19%.** How central or tight-knit a paper is says almost nothing about
+what it is about. The lift, when it comes, comes from a different kind of feature.
+:::
+:::
+
+On Cora's citation graph,
 seven structural *statistics* (centralities, clustering, and friends) score a dismal
 ≈19% against 14% chance: a paper's topic has almost nothing to do with how *important*
 or *tight-knit* it is — statistics are topic-blind. Add crude *position* features — a
@@ -1223,7 +1291,9 @@ measurement: compute all four centralities plus PageRank on the karate club and 
 your power iteration against `networkx` to six decimals; implement clustering
 coefficients via $\mathbf{A}^3$ and catch the factor of two yourself; implement
 modularity and verify this lecture's pencil fractions exactly, then run Louvain and
-spectral bisection on the club and score both against the real 1977 split; implement
+spectral bisection on the club and score both against the real 1977 split — Louvain at
+the figure's seed reproduces its four communities, and at the lab's own seed stops at
+three, the seed sensitivity of greedy search made visible; implement
 one WL round and reproduce both verdicts (path–star: caught in one round;
 triangles–hexagon: never); and close with the two-stage Cora measurement — statistics
 ≈19%, plus community position ≈62% — that fixes your baseline for the semester.

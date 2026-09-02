@@ -708,3 +708,20 @@ results, and why the design landed where it did. It never quotes or paraphrases 
 instructions that prompted the work, and it does not attribute the change to a request
 ("instructor asked for…", "per the message…"). The history should read as a record of
 what the course is, not of the conversation that produced it. Applies to both repos.
+
+**Readability rules from the Lecture 2 audit (2026-09-03).** (1) A predict block sits
+after the object it asks about is defined, and never on the same screen as a figure or
+banner that states its answer; when a figure must follow, put a widget or a paragraph
+between them, or take the count out of the figure's banner. (2) A predict answer states
+the verdict and stops; the body carries the enumeration, so the two are never the same
+sentences twice. (3) A worked example opens with a `::: {.recall}` block restating the
+equation it applies (styled apart from the title line), then the calculation, then the
+figure that animates it. (4) A hand calculation must have its graph on screen: reprint
+the reference strip (fig-w2-cast, fig-w2-tenweb) before the first example that uses
+it, but never directly under a widget that already draws that graph. (5) A widget
+lead-in names the controls it asks the reader to press and describes the state the
+widget opens in. (6) No section runs more than ~700 words without something to look at;
+fold machinery footnotes into `<details>`. (7) Cross-references to algorithm floats
+use the custom crossref key `alg` with reference prefix "Algorithm" (_quarto.yml), so
+they render "Algorithm 2", not "alg. 2". (8) Every captioned figure is numbered; a
+reference strip carries no caption so its reprints do not consume numbers.
