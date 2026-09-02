@@ -668,20 +668,72 @@ community with the best positive $\Delta Q$, until no single move helps.
 **Phase 2 (aggregation):** collapse each community into a super-node (edges become
 weighted) and run phase 1 on the smaller graph. Repeat until $Q$ stops improving.
 
-<details><summary>The ΔQ that phase 1 computes (derivation for the simplest move)</summary>
-Moving an isolated node $i$ (degree $d_i$) into community $c$ changes the two terms of
-$Q$'s community form: the internal-edge term gains $k_{i \to c}/m$, where $k_{i \to c}$
-counts $i$'s edges into $c$, and the expected term changes by
-$-\left(\tfrac{D_c + d_i}{2m}\right)^2 + \left(\tfrac{D_c}{2m}\right)^2 + \left(\tfrac{d_i}{2m}\right)^2 = -\tfrac{D_c\, d_i}{2m^2}$. So
+Phase 1 needs one number per candidate move: how much $Q$ changes if a node joins a
+neighboring community. For the simplest case — a node that is still on its own — the
+change has a closed form worth knowing by heart:
+
 $$
-\Delta Q \;=\; \frac{k_{i \to c}}{m} \;-\; \frac{D_c\, d_i}{2m^2}:
+\Delta Q \;=\; \frac{k_{i \to c}}{m} \;-\; \frac{D_c\, d_i}{2m^2},
 $$ {#eq-w02-deltaq}
-real connections in, minus expected connections in. The widget's very first move is this
-formula verbatim: node 0 joining node 1's singleton community, $k_{i\to c} = 1$,
-$d_i = D_c = 3$, $m = 18$, giving $\Delta Q = \tfrac{1}{18} - \tfrac{9}{648} \approx +0.042$
-— check the readout. Production implementations maintain $D_c$ and $k_{i \to c}$
-incrementally, which is how Louvain handles hundreds of millions of edges.
+
+where — $i$ is the node being moved, currently in a community of its own; $c$ is the
+community it is considering joining; $k_{i \to c}$ counts the edges between $i$ and the
+members of $c$; $d_i$ is $i$'s degree; $D_c$ is the sum of the degrees of $c$'s
+members; and $m$ is the number of edges in the whole graph. In words: the first term is
+the connections $i$ actually has into $c$, as a fraction of all edges, and the second is
+the connections the null model *expected* — a community with a large degree sum $D_c$
+meets any node by chance, so joining it earns less credit. Louvain computes this number
+for every neighboring community, takes the largest, and moves only if that largest
+value is positive.
+
+<details><summary>Where the formula comes from (two lines)</summary>
+Moving an isolated node $i$ into community $c$ changes the two terms of $Q$'s community
+form (@eq-w02-modularity): the internal-edge term gains $k_{i \to c}/m$, and the
+expected term changes by
+$-\left(\tfrac{D_c + d_i}{2m}\right)^2 + \left(\tfrac{D_c}{2m}\right)^2 + \left(\tfrac{d_i}{2m}\right)^2 = -\tfrac{D_c\, d_i}{2m^2}$,
+which is @eq-w02-deltaq. For a node that already belongs to a community, Louvain first
+removes it (the same formula with the sign reversed) and then inserts it, so the rule
+above is the whole computation. Production implementations maintain $D_c$ and
+$k_{i \to c}$ incrementally, which is how Louvain handles hundreds of millions of edges.
 </details>
+
+::: {#exm-dq-hand .example name="Three moves of phase 1, by hand"}
+The widget below runs on a ten-node graph with $m = 18$ edges: two dense groups,
+$\{0, \ldots, 4\}$ and $\{5, \ldots, 9\}$, joined through node $4$. Follow its first
+moves with a pencil; every number here reappears on the widget's panel.
+
+*Node 0 joins node 1.* Both are alone, both have degree $3$, and they share one edge, so
+$k_{i \to c} = 1$, $d_i = 3$, $D_c = 3$:
+$$
+\Delta Q \;=\; \frac{1}{18} - \frac{3 \cdot 3}{2 \cdot 18^2} \;=\; 0.0556 - 0.0139 \;\approx\; +0.042 .
+$$
+Node 0's other neighbors, nodes $2$ and $3$, have degree $4$, so joining either costs more
+in the expected term: $\tfrac{1}{18} - \tfrac{12}{648} \approx +0.037$. The greedy rule
+takes the largest, node $1$.
+
+*Node 2 joins the pair $\{0, 1\}$.* Node $2$ has degree $4$ and two edges into the pair,
+whose degree sum is $D_c = 3 + 3 = 6$:
+$$
+\Delta Q \;=\; \frac{2}{18} - \frac{6 \cdot 4}{648} \;=\; 0.1111 - 0.0370 \;\approx\; +0.074 .
+$$
+
+*Node 4, the hinge, chooses a side.* By its turn the left group is $\{0, 1, 2, 3\}$ with
+$D_c = 3 + 3 + 4 + 4 = 14$, and node $4$ has two edges into it; on the right, node $5$
+is still alone with degree $4$ and one edge to node $4$:
+$$
+\Delta Q_{\text{left}} \;=\; \frac{2}{18} - \frac{14 \cdot 4}{648} \;\approx\; +0.025,
+\qquad
+\Delta Q_{\text{right}} \;=\; \frac{1}{18} - \frac{4 \cdot 4}{648} \;\approx\; +0.031 .
+$$
+Two real edges into the left group lose to one edge into a lone node, because the left
+group's degree sum has grown large enough that the null model expects node $4$ to touch
+it anyway. The hinge goes right — a small, local, entirely greedy choice, and the seed of
+the stall you are about to watch.
+:::
+
+Now watch the same arithmetic run. Before each move the panel under the graph prints
+every option the current node is weighing, with its $\Delta Q$ from @eq-w02-deltaq; the
+three calculations above are its first screens, so check your pencil against them.
 
 {{< include ../assets/d3/w2-louvain.html >}}
 
