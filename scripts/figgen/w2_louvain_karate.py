@@ -45,7 +45,7 @@ SEED = 0
 LAB_SEED = 42          # scripts/labgen/make_lab02.py: louvain_communities(G, seed=SEED, weight=None)
 SANS = "'Source Sans 3', sans-serif"
 MONO = "'JetBrains Mono', monospace"
-W, H = 760, 418
+W, H = 760, 540
 
 # ═══════════════ 1. positions: the exact coordinates of the Fiedler figure ═══════
 txt = SRC.read_text(encoding="utf-8")
@@ -58,7 +58,7 @@ for (a, b), (x1, y1, x2, y2) in zip(K_EDGES, edge_lines):   # w2_figs.py writes 
         assert POS.setdefault(node, pt) == pt, f"member {node} has two different coordinates in {SRC.name}"
 assert len(POS) == K_N
 node_circles = {(float(x), float(y))
-                for x, y in re.findall(r'<circle cx="([\d.]+)" cy="([\d.]+)" r="(?:8|11|12)"', txt)}
+                for x, y in re.findall(r'<circle cx="([\d.]+)" cy="([\d.]+)" r="(?:10|12|15)"', txt)}
 assert node_circles == set(POS.values()), "parsed positions do not match the Fiedler figure's node circles"
 
 # ═══════════════ 2. Louvain versus the 1977 split (all measured) ═════════════════
@@ -158,7 +158,7 @@ RING_W = 2.2
 RED = "var(--dkr-red, #cf4a30)"
 MUTED = "var(--dkr-muted, #6e6e7a)"
 TEXT = "var(--dkr-text, #1c1c21)"
-R_NODE, R_LEADER = 8, 12                    # members; the two leaders (0 = Mr. Hi, 33 = the Officer)
+R_NODE, R_LEADER = 10, 15                   # Lecture 1 radii; the two leaders (0 = Mr. Hi, 33 = the Officer)
 
 
 def node_r(i):
@@ -218,7 +218,7 @@ for a, b in K_EDGES:
 parts.append("  </g>")
 
 # the exception's halo sits behind the discs so a neighbouring disc may overlap it
-HALO_R = 13
+HALO_R = 15
 vx, vy = POS[V]
 parts.append(f'  <circle cx="{vx}" cy="{vy}" r="{HALO_R}" fill="none" stroke="{RED}" stroke-width="1.8" stroke-dasharray="3,2.5" opacity="0.9"/>')
 
@@ -228,32 +228,96 @@ for i in range(K_N):
     ring = f' stroke="{RING}" stroke-width="{RING_W}"' if i in MR_HI else ""
     parts.append(f'  <circle cx="{x}" cy="{y}" r="{node_r(i)}" fill="{COLOR_OF[i]}" opacity="0.9"{ring}/>')
 
-# one label per community, next to its cluster (swatch ringed like its majority side)
+# one label per community, placed by search: on a ring around the community's
+# centroid, the spot with the most clearance from every member and from labels
+# already placed, inside the canvas and clear of the legend rows and the strip
 LABEL_SIZE = 13
-LABEL_POS = {"accent": (177, 66), "yellow": (55, 142), "blue": (None, 302), "purple": (548, 199)}
+placed_boxes = []
+
+
+def box_gap(box):
+    x0, y0, x1, y1 = box
+    g = 1e9
+    for (ax0, ay0, ax1, ay1) in placed_boxes:
+        gx = max(ax0 - x1, 0.0, x0 - ax1)
+        gy = max(ay0 - y1, 0.0, y0 - ay1)
+        g = min(g, math.hypot(gx, gy))
+    return g
+
+
+def node_gap(box, pad=0.0):
+    x0, y0, x1, y1 = box
+    g = 1e9
+    for i, (x, y) in POS.items():
+        dx = max(x0 - x, 0.0, x - x1)
+        dy = max(y0 - y, 0.0, y - y1)
+        g = min(g, math.hypot(dx, dy) - outer_r(i))
+    return g - pad
+
+
 for members, tok, side in COMM_INFO:
     label = f"community of {len(members)}"
     w = text_w(label, LABEL_SIZE)
-    x, y = LABEL_POS[tok]
-    if x is None:                              # right-aligned, left of the Officer's core
-        x = 338 - w
+    cx = sum(POS[i][0] for i in members) / len(members)
+    cy = sum(POS[i][1] for i in members) / len(members)
+    best = None
+    for rad in (70, 90, 110, 130, 150):
+        for k in range(24):
+            ang = 2 * math.pi * k / 24
+            x = cx + rad * math.cos(ang) - w / 2 + 11      # text start (swatch sits 11px left)
+            y = cy + rad * math.sin(ang)
+            if x - 17 < 12 or x + w > W - 12 or y < 70 or y > H - 96:
+                continue
+            box = (x - 17, y - 10.5, x + w, y + 3)
+            score = min(node_gap(box), box_gap(box), rad * 0.15)   # prefer close-in, clear spots
+            if best is None or score > best[0]:
+                best = (score, x, y, box)
+    assert best is not None and best[0] >= 4, f"no clear spot for the label of {tok} ({best})"
+    _, x, y, box = best
+    placed_boxes.append(box)
     sx, sy = x - 11, y - 4.5
-    assert_clear((sx - 6, sy - 6, x + w, y + 3))
     ring = f' stroke="{RING}" stroke-width="2"' if side == "Mr. Hi" else ""
-    parts.append(f'  <circle cx="{sx}" cy="{sy}" r="6" fill="{TOKENS[tok]}" opacity="0.9"{ring}/>')
-    parts.append(f'  <text x="{x}" y="{y}" font-family="{SANS}" font-size="{LABEL_SIZE}" font-weight="600" fill="{TEXT}">{label}</text>')
+    parts.append(f'  <circle cx="{sx:.1f}" cy="{sy:.1f}" r="6" fill="{TOKENS[tok]}" opacity="0.9"{ring}/>')
+    parts.append(f'  <text x="{x:.1f}" y="{y:.1f}" font-family="{SANS}" font-size="{LABEL_SIZE}" font-weight="600" fill="{TEXT}">{label}</text>')
 
-# the exception: same spot as the Fiedler figure's "two misses" label, same dotted leader
-CX, CY1, CY2 = 545, 96, 113
+# the exception: red dashed halo (drawn earlier, behind the discs) plus its member
+# number on the clearest side of the node, and two explanatory lines placed by
+# search in free space — no leader has to cross the cloud
+vx, vy = POS[V]
+best_tag = None
+for k in range(12):
+    ang = 2 * math.pi * k / 12
+    tx, ty = vx + 28 * math.cos(ang), vy + 28 * math.sin(ang)
+    box = (tx - 6, ty - 10, tx + 6, ty + 3)
+    g = min(node_gap(box) if True else 0, 99)
+    # ignore the exception itself when scoring
+    g = min(math.hypot(max(box[0] - x, 0.0, x - box[2]), max(box[1] - y, 0.0, y - box[3])) - outer_r(i)
+            for i, (x, y) in POS.items() if i != V)
+    if best_tag is None or g > best_tag[0]:
+        best_tag = (g, tx, ty)
+_, tx, ty = best_tag
+parts.append(f'  <text x="{tx:.0f}" y="{ty + 4:.0f}" text-anchor="middle" font-family="{SANS}" font-size="13" font-weight="700" fill="{RED}" stroke="var(--dkr-bg, #fbfbfa)" stroke-width="3.5" paint-order="stroke">{V}</text>')
+
 line1 = f"member {V} — Louvain's one disagreement with 1977"
 line2 = f"filed in the community of {MIXED_SIZE}, yet he joined Mr. Hi's new club"
 w1, w2 = text_w(line1, 13.5), text_w(line2, 12.5)
-assert_clear((CX - w1 / 2, CY1 - 11, CX + w1 / 2, CY1 + 3))
-assert_clear((CX - w2 / 2, CY2 - 10, CX + w2 / 2, CY2 + 3))
-sx, sy, ex, ey, clr = best_leader(CY2 + 7, CX - w2 / 2 + 20, CX + w2 / 2 - 20, V, HALO_R + 3)
-parts.append(f'  <line x1="{sx:.1f}" y1="{sy:.1f}" x2="{ex:.1f}" y2="{ey:.1f}" stroke="{RED}" stroke-width="1.3" stroke-dasharray="3,3" opacity="0.85"/>')
+wmax = max(w1, w2)
+best_call = None
+for CX in range(int(wmax / 2) + 12, int(W - wmax / 2 - 12), 8):
+    for CY1 in (432, 444, 80, 98, 116, 134, 152):
+        CY2 = CY1 + 17
+        b1 = (CX - w1 / 2, CY1 - 11, CX + w1 / 2, CY1 + 3)
+        b2 = (CX - w2 / 2, CY2 - 10, CX + w2 / 2, CY2 + 3)
+        gap = min(node_gap(b1), node_gap(b2), box_gap(b1), box_gap(b2))
+        if best_call is None or gap > best_call[0]:
+            best_call = (gap, CX, CY1, CY2)
+assert best_call is not None and best_call[0] >= 6, f"no clear position for the exception note ({best_call})"
+_, CX, CY1, CY2 = best_call
+placed_boxes.append((CX - wmax / 2, CY1 - 11, CX + wmax / 2, CY2 + 3))
 parts.append(f'  <text x="{CX}" y="{CY1}" text-anchor="middle" font-family="{SANS}" font-size="13.5" font-weight="700" fill="{RED}">{line1}</text>')
 parts.append(f'  <text x="{CX}" y="{CY2}" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="{MUTED}">{line2}</text>')
+clr = best_call[0]
+sx = CX
 
 # legend: two centred rows above the graph
 row1 = f"fill = Louvain community (seed {SEED})   ·   ring = which side the member took in 1977:"
@@ -274,12 +338,12 @@ parts.append("  </g>")
 # stat strip (monospace readout) and the claim band
 WORDS = {2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
 stat = f"Louvain (seed {SEED}): {K} communities, Q = {Q_LOUVAIN:.3f} · the 1977 two-faction split: Q = {Q_TWO:.3f}"
-parts.append(f'  <text x="380" y="356" text-anchor="middle" font-family="{MONO}" font-size="13" fill="{TEXT}">{stat}</text>')
+parts.append(f'  <text x="380" y="{H - 62}" text-anchor="middle" font-family="{MONO}" font-size="13" fill="{TEXT}">{stat}</text>')
 claim = f"the optimum of Q is finer than the sociology — modularity sees {WORDS[K]} groups, the club saw two"
 band_w = round(text_w(claim, 13.5) + 56)
 parts.append(f'''  <g font-family="{SANS}">
-    <rect x="{380 - band_w / 2:.0f}" y="372" width="{band_w}" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
-    <text x="380" y="392" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--dkr-bg, #fff)">{claim}</text>
+    <rect x="{380 - band_w / 2:.0f}" y="{H - 44}" width="{band_w}" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
+    <text x="380" y="{H - 24}" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--dkr-bg, #fff)">{claim}</text>
   </g>''')
 
 sizes = ", ".join(str(len(m)) for m, _, _ in COMM_INFO[:-1]) + f" and {len(COMM_INFO[-1][0])}"
@@ -291,7 +355,7 @@ aria = (f"Zachary's karate club in the same layout as the Fiedler figure, each o
 hi_core, hi_sat = len(SIDE["Mr. Hi"][0]), len(SIDE["Mr. Hi"][1])
 off_core, off_sat = len(SIDE["Officer"][0]), len(SIDE["Officer"][1])
 caption = (
-    f"Louvain on the karate club, in the same 34 positions as the Fiedler figure above: fill is the community it "
+    f"Louvain on the karate club, drawn exactly as Lecture 1 draws it and as the Fiedler figure above: fill is the community it "
     f"returns at the default resolution (seed {SEED}), rings mark the members who joined Mr. Hi in 1977. It finds not "
     f"two groups but {WORDS[K]} — a core of {hi_core} and a satellite of {hi_sat} on Mr. Hi's side, a core of "
     f"{off_core} and a satellite of {off_sat} on the Officer's — and that finer partition scores Q = {Q_LOUVAIN:.3f}, "
@@ -321,4 +385,4 @@ for members, tok, side in COMM_INFO:
 print(f"Q(Louvain) = {Q_LOUVAIN:.6f}   Q(two clubs) = {Q_TWO:.6f}")
 print(f"violators (own 1977 side != community majority): {VIOLATORS} -> {len(VIOLATORS)} member(s)")
 print(f"members in a mixed community: {MEMBERS_IN_MIXED}; members whose community lies entirely inside one faction: {PURE_MEMBERS}")
-print(f"leader start x={sx}, clearance {clr:.1f}px")
+print(f"exception note at x={sx}, clearance {clr:.1f}px")

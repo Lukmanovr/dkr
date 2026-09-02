@@ -47,6 +47,21 @@ def layout(x_span=(60, 620), y_span=(58, 318), seed=7, iters=600):
     return [(round(sx(x), 1), round(sy(y), 1)) for x, y in pos]
 
 
+def layout_w1(scale=1.0, dx=0.0, dy=0.0):
+    """The club exactly as Lecture 1's live hero draws it: the converged d3-force
+    positions exported from assets/d3/w1-hero.js (scripts/figgen/karate_layout_w1.json,
+    canvas 760x480), optionally scaled about the origin and shifted, so every later
+    figure of the club is recognisably the same drawing."""
+    import json
+    from pathlib import Path
+    data = json.loads((Path(__file__).with_name("karate_layout_w1.json")).read_text(encoding="utf-8"))
+    pos = [None] * N
+    for i, x, y in data["positions"]:
+        pos[i] = (round(x * scale + dx, 1), round(y * scale + dy, 1))
+    assert all(p is not None for p in pos), "layout export is missing a member"
+    return pos
+
+
 def make_label_placer(P, x_max=740, y_max=336):
     """Returns place(node, text, size) choosing offsets that avoid nodes and prior labels."""
     placed = []

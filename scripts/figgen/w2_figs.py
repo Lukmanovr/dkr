@@ -381,7 +381,12 @@ write("fig-w2-wl", "\n".join(parts),
 
 
 # ═════════════════════════════ Karate Fiedler split ═════════════════════════
-P = layout()
+# The club is drawn EXACTLY as Lecture 1's live hero lays it out (layout_w1: the
+# converged d3-force positions, shifted right to balance the canvas), with the same
+# node radii (10, leaders 15) and edge style, so the reader recognises one object.
+from karate_common import layout_w1
+FX, FH = 40, 500                      # horizontal shift; canvas height
+P = layout_w1(dx=FX)
 fv = fiedler_vector()
 pred_hi = {i for i in range(K_N) if fv[i] * (1 if fv[0] > 0 else -1) > 0}
 agree = sum(1 for i in range(K_N) if (i in pred_hi) == (i in MR_HI))
@@ -389,42 +394,106 @@ agree = sum(1 for i in range(K_N) if (i in pred_hi) == (i in MR_HI))
 flip = (K_N - agree) > agree
 agree = max(agree, K_N - agree)
 wrong = [i for i in range(K_N) if ((i in pred_hi) != (i in MR_HI)) != flip]
+R_MEMBER, R_LEADER, R_MISS = 10, 15, 12
 
-parts = ['  <g stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.3" opacity="0.5">']
+
+def f_radius(i):
+    return R_LEADER if i in (0, 33) else R_MEMBER
+
+
+def clearance_box(x0, y0, x1, y1, ignore=()):
+    # Smallest gap between a label box and any node rim (negative = overlap).
+    best = 1e9
+    for i, (x, y) in enumerate(P):
+        if i in ignore:
+            continue
+        dx = max(x0 - x, 0.0, x - x1)
+        dy = max(y0 - y, 0.0, y - y1)
+        best = min(best, math.hypot(dx, dy) - f_radius(i))
+    return best
+
+
+def seg_clear(ax, ay, bx, by, ignore=()):
+    best = 1e9
+    for i, (px, py) in enumerate(P):
+        if i in ignore:
+            continue
+        vx, vy = bx - ax, by - ay
+        t = max(0.0, min(1.0, ((px - ax) * vx + (py - ay) * vy) / (vx * vx + vy * vy)))
+        best = min(best, math.hypot(px - (ax + t * vx), py - (ay + t * vy)) - f_radius(i))
+    return best
+
+
+def place_name(i, text, size=13):
+    # Leader name above or below its node, whichever side is clear (as the hero does).
+    x, y = P[i]
+    w = len(text) * size * 0.52
+    cands = [(x, y - f_radius(i) - 10), (x, y + f_radius(i) + 18)]
+    scored = []
+    for cx, cy in cands:
+        cx = min(max(cx, 20 + w / 2), 740 - w / 2)
+        scored.append((clearance_box(cx - w / 2, cy - size, cx + w / 2, cy + 3, ignore=(i,)), cx, cy))
+    scored.sort(reverse=True)
+    return scored[0][1], scored[0][2]
+
+
+parts = ['  <g stroke="var(--dkr-muted, #8e8e9a)" stroke-width="1.3" opacity="0.45">']
 for a, b in K_EDGES:
     parts.append(f'    <line x1="{P[a][0]}" y1="{P[a][1]}" x2="{P[b][0]}" y2="{P[b][1]}"/>')
 parts.append("  </g>")
-# the ONE message is the two ringed misses: draw the field dimmed, the misses last,
-# larger, with 4.5px rings and dotted leaders from a single label (audit W2/A)
 for i in range(K_N):
     if i in wrong:
         continue
     x, y = P[i]
     fill = C_HI if ((i in pred_hi) != flip) else C_OFF
-    parts.append(f'  <circle cx="{x}" cy="{y}" r="{12 if i in (0, 33) else 8}" fill="{fill}" opacity="0.82"/>')
-miss_label_x, miss_label_y = 530, 96
+    parts.append(f'  <circle cx="{x}" cy="{y}" r="{f_radius(i)}" fill="{fill}" opacity="0.9"/>')
+
+# the two misses: ringed and drawn last, each tagged with its member number on the
+# clearest side of the node, so nothing has to be drawn across the cloud; the
+# explanation sits in whichever bottom corner is free
 for i in wrong:
     x, y = P[i]
     fill = C_HI if ((i in pred_hi) != flip) else C_OFF
-    dx, dy = miss_label_x - x, miss_label_y - y
-    dist = math.hypot(dx, dy) or 1.0
-    sx, sy = x + dx / dist * 17, y + dy / dist * 17          # start at ring rim
-    ex, ey = miss_label_x - dx / dist * 14, miss_label_y - dy / dist * 14
-    parts.append(f'  <line x1="{sx:.0f}" y1="{sy:.0f}" x2="{ex:.0f}" y2="{ey + 6:.0f}" stroke="#cf4a30" stroke-width="1.3" stroke-dasharray="3,3" opacity="0.85"/>')
+    parts.append(f'  <circle cx="{x}" cy="{y}" r="{R_MISS}" fill="{fill}" stroke="#cf4a30" stroke-width="4.5"/>')
 for i in wrong:
     x, y = P[i]
-    fill = C_HI if ((i in pred_hi) != flip) else C_OFF
-    parts.append(f'  <circle cx="{x}" cy="{y}" r="11" fill="{fill}" stroke="#cf4a30" stroke-width="4.5"/>')
-parts.append(f'  <text x="{miss_label_x}" y="{miss_label_y}" text-anchor="middle" font-family="{SANS}" font-size="13.5" font-weight="700" fill="#cf4a30">the two misses — members {wrong[0]} and {wrong[1]}</text>')
-parts.append(f'  <text x="{miss_label_x}" y="{miss_label_y + 17}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #8e8e9a)">ringed = disagrees with the real 1977 split</text>')
-parts.append(f'''  <g font-family="{SANS}" font-size="12" fill="var(--dkr-muted, #8e8e9a)">
+    best = None
+    for k in range(12):
+        ang = 2 * math.pi * k / 12
+        tx, ty = x + 26 * math.cos(ang), y + 26 * math.sin(ang)
+        c = clearance_box(tx - 6, ty - 10, tx + 6, ty + 3, ignore=(i,))
+        if best is None or c > best[0]:
+            best = (c, tx, ty)
+    _, tx, ty = best
+    parts.append(f'  <text x="{tx:.0f}" y="{ty + 4:.0f}" text-anchor="middle" font-family="{SANS}" font-size="13" font-weight="700" fill="#cf4a30" stroke="var(--dkr-bg, #fbfbfa)" stroke-width="3.5" paint-order="stroke">{i}</text>')
+note1 = f"the two misses — members {wrong[0]} and {wrong[1]}, ringed"
+note2 = "each disagrees with the real 1977 split"
+wn = max(len(note1) * 13.5, len(note2) * 12.5) * 0.52
+corner = None
+for cx_ in (170 + wn / 2, 590 - wn / 2 + 150):
+    cx_ = min(max(cx_, 20 + wn / 2), 740 - wn / 2)
+    c = clearance_box(cx_ - wn / 2, FH - 96, cx_ + wn / 2, FH - 60)
+    if corner is None or c > corner[0]:
+        corner = (c, cx_)
+_, miss_label_x = corner
+miss_label_y = FH - 78
+parts.append(f'  <text x="{miss_label_x:.0f}" y="{miss_label_y}" text-anchor="middle" font-family="{SANS}" font-size="13.5" font-weight="700" fill="#cf4a30">{note1}</text>')
+parts.append(f'  <text x="{miss_label_x:.0f}" y="{miss_label_y + 17}" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="var(--dkr-muted, #8e8e9a)">{note2}</text>')
+
+# the two leaders, named as in Lecture 1
+for i, name in ((0, "Mr. Hi (instructor)"), (33, "the Officer (president)")):
+    nx_, ny_ = place_name(i, name)
+    parts.append(f'  <text x="{nx_:.0f}" y="{ny_:.0f}" text-anchor="middle" font-family="{SANS}" font-size="13" font-weight="700" fill="var(--dkr-text, #1c1c21)" stroke="var(--dkr-bg, #fbfbfa)" stroke-width="4" paint-order="stroke">{name}</text>')
+
+parts.append(f'''  <g font-family="{SANS}" font-size="12.5" fill="var(--dkr-muted, #8e8e9a)">
     <circle cx="80" cy="30" r="7" fill="{C_HI}"/><text x="93" y="34">Fiedler says: Mr. Hi's side</text>
-    <circle cx="260" cy="30" r="7" fill="{C_OFF}"/><text x="273" y="34">Fiedler says: the Officer's</text>
+    <circle cx="262" cy="30" r="7" fill="{C_OFF}"/><text x="275" y="34">Fiedler says: the Officer's</text>
   </g>
   <g font-family="{SANS}">
-    <rect x="120" y="358" width="520" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
-    <text x="380" y="378" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--dkr-bg, #fff)">one eigenvector of L, thresholded at zero: {agree} of 34 members placed correctly</text>
+    <rect x="120" y="{FH - 42}" width="520" height="30" rx="15" fill="var(--dkr-green, #199473)"/>
+    <text x="380" y="{FH - 22}" text-anchor="middle" font-size="13.5" font-weight="700" fill="#fff">one eigenvector of L, thresholded at zero: {agree} of 34 members placed correctly</text>
   </g>''')
 write("fig-w2-fiedler", "\n".join(parts),
-      f"The karate club colored by the sign of the Fiedler vector of its Laplacian; {agree} of 34 members match the real split, disagreements ringed in red")
+      f"The karate club, drawn exactly as in Lecture 1, colored by the sign of the Fiedler vector of its Laplacian; {agree} of 34 members match the real split, the two disagreements ringed in red",
+      h=FH)
 print(f"fiedler agreement: {agree}/34, wrong = {wrong}")
