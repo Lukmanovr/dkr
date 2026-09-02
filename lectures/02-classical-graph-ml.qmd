@@ -525,9 +525,10 @@ Where do triangle counts come from? You already own the tool:
 
 ::: {#prp-triangles .proposition name="The diagonal of A³ counts triangles"}
 $$
-(\mathbf{A}^3)[u,u] \;=\; 2 \times \#\{\text{triangles containing } u\},
-\qquad
-\operatorname{tr}(\mathbf{A}^3) \;=\; 6 \times \#\{\text{triangles in } G\},
+\begin{aligned}
+(\mathbf{A}^3)[u,u] \;&=\; 2 \times \#\{\text{triangles containing } u\}, \\
+\operatorname{tr}(\mathbf{A}^3) \;&=\; 6 \times \#\{\text{triangles in } G\},
+\end{aligned}
 $$ {#eq-w02-triangles}
 where $\operatorname{tr}$ denotes the trace — the sum of a matrix's diagonal entries.
 :::
@@ -572,9 +573,10 @@ value computed above.
 Two versions of "the graph's clustering" circulate, and they disagree often enough to
 cause real confusion in papers:
 $$
-\bar C \;=\; \frac{1}{n}\sum_u C_u,
-\qquad\qquad
-T \;=\; \frac{3 \times \#\{\text{triangles}\}}{\#\{\text{wedges}\}},
+\begin{aligned}
+\bar C \;&=\; \frac{1}{n}\sum_u C_u, \\
+T \;&=\; \frac{3 \times \#\{\text{triangles}\}}{\#\{\text{wedges}\}},
+\end{aligned}
 $$ {#eq-w02-clustering-global}
 where $C_u$ is @def-clustering's local coefficient, $n$ the number of nodes, and a
 *wedge* is a path of two edges — a potential triangle. The **average clustering
@@ -743,8 +745,10 @@ groups nodes connected *more than their degrees alone would predict*:
 ::: {#def-modularity .definition name="Modularity"}
 For a partition assigning node $u$ to community $c_u$,
 $$
-Q \;=\; \frac{1}{2m}\sum_{u,v}\left(\mathbf{A}[u,v] - \frac{d_u d_v}{2m}\right)\delta(c_u, c_v)
-\;=\; \sum_{c}\left[\frac{e_c}{m} - \left(\frac{D_c}{2m}\right)^{\!2}\right],
+\begin{aligned}
+Q \;&=\; \frac{1}{2m}\sum_{u,v}\left(\mathbf{A}[u,v] - \frac{d_u d_v}{2m}\right)\delta(c_u, c_v) \\
+    &=\; \sum_{c}\left[\frac{e_c}{m} - \left(\frac{D_c}{2m}\right)^{\!2}\right],
+\end{aligned}
 $$ {#eq-w02-modularity}
 where $\delta(c_u, c_v)$ is the Kronecker delta — $1$ if $u$ and $v$ sit in the same
 community, else $0$ — $m$ is the edge count, $e_c$ counts edges inside community $c$,
