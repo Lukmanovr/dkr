@@ -13,18 +13,24 @@
       <input type="checkbox" id="w2-pr-tele"> teleport only to Q (personalized)
     </label>
   </div>
-  <div id="w2-pr-svg" role="img" aria-label="The ten-page toy web with node sizes showing the current PageRank estimate, a ranked bar list, and a convergence readout"></div>
+  <div id="w2-pr-svg" role="img" aria-label="The ten-page toy web from the opening figure, each page drawn as a disc whose size and printed number give its current PageRank estimate, with every link drawn at a width proportional to the mass it carries in the current step. A panel on the right prints the update rule with the current damping and teleport vector substituted, a ranked bar list of the ten estimates, and a log-scale chart of the total change per step against the 0.001 line used to call convergence, with the contraction bound of the proposition beside it. From a uniform start at damping 0.85 the estimates converge to 0.416 for the hub, 0.133 for Q and 0.060 for V."></div>
   <noscript>
     <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
-    view: the toy web from the opening figure with every page at rank 0.100; repeated
-    updates concentrate rank on the hub and on Q.</p>
+    view: the toy web from the opening figure with every page at 0.100; repeated updates
+    concentrate rank on the hub (0.416) and on Q (0.133), with V at 0.060.</p>
   </noscript>
-  <p class="fig-caption">Power iteration is just the surfer's
-  routine repeated: follow a random outlink with probability β, teleport otherwise.
-  <strong>Try this:</strong> (1) step until the change readout freezes — count the
-  iterations; (2) drag β to 0 and explain the ranking you get; (3) drag it to 0.99
-  and watch convergence slow down; (4) tick the personalized box, reset, and see rank pool
-  around Q and its neighborhood — that checkbox is how "recommendations near <em>this</em>
-  user" works.</p>
+  <p class="fig-caption">Power iteration is the surfer's routine repeated: follow a random
+  outlink with probability β, teleport otherwise, and the panel writes exactly that
+  update with the current β and teleport vector t filled in. Watch three things move
+  together: the arrows, whose width is the mass each link carries this step; the discs
+  and their numbers; and the chart of the total change per step, which falls by roughly
+  a factor β each iteration — the contraction of the proposition, seen rather than
+  proved. <strong>Try this:</strong> (1) press <em>step</em> until the change drops
+  below the dashed 10<sup>−3</sup> line and read off how many steps it took against the
+  bound printed underneath; (2) drag β to 0, step once, and explain why every page now
+  shows the same 0.100; (3) drag it to 0.99 and watch the chart flatten — a weak
+  contraction crawls; (4) tick the personalized box, reset, and step to convergence:
+  every teleport now lands on Q, so rank pools around Q and the pages it reaches — that
+  checkbox is how "recommendations near <em>this</em> user" works.</p>
 </div>
 ```

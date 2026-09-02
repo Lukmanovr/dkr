@@ -133,14 +133,33 @@ for (const b of window.document.querySelectorAll("#w2-ce-widget [data-measure]")
   console.log("  (kite has interactive node groups: " + nodeGroups.length + ")");
 }
 click("w2-ce-reset");
-for (let i = 0; i < 3; i++) click("w2-pr-step");
-click("w2-pr-step10");
-slide("w2-pr-beta", 0.5);
-const tele = window.document.getElementById("w2-pr-tele");
-tele.checked = true; tele.dispatchEvent(new window.Event("change", { bubbles: true }));
-click("w2-pr-step");
-tele.checked = false; tele.dispatchEvent(new window.Event("change", { bubbles: true }));
-click("w2-pr-reset");
+// week-2 PageRank probes: one step from uniform, the beta = 0.85 fixed point, the
+// beta = 0 degenerate case, and the personalized fixed point, all measured.
+{
+  const T = () => [...window.document.querySelectorAll("#w2-pr-svg svg text")].map((t) => t.textContent).join(" | ");
+  const want = (label, needles) => {
+    const t = T();
+    const miss = needles.filter((n) => !t.includes(n));
+    if (miss.length) { failures++; console.error(`  FAIL w2-pagerank ${label}: missing ${JSON.stringify(miss)}: ` + t.slice(0, 400)); }
+    else console.log(`  w2-pagerank: ${label} ✓`);
+  };
+  click("w2-pr-reset");
+  want("initial state names the update and the bound", ["everyone starts equal at 1/10 = 0.100 — press step", "t = 1/10 everywhere (uniform)", "expect ≈ 43 steps"]);
+  click("w2-pr-step");
+  want("one step puts 0.398 on the hub", ["after 1 step, ranked | hub | 0.398", "total change |Δr|₁ = 1.0200"]);
+  for (let k = 0; k < 5; k++) click("w2-pr-step10");
+  want("51 steps reach hub 0.416, Q 0.133, V 0.060 and converge at step 44", ["hub | 0.416", "Q | 0.133", "V | 0.060", "converged (for the eye)", "first below 10⁻³ at step 44"]);
+  slide("w2-pr-beta", 0); click("w2-pr-step");
+  want("beta = 0 makes every page 0.100", ["β = 0: no link is ever followed", "0.100"]);
+  slide("w2-pr-beta", 0.85);
+  const tele = window.document.getElementById("w2-pr-tele");
+  tele.checked = true; tele.dispatchEvent(new window.Event("change", { bubbles: true }));
+  want("personalized teleport is announced and resets", ["t = all on Q (personalized)", "every teleport lands here", "after 0 steps"]);
+  for (let k = 0; k < 6; k++) click("w2-pr-step10");
+  want("personalized fixed point: Q 0.280, hub 0.459", ["Q | 0.280", "hub | 0.459", "converged (for the eye)"]);
+  tele.checked = false; tele.dispatchEvent(new window.Event("change", { bubbles: true }));
+  click("w2-pr-reset");
+}
 for (let i = 0; i < 4; i++) click("w2-wl-step");   // cast: refine to stable + one extra
 const wlStatus1 = window.document.querySelector("#w2-wl-svg svg text:last-of-type");
 for (const b of window.document.querySelectorAll("#w2-wl-widget [data-scene]")) b.dispatchEvent(new window.Event("click", { bubbles: true }));
