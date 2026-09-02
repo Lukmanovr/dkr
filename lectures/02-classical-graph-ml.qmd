@@ -74,6 +74,25 @@ All from Week 1:
 - BFS gives shortest-path distances in unweighted graphs.
 :::
 
+::: {.callout-note title="Notation for today" collapse="false"}
+Every formula this week is written with the same handful of symbols; if one looks
+unfamiliar mid-lecture, come back here.
+
+- $n$ nodes and $m$ edges; the cast graph has $n = 6$ and $m = 7$.
+- $d_u$ is the **degree** of node $u$; $\mathcal{N}(u)$ is its **neighbor set**; $d(u, v)$
+  with two arguments is the shortest-path **distance** between $u$ and $v$ — a different
+  creature despite the letter.
+- $\mathbf{A}$ is the adjacency matrix, $\mathbf{D}$ the diagonal matrix of degrees,
+  $\mathbf{L} = \mathbf{D} - \mathbf{A}$ the Laplacian; $\mathbf{1}$ is the all-ones
+  vector and $\mathbf{I}$ the identity matrix.
+- A vector of scores is written in bold, $\mathbf{x}$, and its entry for node $u$ as
+  $x_u$; "$\propto$" reads "proportional to", and "$\leftarrow$" reads "is updated to".
+- A sum such as $\sum_{v \in \mathcal{N}(u)} x_v$ reads "add up $x_v$ over every
+  neighbor $v$ of $u$".
+- A community is written $c$; $D_c$ is the sum of the degrees of its members and $e_c$
+  the number of edges inside it.
+:::
+
 ## 1. Who matters? Four answers before you choose one
 
 "Which node is most important?" is not a question — it is four questions wearing one
@@ -139,6 +158,22 @@ importance vector is the leading eigenvector of $\mathbf{A}$, computable by repe
 multiplication (power iteration — sum your neighbors, normalize, repeat until it stops
 changing). This is the recursion from the hero figure, one teleport short of PageRank.
 
+::: {#exm-eig-hand .example name="Power iteration, three rounds by hand"}
+Start every node at score $1$ and apply "sum your neighbors" on the cast graph. One round
+gives the degrees, $\mathbf{A}\mathbf{1} = (3, 2, 4, 1, 2, 2)$ for $A$ through $F$. A
+second round adds up each node's neighbors' *degrees*: $A$ collects $B + C + D = 2 + 4 +
+1 = 7$, $B$ collects $A + C = 7$, $C$ collects $A + B + E + F = 9$, $D$ collects $A$'s
+$3$, and $E$ and $F$ each collect $C$'s $4$ plus the other's $2$, giving $6$:
+$\mathbf{A}^2\mathbf{1} = (7, 7, 9, 3, 6, 6)$. A third round gives
+$(19, 16, 26, 7, 15, 15)$. Scale each vector so its largest entry is $1$ and watch it
+settle: after one round $(0.75, 0.50, 1, 0.25, 0.50, 0.50)$, after three
+$(0.73, 0.62, 1, 0.27, 0.58, 0.58)$, and in the limit — the leading eigenvector, with
+$\lambda_{\max} \approx 2.63$ — $(0.74, 0.66, 1, 0.28, 0.61, 0.61)$. $C$ leads at every
+stage, but notice $B$ pulling ahead of $E$ and $F$ despite equal degrees: $B$'s two
+neighbors are the two best-connected nodes in the graph, and that is exactly what the
+recursion rewards.
+:::
+
 Two footnotes on the computations, for the reader who wants the machinery rather than
 the library call. Betweenness looks like it needs all-pairs shortest paths, and
 naively it does; the algorithm everyone uses —
@@ -172,6 +207,20 @@ so a page with no inlinks scores that constant rather than zero, and passes it o
 design is one small step from the fixed point we derive next. The conceptual sequence
 degree → Katz → PageRank is one dial being turned, and knowing it turns exam questions
 about "compare these centralities" into recitations of a single idea.
+
+::: {#exm-katz-hand .example name="Katz with a small discount, by hand"}
+Take $\beta = 0.1$ on the cast graph, well inside the safe range since
+$1/\lambda_{\max} \approx 0.38$. The series starts with the walk counts you just
+computed: the length-1 term is $\beta\mathbf{A}\mathbf{1} = 0.1 \cdot (3, 2, 4, 1, 2, 2)$
+and the length-2 term is $\beta^2 \mathbf{A}^2\mathbf{1} = 0.01 \cdot (7, 7, 9, 3, 6, 6)$;
+together they give $(0.37, 0.27, 0.49, 0.13, 0.26, 0.26)$, and every longer walk adds
+only a little more, for a full sum of $(0.40, 0.29, 0.53, 0.14, 0.28, 0.28)$. Read the
+ranking: it is degree's ranking with ties broken by the length-2 walks — the claim
+"small $\beta$ means degree" with numbers attached. Raise $\beta$ to $0.35$, close to
+the limit, and the same sum scaled to a top score of $1$ becomes
+$(0.74, 0.65, 1, 0.28, 0.61, 0.61)$, which agrees with the leading eigenvector of the
+example above to within a hundredth in every entry.
+:::
 
 Turn the dial yourself. The widget has one slider, $\beta$: at the left end the
 ranking is degree's, in the middle Katz's, and as $\beta$ nears $1/\lambda_{\max}$ it
@@ -360,7 +409,13 @@ error by a factor $\beta$ — which is how $K$ gets chosen, as we quantify below
 A three-page web: $X$ links to $Y$ and $Z$; $Y$ links back to $X$; $Z$ links to $Y$.
 Take $\beta = 1$ for clean fractions (no teleport — this tiny web has no dead ends).
 Columns of $M$: from $X$, half to $Y$, half to $Z$; from $Y$, all to $X$; from $Z$, all
-to $Y$. Start uniform, $\mathbf{r}^{(0)} = (\tfrac13, \tfrac13, \tfrac13)$:
+to $Y$. Written out, with a row for each page mass *arrives at* and a column for each
+page it *comes from*,
+$$
+M \;=\; \begin{pmatrix} 0 & 1 & 0 \\ \tfrac12 & 0 & 1 \\ \tfrac12 & 0 & 0 \end{pmatrix},
+$$
+so that in $M\mathbf{r}$ each row reads "what arrives here". Start uniform,
+$\mathbf{r}^{(0)} = (\tfrac13, \tfrac13, \tfrac13)$:
 $$
 \mathbf{r}^{(1)} = \left(\tfrac13,\; \tfrac16 + \tfrac13,\; \tfrac16\right) = \left(\tfrac13, \tfrac12, \tfrac16\right),
 \qquad
@@ -371,6 +426,17 @@ $\mathbf{r} = (0.4, 0.4, 0.2)$. Notice $X$ and $Y$ tie even though $X$ has a sin
 $X$'s one inlink is $Y$'s only outlink, so it delivers all of $Y$'s mass, while
 $Y$'s two inlinks bring only half of $X$'s mass plus $Z$'s smaller share. This is the midterm's favorite
 computation; practice until the update is mechanical.
+
+With teleport switched on, the update is the same routine plus one constant. At
+$\beta = 0.85$ and $n = 3$ every page receives $(1 - \beta)/n = 0.05$ of teleported
+mass per step, so the first step from uniform reads
+$$
+\mathbf{r}^{(1)} \;=\; 0.85 \cdot \left(\tfrac13, \tfrac12, \tfrac16\right) + 0.05
+\;=\; (0.333,\; 0.475,\; 0.192),
+$$
+which still sums to $1$. Iterate and it settles at $(0.388, 0.397, 0.215)$: the
+teleport has nudged a little mass toward the least-linked page $Z$ and broken the tie
+between $X$ and $Y$, narrowly in $Y$'s favor.
 :::
 
 The same computation, animated, with the example's fractions beside every step. Match
@@ -467,6 +533,16 @@ own one closed wedge and cast a full vote of $1$, while the wedge count hands $C
 votes, only two closed. Whoever owns the wedges wins one measure; whoever has the
 head count wins the other.
 :::
+:::
+
+::: {#exm-tri-hand .example name="Triangles from the matrix, by hand"}
+On the cast graph the diagonal of $\mathbf{A}^3$ reads $(2, 2, 4, 0, 2, 2)$ for $A$
+through $F$. Halve it and you have each node's triangle count: one triangle at each of
+$A$, $B$, $E$, $F$, two at $C$ (it sits in both $ABC$ and $CEF$), none at $D$. The trace
+is $2 + 2 + 4 + 0 + 2 + 2 = 12 = 6 \times 2$: two triangles in the graph, each counted
+six times, as @eq-w02-triangles says. Cross-check one entry against @def-clustering:
+$C$'s two triangles over its $\binom{4}{2} = 6$ neighbor pairs give $C_C = 2/6$, the
+value computed above.
 :::
 
 Two versions of "the graph's clustering" circulate, and they disagree often enough to
@@ -574,6 +650,25 @@ that varies as little as possible across edges but must go somewhere has one opt
 sit near one value on one well-knit region, near another value on the other, and pay
 its disagreement only on the thin boundary between them. Threshold it at zero and you
 have cut the graph where it is cheapest.
+
+::: {#exm-fiedler-hand .example name="Checking an eigenvector by hand"}
+You can verify a Fiedler vector without computing one. On the cast graph
+$\lambda_2 \approx 0.63$, and the widget below prints the vector, rounded, as
+$(-0.26, -0.07, 0.16, -0.71, 0.44, 0.44)$ for $A$ through $F$. Week 1's formula for the
+Laplacian's action, $(\mathbf{L}\mathbf{v})_u = d_u v_u - \sum_{w \in \mathcal{N}(u)} v_w$
+([Week 1](01-why-graphs.qmd#eq-w01-lapaction)), turns each entry into a one-line check.
+At the leaf $D$: $1 \cdot (-0.71) - (-0.26) = -0.45$, against
+$\lambda_2 v_D = 0.63 \cdot (-0.71) = -0.45$. At $A$:
+$3 \cdot (-0.26) - (-0.07 + 0.16 - 0.71) = -0.78 + 0.62 = -0.16$, against
+$0.63 \cdot (-0.26) = -0.16$. Every entry passes the same test, which is what
+"eigenvector" means: applying $\mathbf{L}$ only rescales it. Thresholding at zero puts
+$A$, $B$, $D$ on the negative side and $C$, $E$, $F$ on the positive one — a cut of two
+edges, $AC$ and $BC$. For the zero eigenvalue, take the two-piece graph (delete $CE$ and
+$CF$) and the indicator of the left piece, $(1, 1, 1, 1, 0, 0)$: every node's neighbors
+share its value, so every entry of $\mathbf{L}\mathbf{v}$ is $0$, and the indicator is an
+eigenvector with eigenvalue $0$ — one such vector per component, as @prp-components
+promised.
+:::
 
 Three small graphs first, whose spectra you can read by eye. On the two-piece graph,
 count the zero eigenvalues and you have counted components, as @prp-components says;
@@ -767,6 +862,19 @@ because plain $\mathbf{B}$ was Week 1's incidence matrix, an unrelated object.) 
 eigenvector did for cuts. Two different objectives, one spectral escape hatch;
 recognizing the pattern is worth more than either instance.
 
+::: {#exm-bq-hand .example name="Three entries of the modularity matrix, by hand"}
+On the cast graph $2m = 14$. For the pair $A, C$ — degrees $3$ and $4$, joined by an
+edge — the entry is $1 - \tfrac{3 \cdot 4}{14} \approx +0.14$: an edge exists, but two
+hubs meet by chance, so it earns little. For $D, E$ — degrees $1$ and $2$, not joined —
+it is $0 - \tfrac{1 \cdot 2}{14} \approx -0.14$: no edge, and none was expected. For
+$E, F$ — two degree-2 nodes that *are* joined — it is
+$1 - \tfrac{2 \cdot 2}{14} \approx +0.71$, the strongest evidence of togetherness in the
+graph, because an edge between two low-degree nodes is the one the null model least
+predicts. Modularity is the sum of these entries over every pair placed in the same
+community, divided by $2m$ (@eq-w02-modularity); the null-model widget above shows the
+first two being earned.
+:::
+
 ::: {.predict}
 **Predict.** Two perfect cliques joined by a single edge. Merging them into one
 community adds the bridge to the inside count — and the null model's expectation for
@@ -797,6 +905,28 @@ structure is invisible to it by design, not by accident. When small communities 
 the object of interest — fraud rings, protein complexes — use a resolution parameter
 (both `networkx` implementations accept one) and scan it, or use methods with a
 different null.
+
+::: {#exm-ring-hand .example name="The ring of triangles, by hand"}
+Take $c$ triangles in a ring, each joined to the next by one edge, so $m = 4c$. Score
+the honest partition, one community per triangle: each community holds $e_c = 3$
+internal edges and has degree sum $D_c = 8$ (three nodes of degree $2$, two of which
+carry one ring edge each), so by @eq-w02-modularity
+$$
+Q_{\text{truth}} \;=\; c \left[ \frac{3}{4c} - \left(\frac{8}{8c}\right)^{2} \right]
+\;=\; \frac{3}{4} - \frac{1}{c}.
+$$
+Now merge adjacent triangles in pairs: $c/2$ communities, each with $e_c = 7$ and
+$D_c = 16$,
+$$
+Q_{\text{pairs}} \;=\; \frac{c}{2} \left[ \frac{7}{4c} - \left(\frac{16}{8c}\right)^{2} \right]
+\;=\; \frac{7}{8} - \frac{2}{c}.
+$$
+The merged partition wins as soon as $\tfrac{7}{8} - \tfrac{2}{c} > \tfrac{3}{4} -
+\tfrac{1}{c}$, that is, for $c > 8$. At the lecture's $c = 24$ the numbers are
+$Q_{\text{truth}} = 0.708$ against $Q_{\text{pairs}} = 0.792$; at $c = 6$ the truth
+still wins, $0.583$ against $0.542$. Nothing about a triangle changed between the two
+cases — only $m$ did.
+:::
 
 Build the ring yourself. The slider adds cliques two at a time — merged pairs need an
 even count — and plots $Q$ for the ground truth, one community per clique, against $Q$
