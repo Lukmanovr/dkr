@@ -578,3 +578,33 @@ figure.dkr-fig > figcaption.fig-caption::before {
   width: 100%;
   margin: 0.3rem auto;
 }
+
+// Equation numbers can never overlap the math (site-wide audit 2026-09-03: at laptop
+// widths 58 numbered equations across nine lectures were wider than the column, and
+// KaTeX's absolutely-positioned tag was drawn over them). On desktop widths the tag
+// becomes a flex sibling of the math with a balancing spacer on the left: the math is
+// centred exactly as before while room remains, and a too-wide equation scrolls with
+// its number after it instead of under it. The phone rules (≤700px, inline tag,
+// wrapping math) are untouched.
+@media (min-width: 701px) {
+  // !important throughout: katex.css loads after the theme and would re-set display
+  .katex-display > .katex > .katex-html {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .katex-display > .katex > .katex-html::before {
+    content: "";
+    flex: 1 1 0;
+  }
+  .katex-display > .katex > .katex-html > .base {
+    flex: 0 0 auto !important;
+  }
+  .katex-display > .katex > .katex-html > .tag,
+  .katex-display > .katex > .katex-html > .katex-tag {
+    position: static !important;
+    flex: 1 1 0;
+    min-width: max-content;
+    text-align: right;
+  }
+}
