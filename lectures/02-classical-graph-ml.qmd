@@ -93,6 +93,11 @@ unfamiliar mid-lecture, come back here.
   the number of edges inside it.
 :::
 
+The cast graph itself, drawn with its degrees and its adjacency matrix. Every hand
+calculation this week runs on it, so it is reprinted wherever one begins:
+
+{{< include ../assets/figures/fig-w2-cast.html >}}
+
 ## 1. Who matters? Four answers before you choose one
 
 "Which node is most important?" is not a question — it is four questions wearing one
@@ -158,7 +163,13 @@ importance vector is the leading eigenvector of $\mathbf{A}$, computable by repe
 multiplication (power iteration — sum your neighbors, normalize, repeat until it stops
 changing). This is the recursion from the hero figure, one teleport short of PageRank.
 
+{{< include ../assets/figures/fig-w2-cast.html >}}
+
 ::: {#exm-eig-hand .example name="Power iteration, three rounds by hand"}
+**Recall** @eq-w02-eigvec: score each node by the sum of its neighbors' scores,
+$\mathbf{x} \leftarrow \mathbf{A}\mathbf{x}$, then rescale and repeat until the vector
+stops changing.
+
 Start every node at score $1$ and apply "sum your neighbors" on the cast graph. One round
 gives the degrees, $\mathbf{A}\mathbf{1} = (3, 2, 4, 1, 2, 2)$ for $A$ through $F$. A
 second round adds up each node's neighbors' *degrees*: $A$ collects $B + C + D = 2 + 4 +
@@ -209,6 +220,10 @@ degree → Katz → PageRank is one dial being turned, and knowing it turns exam
 about "compare these centralities" into recitations of a single idea.
 
 ::: {#exm-katz-hand .example name="Katz with a small discount, by hand"}
+**Recall** @eq-w02-katz: $\mathbf{x}_{\text{Katz}} = \sum_{k \ge 1} \beta^{k}
+\mathbf{A}^{k} \mathbf{1}$, where the $k$-th term counts the length-$k$ walks ending at
+each node and $\beta^{k}$ discounts them.
+
 Take $\beta = 0.1$ on the cast graph, well inside the safe range since
 $1/\lambda_{\max} \approx 0.38$. The series starts with the walk counts you just
 computed: the length-1 term is $\beta\mathbf{A}\mathbf{1} = 0.1 \cdot (3, 2, 4, 1, 2, 2)$
@@ -406,6 +421,10 @@ error by a factor $\beta$ — which is how $K$ gets chosen, as we quantify below
 2's exercise 1 is this listing verbatim, checked against `networkx` to six decimals.
 
 ::: {#exm-pr-hand .example name="Two power iterations, by hand"}
+**Recall** @eq-w02-poweriter: $\mathbf{r}^{(k+1)} = \beta M \mathbf{r}^{(k)} +
+(1 - \beta)\tfrac{1}{n}\mathbf{1}$, where column $u$ of $M$ spreads the mass at page $u$
+evenly over its outlinks (@eq-w02-M).
+
 A three-page web: $X$ links to $Y$ and $Z$; $Y$ links back to $X$; $Z$ links to $Y$.
 Take $\beta = 1$ for clean fractions (no teleport — this tiny web has no dead ends).
 Columns of $M$: from $X$, half to $Y$, half to $Z$; from $Y$, all to $X$; from $Z$, all
@@ -492,6 +511,8 @@ where $\mathcal{N}(u)$ is $u$'s neighbor set and $\binom{d_u}{2}$ counts its pai
 In words: the fraction of your friend-pairs who are themselves friends.
 :::
 
+{{< include ../assets/figures/fig-w2-cast.html >}}
+
 On the cast graph: $C$'s neighbors are $\{A, B, E, F\}$; among the $\binom{4}{2} = 6$
 pairs, exactly two are edges ($AB$ and $EF$), so $C_C = 2/6 = 1/3$. Node $A$'s
 neighbors $\{B, C, D\}$ contain one edge ($BC$): $C_A = 1/3$ as well. Social networks
@@ -536,6 +557,9 @@ head count wins the other.
 :::
 
 ::: {#exm-tri-hand .example name="Triangles from the matrix, by hand"}
+**Recall** @eq-w02-triangles: $(\mathbf{A}^3)[u,u] = 2 \times \#\{\text{triangles
+at } u\}$ and $\operatorname{tr}(\mathbf{A}^3) = 6 \times \#\{\text{triangles}\}$.
+
 On the cast graph the diagonal of $\mathbf{A}^3$ reads $(2, 2, 4, 0, 2, 2)$ for $A$
 through $F$. Halve it and you have each node's triangle count: one triangle at each of
 $A$, $B$, $E$, $F$, two at $C$ (it sits in both $ABC$ and $CEF$), none at $D$. The trace
@@ -651,12 +675,17 @@ sit near one value on one well-knit region, near another value on the other, and
 its disagreement only on the thin boundary between them. Threshold it at zero and you
 have cut the graph where it is cheapest.
 
+{{< include ../assets/figures/fig-w2-cast.html >}}
+
 ::: {#exm-fiedler-hand .example name="Checking an eigenvector by hand"}
+**Recall** @def-w02-fiedler: the Fiedler vector $\mathbf{v}$ satisfies
+$\mathbf{L}\mathbf{v} = \lambda_2 \mathbf{v}$ with $\mathbf{L} = \mathbf{D} - \mathbf{A}$,
+and entry by entry $(\mathbf{L}\mathbf{v})_u = d_u v_u - \sum_{w \in \mathcal{N}(u)} v_w$
+([Week 1](01-why-graphs.qmd#eq-w01-lapaction)).
+
 You can verify a Fiedler vector without computing one. On the cast graph
 $\lambda_2 \approx 0.63$, and the widget below prints the vector, rounded, as
-$(-0.26, -0.07, 0.16, -0.71, 0.44, 0.44)$ for $A$ through $F$. Week 1's formula for the
-Laplacian's action, $(\mathbf{L}\mathbf{v})_u = d_u v_u - \sum_{w \in \mathcal{N}(u)} v_w$
-([Week 1](01-why-graphs.qmd#eq-w01-lapaction)), turns each entry into a one-line check.
+$(-0.26, -0.07, 0.16, -0.71, 0.44, 0.44)$ for $A$ through $F$. The entrywise formula turns each entry into a one-line check.
 At the leaf $D$: $1 \cdot (-0.71) - (-0.26) = -0.45$, against
 $\lambda_2 v_D = 0.63 \cdot (-0.71) = -0.45$. At $A$:
 $3 \cdot (-0.26) - (-0.07 + 0.16 - 0.71) = -0.78 + 0.62 = -0.16$, against
@@ -742,7 +771,13 @@ and $E$.
 
 {{< include ../assets/d3/w2-nullmodel.html >}}
 
+{{< include ../assets/figures/fig-w2-cast.html >}}
+
 ::: {#exm-q-hand .example name="Modularity by hand, and a lesson"}
+**Recall** @eq-w02-modularity in its community form: $Q = \sum_{c} \left[ e_c / m -
+\left( D_c / 2m \right)^{2} \right]$ — edges inside each community, minus the share the
+null model expects.
+
 Cast graph, $m = 7$. Partition $\{A,B,C,D\}\,|\,\{E,F\}$: internal edges
 $AB, AC, AD, BC$ and $EF$ — $e$-total $5$; degree sums $10$ and $4$. So
 $Q = \tfrac{5}{7} - \left(\tfrac{10}{14}\right)^2 - \left(\tfrac{4}{14}\right)^2 \approx 0.122$.
@@ -793,6 +828,9 @@ $k_{i \to c}$ incrementally, which is how Louvain handles hundreds of millions o
 </details>
 
 ::: {#exm-dq-hand .example name="Three moves of phase 1, by hand"}
+**Recall** @eq-w02-deltaq: $\Delta Q = k_{i \to c} / m - D_c\, d_i / 2m^{2}$, real
+connections into $c$ minus the connections the null model expected.
+
 The widget below runs on a ten-node graph with $m = 18$ edges: two dense groups,
 $\{0, \ldots, 4\}$ and $\{5, \ldots, 9\}$, joined through node $4$. Follow its first
 moves with a pencil; every number here reappears on the widget's panel.
@@ -863,6 +901,9 @@ eigenvector did for cuts. Two different objectives, one spectral escape hatch;
 recognizing the pattern is worth more than either instance.
 
 ::: {#exm-bq-hand .example name="Three entries of the modularity matrix, by hand"}
+**Recall** @eq-w02-modmatrix: $\mathbf{B}_Q[u,v] = \mathbf{A}[u,v] - d_u d_v / 2m$,
+observed minus expected, one pair at a time.
+
 On the cast graph $2m = 14$. For the pair $A, C$ — degrees $3$ and $4$, joined by an
 edge — the entry is $1 - \tfrac{3 \cdot 4}{14} \approx +0.14$: an edge exists, but two
 hubs meet by chance, so it earns little. For $D, E$ — degrees $1$ and $2$, not joined —
@@ -907,6 +948,9 @@ the object of interest — fraud rings, protein complexes — use a resolution p
 different null.
 
 ::: {#exm-ring-hand .example name="The ring of triangles, by hand"}
+**Recall** @eq-w02-modularity: $Q = \sum_{c} \left[ e_c / m - \left( D_c / 2m
+\right)^{2} \right]$, summed over the communities of the partition being scored.
+
 Take $c$ triangles in a ring, each joined to the next by one edge, so $m = 4c$. Score
 the honest partition, one community per triangle: each community holds $e_c = 3$
 internal edges and has degree sum $D_c = 8$ (three nodes of degree $2$, two of which
@@ -1028,6 +1072,10 @@ kernels on most chemistry benchmarks. For a decade this was *the* way to classif
 graphs, and it is the classifier you will build for protein graphs in the lab.
 
 ::: {#exm-wl-kernel .example name="One kernel value, by hand"}
+**Recall** the kernel: run $h$ rounds of @alg-w02-wl on both graphs with one shared
+signature table, count each graph's colors round by round, and let $K(G_1, G_2)$ be
+the inner product of the two count vectors.
+
 Compute one kernel value by hand, because the mechanism is simpler than the notation
 suggests. Let $G_1$ be our cast graph and $G_2$ the cast graph with edge $EF$ deleted.
 Round 0: both graphs are all one color — six nodes each, so the round-0 histograms
