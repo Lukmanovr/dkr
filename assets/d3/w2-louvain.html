@@ -7,19 +7,25 @@
     <button class="pill-btn" id="w2-lv-phase2" type="button">phase 2</button>
     <button class="pill-btn" id="w2-lv-reset" type="button">reset</button>
   </div>
-  <div id="w2-lv-svg" role="img" aria-label="A ten-node graph with two planted communities where Louvain's local moves are applied one node at a time, with a live modularity meter"></div>
+  <div id="w2-lv-svg" role="img" aria-label="A ten-node graph drawn as two planted groups joined through node 4. Every node starts alone, drawn hollow; as Louvain's local moves join nodes into communities, each community is shaded in its own colour. A panel underneath lists, before every move, the communities the next node could join and the change in modularity each would bring, marking the best; a chart beside it plots modularity after each accepted move against the planted split's value of 0.389. Greedy node moves stall at three communities with modularity 0.327, and phase 2 merges them into the planted two."></div>
   <noscript>
     <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
-    view: a ten-node graph with two dense groups joined by two bridge edges; greedy
-    modularity moves merge the singleton communities into the two planted ones.</p>
+    view: a ten-node graph with two dense groups joined through one hinge node; greedy
+    modularity moves merge the singletons into three communities with Q = 0.327, and
+    the aggregation phase reaches the planted two-community split with Q = 0.389.</p>
   </noscript>
-  <p class="fig-caption">Louvain's phase 1 exactly: every node
-  starts alone, and each step asks one node "does joining a neighbor's community raise
-  Q?" — taking the best positive answer. <strong>Try this:</strong> step slowly and watch
-  node 4, the node with two edges into each camp. Then press <em>run to convergence</em>
-  — greedy node-moves <em>stall at three communities</em>, short of the planted split.
-  That stall is exactly why Louvain has a second phase. Press <em>phase 2</em> (merge
-  whole communities, sweep again) and watch Q rise to the true two-community
-  optimum.</p>
+  <p class="fig-caption">Louvain's phase 1, one decision at a time. Every node starts
+  alone; the dashed ring marks the node whose turn it is, and the panel below shows the
+  options it is weighing — each neighboring community and the exact ΔQ of joining it —
+  before the move is made, so you can predict the choice and then watch the greedy rule
+  take the best positive one. Communities gain a colour and a shaded hull the moment they
+  have two members, and the chart on the right keeps the history of Q against the
+  planted split. <strong>Try this:</strong> before the first press, read node 0's three
+  options and find the +0.042 the lecture computed by hand; then step until node 4's
+  turn, the hinge with two edges into each camp, and see how small its best gain is.
+  Press <em>run to convergence</em>: phase 1 stalls at three communities, short of the
+  planted split, because no single node can improve Q by moving alone. That stall is why
+  Louvain has a second phase — press <em>phase 2</em> to merge whole communities and
+  watch Q climb to the planted value.</p>
 </div>
 ```
