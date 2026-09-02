@@ -701,3 +701,10 @@ isolation. Two findings worth keeping: `networkx.karate_club_graph()` carries ed
 weights in networkx 3.x, so modularity/Louvain must be called with `weight=None` to match
 the lecture's unweighted definition; and greedy Louvain is seed-sensitive on 34 nodes
 (seed 0 gives four communities, Q = 0.420; Lab 2's seed 42 stops at three, Q = 0.385).
+
+**Commit-message rule (instructor decision, 2026-09-02).** A commit message describes
+the change and its verification — what was added, altered, or removed, the measured
+results, and why the design landed where it did. It never quotes or paraphrases the
+instructions that prompted the work, and it does not attribute the change to a request
+("instructor asked for…", "per the message…"). The history should read as a record of
+what the course is, not of the conversation that produced it. Applies to both repos.

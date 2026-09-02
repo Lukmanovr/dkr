@@ -77,5 +77,5 @@ font size (≥11 px), svg aria-label. Wired into CI; exit 1 on any failure.
 **F4 · Look**: the author reads every screenshot (light + dark) and walks Checklist F
 (design.md §14) explicitly. The lint catches geometry; only the eye catches meaning.
 Any edit re-runs F2–F4.
-**F5 · Sign off**: the commit lists each touched figure with its lint result and a
+**F5 · Sign off** (describing the change, never the request that prompted it): the commit lists each touched figure with its lint result and a
 one-line visual verdict. No recorded F4 pass → the figure does not ship.
