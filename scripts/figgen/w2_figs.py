@@ -92,7 +92,7 @@ def edge_path(u, v):
     bow = 0.16 * L * BOW_SIDE.get((u, v), 1)
     cx, cy = (x1 + x2) / 2 + px * bow, (y1 + y2) / 2 + py * bow
     # trim both ends so the arrowhead lands on the rim of v, not under the disc
-    r1, r2 = radius(u) + 2, radius(v) + 11
+    r1, r2 = radius(u) + 2, radius(v) + head_len(u, v) + 1
     # direction at the ends of the quadratic
     d1x, d1y = cx - x1, cy - y1
     l1 = math.hypot(d1x, d1y); d1x, d1y = d1x / l1, d1y / l1
@@ -105,6 +105,14 @@ def edge_path(u, v):
 
 def edge_width(u, v):
     return 2.0 + 34 * FLOW[(u, v)]
+
+
+def head_len(u, v):
+    return max(9.0, 2.9 * edge_width(u, v))   # arrowhead length, scaled to the arc
+
+
+def marker_id(u, v):
+    return f"w2h_{u}_{v}"
 
 
 # ── diagnostic: every arc must stay clear of the discs it is not connecting ──
@@ -126,11 +134,14 @@ for u, outs in WEB.items():
             if gap < 6:
                 print(f"  hero arc {u}->{v} passes {gap:.1f}px from disc {w}")
 
-body = [f'''  <defs>
-    <marker id="w2hA" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0.5 L8,4.5 L0,8.5 Z" fill="{MUT}"/></marker>
-    <marker id="w2hQ" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0.5 L8,4.5 L0,8.5 Z" fill="{ACC}"/></marker>
-    <marker id="w2hV" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0.5 L8,4.5 L0,8.5 Z" fill="{PUR}"/></marker>
-  </defs>''']
+body = ["  <defs>"]
+for u, outs in WEB.items():
+    for v in outs:
+        col = ACC if v == "Q" else (PUR if v == "V" else MUT)
+        h = head_len(u, v)
+        w = 0.62 * h                       # head half-width relative to its length
+        body.append(f'    <marker id="{marker_id(u, v)}" markerWidth="{h + 1:.1f}" markerHeight="{2 * w + 1:.1f}" refX="{h:.1f}" refY="{w + 0.5:.1f}" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0.5 L{h:.1f},{w + 0.5:.1f} L0,{2 * w + 0.5:.1f} Z" fill="{col}"/></marker>')
+body.append("  </defs>")
 body.append(f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="{MUT}">a toy web of ten pages · arrow width = the mass a link carries each step · disc size and number = converged PageRank (β = 0.85)</text>')
 
 # edges: muted first, then the two highlighted inflows on top
@@ -139,13 +150,13 @@ for u, outs in WEB.items():
     for v in outs:
         if v in ("Q", "V"):
             continue
-        body.append(f'    <path d="{edge_path(u, v)}" stroke="{MUT}" stroke-width="{edge_width(u, v):.1f}" opacity="0.8" marker-end="url(#w2hA)"/>')
+        body.append(f'    <path d="{edge_path(u, v)}" stroke="{MUT}" stroke-width="{edge_width(u, v):.1f}" opacity="0.8" marker-end="url(#{marker_id(u, v)})"/>')
 for u, outs in WEB.items():
     for v in outs:
         if v == "Q":
-            body.append(f'    <path d="{edge_path(u, v)}" stroke="{ACC}" stroke-width="{edge_width(u, v):.1f}" opacity="0.95" marker-end="url(#w2hQ)"/>')
+            body.append(f'    <path d="{edge_path(u, v)}" stroke="{ACC}" stroke-width="{edge_width(u, v):.1f}" opacity="0.95" marker-end="url(#{marker_id(u, v)})"/>')
         elif v == "V":
-            body.append(f'    <path d="{edge_path(u, v)}" stroke="{PUR}" stroke-width="{edge_width(u, v):.1f}" opacity="0.9" marker-end="url(#w2hV)"/>')
+            body.append(f'    <path d="{edge_path(u, v)}" stroke="{PUR}" stroke-width="{edge_width(u, v):.1f}" opacity="0.9" marker-end="url(#{marker_id(u, v)})"/>')
 body.append("  </g>")
 
 # nodes
