@@ -78,6 +78,9 @@ def radius(u):
     return 8 + 40 * math.sqrt(PR[u])
 
 
+BOW_SIDE = {("V", "N3"): -1}   # -1 bows to the right of travel; default is left
+
+
 def edge_path(u, v):
     # Quadratic arc from u's rim to just short of v's rim, bowed to the left of travel
     # so a pair of opposite links separates into two distinct arcs.
@@ -86,7 +89,7 @@ def edge_path(u, v):
     L = math.hypot(dx, dy)
     ux, uy = dx / L, dy / L
     px, py = -uy, ux                      # left-hand normal
-    bow = 0.16 * L
+    bow = 0.16 * L * BOW_SIDE.get((u, v), 1)
     cx, cy = (x1 + x2) / 2 + px * bow, (y1 + y2) / 2 + py * bow
     # trim both ends so the arrowhead lands on the rim of v, not under the disc
     r1, r2 = radius(u) + 2, radius(v) + 11
@@ -101,8 +104,27 @@ def edge_path(u, v):
 
 
 def edge_width(u, v):
-    return 1.1 + 42 * FLOW[(u, v)]
+    return 2.0 + 34 * FLOW[(u, v)]
 
+
+# ── diagnostic: every arc must stay clear of the discs it is not connecting ──
+def _arc_point(u, v, t):
+    (x1, y1), (x2, y2) = WPOS[u], WPOS[v]
+    dx, dy = x2 - x1, y2 - y1
+    L = math.hypot(dx, dy)
+    px, py = -dy / L, dx / L
+    b = 0.16 * L * BOW_SIDE.get((u, v), 1)
+    cx, cy = (x1 + x2) / 2 + px * b, (y1 + y2) / 2 + py * b
+    return ((1 - t) ** 2 * x1 + 2 * (1 - t) * t * cx + t ** 2 * x2,
+            (1 - t) ** 2 * y1 + 2 * (1 - t) * t * cy + t ** 2 * y2)
+for u, outs in WEB.items():
+    for v in outs:
+        for w in NODES:
+            if w in (u, v):
+                continue
+            gap = min(math.hypot(_arc_point(u, v, k / 40)[0] - WPOS[w][0], _arc_point(u, v, k / 40)[1] - WPOS[w][1]) for k in range(41)) - radius(w)
+            if gap < 6:
+                print(f"  hero arc {u}->{v} passes {gap:.1f}px from disc {w}")
 
 body = [f'''  <defs>
     <marker id="w2hA" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0.5 L8,4.5 L0,8.5 Z" fill="{MUT}"/></marker>
@@ -117,7 +139,7 @@ for u, outs in WEB.items():
     for v in outs:
         if v in ("Q", "V"):
             continue
-        body.append(f'    <path d="{edge_path(u, v)}" stroke="{MUT}" stroke-width="{edge_width(u, v):.1f}" opacity="0.55" marker-end="url(#w2hA)"/>')
+        body.append(f'    <path d="{edge_path(u, v)}" stroke="{MUT}" stroke-width="{edge_width(u, v):.1f}" opacity="0.8" marker-end="url(#w2hA)"/>')
 for u, outs in WEB.items():
     for v in outs:
         if v == "Q":
