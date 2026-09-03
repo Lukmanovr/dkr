@@ -108,11 +108,11 @@ def edge_width(u, v):
 
 
 def head_len(u, v):
-    return max(11.0, 4.4 * edge_width(u, v))  # long head: the tip is an acute point
+    return max(10.0, 3.2 * edge_width(u, v))  # head length; the stroke ends at its base
 
 
 def head_half(u, v):
-    return max(2.6, 0.8 * edge_width(u, v))   # narrow head: about a 20-degree tip
+    return max(4.0, 1.4 * edge_width(u, v))   # classic triangle: base wider than the stroke
 
 
 def marker_id(u, v):
@@ -144,7 +144,7 @@ for u, outs in WEB.items():
         col = ACC if v == "Q" else (PUR if v == "V" else MUT)
         h = head_len(u, v)
         w = head_half(u, v)
-        body.append(f'    <marker id="{marker_id(u, v)}" markerWidth="{h + 1:.1f}" markerHeight="{2 * w + 1:.1f}" refX="{h:.1f}" refY="{w + 0.5:.1f}" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0.5 L{h:.1f},{w + 0.5:.1f} L0,{2 * w + 0.5:.1f} Z" fill="{col}" stroke="none"/></marker>')
+        body.append(f'    <marker id="{marker_id(u, v)}" markerWidth="{h + 1:.1f}" markerHeight="{2 * w + 1:.1f}" refX="0" refY="{w + 0.5:.1f}" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0.5 L{h:.1f},{w + 0.5:.1f} L0,{2 * w + 0.5:.1f} Z" fill="{col}" stroke="none"/></marker>')
 body.append("  </defs>")
 body.append(f'  <text x="380" y="24" text-anchor="middle" font-family="{SANS}" font-size="12.5" fill="{MUT}">a toy web of ten pages · arrow width = the mass a link carries each step · disc size and number = converged PageRank (β = 0.85)</text>')
 
