@@ -1,29 +1,15 @@
 ```{=html}
-<div class="interactive-container" id="w4-te-widget">
-  <div class="fig-label">Interactive · TransE learns our twelve facts</div>
+<link rel="stylesheet" href="../assets/d3/w4-learning.css">
+<div class="interactive-container w4-learning" id="w4-te-widget">
+  <div class="fig-label">Interactive · One prediction, two candidate tails</div>
   <div class="widget-controls">
-    <button class="pill-btn" id="w4-te-train" type="button">train ×300</button>
-    <button class="pill-btn" id="w4-te-auto" type="button">auto ▸</button>
-    <button class="pill-btn" id="w4-te-reset" type="button">reset</button>
-    <button class="pill-btn active" data-rel="0" type="button">located_in</button>
-    <button class="pill-btn" data-rel="1" type="button">instance_of</button>
-    <button class="pill-btn" data-rel="2" type="button">capital_of</button>
-    <button class="pill-btn" data-rel="3" type="button">part_of</button>
-    <button class="pill-btn" data-rel="4" type="button">flows_through</button>
+    <label>Candidate tail <select id="w4-te-tail"><option value="0">Innopolis (3, 2)</option><option value="1">Kazan (3, 1)</option></select></label>
+    <label>Relation y <input id="w4-te-y" type="range" min="0" max="2" step="0.1" value="1"><output id="w4-te-yval">1.0</output></label>
+    <button id="w4-te-reset" type="button">Reset example</button>
   </div>
-  <div id="w4-te-svg" role="img" aria-label="Ten entities of the Wikidata fragment moving in a live two-dimensional TransE training run, with the selected relation drawn as translation arrows and residual readouts below"></div>
-  <noscript>
-    <p class="fig-caption">This figure is interactive when JavaScript is enabled. Static
-    view: the ten entities positioned by TransE training, with translation arrows for a
-    chosen relation; same-tail heads end up crushed together.</p>
-  </noscript>
-  <p class="fig-caption">Real margin-loss SGD on the twelve
-  facts, in d = 2 so the geometry is the picture. Solid arrows show h + r; the dashed
-  red gap is the miss. <strong>Try this:</strong> press <em>auto ▸</em> and watch three
-  predicted failures materialize: (1) Innopolis and Kazan collapse toward each other —
-  same relation, same tail, so TransE crushes the heads; (2) the located_in and
-  capital_of readout shrinks — two relations with the same (h, t) pair must merge;
-  (3) the hero fact stays mediocre while nonsense stays worse — partial credit,
-  not composition. Every failure is a row of the cheat sheet, live.</p>
+  <div id="w4-te-svg"></div>
+  <div id="w4-te-result" class="w4-readout" aria-live="polite" aria-atomic="true"></div>
+  <noscript><p>Head (1,1) plus relation (2,1) predicts (3,2). Innopolis has distance 0 and score 0; Kazan at (3,1) has distance 1 and score −1.</p></noscript>
+  <p class="fig-caption">The arrow moves the head h; the hollow ring marks its predicted landing. B is Innopolis and C is Kazan. The dashed segment measures the miss to the selected tail. <strong>Try this:</strong> lower relation y from 1 to 0 and explain when the preferred candidate changes. These coordinates are hand-set.</p>
 </div>
 ```

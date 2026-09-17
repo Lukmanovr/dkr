@@ -1,0 +1,15 @@
+```{=html}
+<link rel="stylesheet" href="../assets/d3/w4-learning.css">
+<div class="interactive-container w4-learning" id="w4-ro-widget">
+  <div class="fig-label">Experiment · A rotation and its reverse</div>
+  <div class="widget-controls">
+    <label>Relation angle <input id="w4-ro-angle" type="range" min="-180" max="180" step="15" value="90"><output id="w4-ro-value">90°</output></label>
+    <label><input id="w4-ro-inverse" type="checkbox"> Use inverse relation on return</label>
+    <button id="w4-ro-quarter" type="button">Quarter-turn</button><button id="w4-ro-half" type="button">Half-turn</button>
+  </div>
+  <div id="w4-ro-svg"></div>
+  <div id="w4-ro-result" class="w4-readout" aria-live="polite" aria-atomic="true"></div>
+  <noscript><p>Starting at h=(1,0), 90° gives t=(0,1). The same 90° applied to t lands at (−1,0), with reverse score −2. Returning by −90° instead gives h exactly.</p></noscript>
+  <p class="fig-caption">This construction sets t = hr so the forward fit is always exact. The inner arc turns h to t; the outer arc makes the return step. The hollow ring is the return landing point; the dashed segment measures its distance to h. <strong>Try this:</strong> compare 90° with 180°, then use the inverse relation. This tests symmetry and inversion by construction, not by fitting a dataset.</p>
+</div>
+```

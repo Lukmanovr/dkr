@@ -1,111 +1,74 @@
-/* Widget 4.2 — The cheat sheet, with reasons.
- * Pick a relation pattern and a model: the verdict, the algebraic requirement,
- * and the two-line derivation. Content mirrors the static cheat-sheet figure
- * (verified against RotatE, ICLR 2019, Table 1) — this widget adds the WHY.
- */
 (function () {
-  "use strict";
-  const U = window.DKR;
-
-  const MODELS = ["TransE", "DistMult", "ComplEx", "RotatE"];
-  const MCOL = ["#d9603b", "#7c5cd6", "#0f8377", "#199473"];
-  const SCORE = ["−‖h + r − t‖", "Σᵢ hᵢ rᵢ tᵢ", "Re Σᵢ hᵢ rᵢ t̄ᵢ", "−‖h ∘ r − t‖, |rᵢ| = 1"];
-
-  const CELLS = {
-    // pattern -> per-model [ok, requirement, derivation]
-    symmetry: [
-      [false, "needs r = 0", "h+r=t and t+r=h ⇒ adding: 2r=0 ⇒ r=0 — but then every entity equals its own tail: the relation collapses."],
-      [true, "automatic (for every r)", "Σ hᵢrᵢtᵢ = Σ tᵢrᵢhᵢ by commutativity — the score cannot tell (h,r,t) from (t,r,h). Symmetry is free… and mandatory."],
-      [true, "take r real", "with Im(r)=0 the Hermitian product's swap-antisymmetric part vanishes: score(h,t) = score(t,h). Choosing Im(r)≠0 turns it back off."],
-      [true, "phases rᵢ ∈ {0, π}", "rᵢ=±1 ⇒ r∘r = 1: rotating twice returns home, so h∘r=t ⇔ t∘r=h. A half-turn is its own inverse."],
-    ],
-    antisymmetry: [
-      [true, "any r ≠ 0", "h+r=t ⇒ t+r = h+2r ≠ h whenever r≠0 — direction is built into translation."],
-      [false, "impossible", "the symmetric score above: if (h,r,t) scores high, (t,r,h) scores identically high. No parameter choice escapes commutativity."],
-      [true, "take r with Im(r) ≠ 0", "the imaginary part of r feeds the antisymmetric term Im(h t̄): swapping h,t flips its sign — the figure's +2 / −2."],
-      [true, "any phases ∉ {0, π}", "a rotation that is not a half-turn distinguishes forward from back: h∘r=t but t∘r≠h."],
-    ],
-    inversion: [
-      [true, "r₂ = −r₁", "h+r₁=t ⇔ t+(−r₁)=h — walk the translation backwards."],
-      [false, "impossible", "DistMult would need score(h,r₂,t)=score(t,r₁,h) for all h,t — but both its relations are already symmetric, so r₂ ≡ r₁ and inversion degenerates to symmetry."],
-      [true, "r₂ = r̄₁", "conjugating the relation conjugates the product: Re⟨t,r̄₁,h̄⟩ = Re⟨h,r₁,t̄⟩."],
-      [true, "r₂ = r₁⁻¹ (rotate back)", "h∘r₁=t ⇔ t∘r₁⁻¹=h — undo the rotation, angle by angle."],
-    ],
-    composition: [
-      [true, "r₃ = r₁ + r₂", "(h+r₁)+r₂ = h+(r₁+r₂): translations add. Chains of facts become sums of vectors."],
-      [false, "impossible", "composition needs an operation on relations that mirrors chaining entities; the diagonal product supplies none (and it already failed inversion)."],
-      [false, "not in general", "Hermitian products don't chain: score(h,r₁,m)·score(m,r₂,t) has no r₃ reproducing it for all entities."],
-      [true, "r₃ = r₁ ∘ r₂ (add angles)", "rotations compose by adding phases — the only model here whose relations form a group."],
-    ],
-    "1-to-N": [
-      [false, "tails collapse", "h+r=t₁ and h+r=t₂ ⇒ t₁=t₂. One head, one translation, ONE landing point: Kazan and Innopolis get crushed together (watch Figure 1)."],
-      [true, "similarity, not equality", "the score asks 'is t aligned with h⊙r?' — many tails can align well simultaneously; nothing forces them equal."],
-      [true, "same as DistMult", "a similarity scorer: high scores for several tails are not contradictory."],
-      [false, "rotation is a bijection", "h∘r is a single point, exactly like TransE: distance-to-one-point scorers cannot love two tails equally without merging them."],
-    ],
+  'use strict';
+  const U=window.DKR;
+  // Each cell states the algebra AND its scope; no universal capability checkmarks.
+  const cases={
+    symmetry: {
+      TransR:['Coincide only after projection','r = 0; Mᵣa = Mᵣb, while a ≠ b.','A relation-specific kernel permits distinct stored entities to have identical projected vectors.'],
+      TransE:['Exact fits collapse','a + r = b; b + r = a ⇒ r = 0 and a = b.','This assumes both distances are zero. Approximate symmetric rankings remain possible.'],
+      DistMult:['Equal scores are automatic','Σ aᵢrᵢbᵢ = Σ bᵢrᵢaᵢ.','Every parameter setting is symmetric, including relations that should be directed.'],
+      ComplEx:['Choose a real relation','Im(r) = 0 ⇒ f(a,r,b) = f(b,r,a).','With complex entities, imaginary relation components can also permit direction.'],
+      RotatE:['A half-turn exchanges points','a = 1; r = −1; b = −1. Then ar = b and br = a.','Distinct entity coordinates can have zero distance in both directions.']
+    },
+    direction: {
+      TransR:['Translate in the relation space','Mᵣa + r = Mᵣb with r ≠ 0 gives a nonzero reverse residual 2r.','A sufficient exact-fit construction; the projection must retain the distinction.'],
+      TransE:['A translation has direction','a = 0; r = 1; b = 1. Forward score 0; reverse score −2.','This example establishes possibility, not that training will discover it.'],
+      DistMult:['Cannot distinguish a reversed triple','f(a,r,b) = f(b,r,a), for every embedding.','An optimizer cannot remove an identity built into the scorer.'],
+      ComplEx:['The conjugate permits direction','a = 1+i; r = i; b = −1+i. Scores: 2 and −2.','The tail conjugate and real-part operation both matter.'],
+      RotatE:['A quarter-turn has direction','a = 1+i; r = i; b = −1+i. Scores: 0 and −2√2.','A unit relation rotates; the final distance makes a real score.']
+    },
+    inversion: {
+      TransR:['Share a projection; negate the shift','M₂ = M₁ and r₂ = −r₁ undo the projected translation.','These are sufficient conditions, not constraints imposed by the default optimizer.'],
+      TransE:['Undo the translation','r₂ = −r₁: a+r₁=b ⇔ b+r₂=a.','An exact transformation identity.'],
+      DistMult:['Reverse scores are already equal','Using the same vector gives f(a,r₁,b)=f(b,r₂,a).','It cannot model distinct forward/reverse directionality.'],
+      ComplEx:['Conjugate the relation','r₂ = conjugate(r₁) gives f(a,r₁,b)=f(b,r₂,a).','This is a score identity, with no requirement for zero distance.'],
+      RotatE:['Negate the angles','r₂ = conjugate(r₁) = 1/r₁ for unit rotations.','Rotating forward and then backward returns the same point.']
+    },
+    composition: {
+      TransR:['Compose offsets and kernel directions','Choose M₃ to annihilate ker(M₁) + ker(M₂), and r₃ = M₃(g₁ + g₂).','This exact construction can discard distinctions. It is not ordinary multiplication of arbitrary learned projections.'],
+      TransE:['Add displacements','(a+r₁)+r₂ = a+(r₁+r₂).','Applies to exact transformations; high scores alone do not prove a rule.'],
+      DistMult:['Bilinear scores are not point equalities','Diagonal relation matrices can be multiplied.','This can support rule mining, but multiplying scores is not a general entailment guarantee.'],
+      ComplEx:['Separate score products from paths','A high score through b does not assert ar₁=b.','Complex relation products can be studied; no general path rule follows from this score alone.'],
+      RotatE:['Multiply rotations; add angles','(a ∘ r₁) ∘ r₂ = a ∘ (r₁ ∘ r₂).','TransE also composes. This property is not unique to rotations.']
+    },
+    many: {
+      TransR:['Distinct entities, identical projections','Mᵣt₁ = Mᵣt₂ = Mᵣh + r, while t₁ ≠ t₂.','A nontrivial kernel can hide the tails’ difference for this relation without deleting it from the entity table.'],
+      TransE:['Zero-distance tails coincide','h+r=t₁ and h+r=t₂ ⇒ t₁=t₂.','Distinct tails may still have small nonzero distances and good ranks.'],
+      DistMult:['Several tails can align well','Multiple tails can have a large dot product with h ∘ r.','High scores do not require their vectors to be identical.'],
+      ComplEx:['Several tails can align well','Several conjugated tails can give large real products.','Check ranking quality empirically; algebra alone does not select a winner.'],
+      RotatE:['One exact landing point','h ∘ r=t₁ and h ∘ r=t₂ ⇒ t₁=t₂.','Nearby distinct tails can both score well; exact-fit collapse is a narrower claim.']
+    }
   };
-  const PATTERNS = Object.keys(CELLS);
-  const PDESC = {
-    symmetry: "r(a,b) ⇒ r(b,a) — married_to, borders",
-    antisymmetry: "r(a,b) ⇒ ¬r(b,a) — located_in, parent_of",
-    inversion: "r₂(b,a) ⇔ r₁(a,b) — contains / located_in",
-    composition: "r₂(b,c) ∧ r₁(a,b) ⇒ r₃(a,c) — grandparent",
-    "1-to-N": "one head, many tails — Tatarstan contains …",
-  };
-
-  let pat = "symmetry", model = 0;
-
-  function render() {
-    const P = U.pal();
-    const svg = U.svgIn("w4-pt-svg", 760, 205);
-    svg.attr("font-family", "'Source Sans 3', sans-serif");
-    const g = svg.append("g");
-
-    const [ok, req, why] = CELLS[pat][model];
-    g.append("text").attr("x", 380).attr("y", 30).attr("text-anchor", "middle")
-      .attr("font-size", 13).attr("fill", P.muted).text(PDESC[pat]);
-
-    g.append("text").attr("x", 250).attr("y", 78).attr("text-anchor", "middle")
-      .attr("font-size", 17).attr("font-weight", 700).attr("fill", MCOL[model])
-      .text(MODELS[model]);
-    g.append("text").attr("x", 250).attr("y", 100).attr("text-anchor", "middle")
-      .attr("font-size", 13).attr("fill", P.muted).text(SCORE[model]);
-
-    g.append("circle").attr("cx", 480).attr("cy", 82).attr("r", 26)
-      .attr("fill", ok ? P.green : "#cf4a30").attr("opacity", 0.9);
-    g.append("text").attr("x", 480).attr("y", 92).attr("text-anchor", "middle")
-      .attr("font-size", 26).attr("font-weight", 800).attr("fill", "#fff")
-      .text(ok ? "✓" : "✗");
-    g.append("text").attr("x", 480).attr("y", 126).attr("text-anchor", "middle")
-      .attr("font-size", 12.5).attr("font-weight", 700)
-      .attr("fill", ok ? P.green : "#cf4a30").text(req);
-
-    // the why, wrapped
-    const words = why.split(" ");
-    const lines = [""];
-    words.forEach((w) => {
-      if ((lines[lines.length - 1] + " " + w).length > 88) lines.push(w);
-      else lines[lines.length - 1] = (lines[lines.length - 1] + " " + w).trim();
-    });
-    lines.forEach((ln, i) => {
-      g.append("text").attr("x", 380).attr("y", 158 + i * 19).attr("text-anchor", "middle")
-        .attr("font-size", 12.5).attr("fill", P.text).text(ln);
-    });
+  function render(){
+    const P=U.pal(), pat=document.getElementById('w4-pt-pattern').value;
+    const model=document.getElementById('w4-pt-model').value;
+    const [title,algebra,scope]=cases[pat][model];
+    const svg=U.svgIn('w4-pt-svg',760,210).attr('role','img').attr('aria-label',`Schematic relation pattern: ${pat}. Read the model-specific algebra below.`);
+    svg.append('defs').append('marker').attr('id','w4-pattern-arrow').attr('markerWidth',7).attr('markerHeight',7).attr('refX',6).attr('refY',3).attr('orient','auto')
+      .append('path').attr('d','M0,0 L6,3 L0,6').attr('fill',P.muted);
+    const node=(x,y,label,color)=>{
+      svg.append('circle').attr('cx',x).attr('cy',y).attr('r',24).attr('fill',color);
+      svg.append('text').attr('x',x).attr('y',y+9).attr('text-anchor','middle').attr('font-size',28).attr('fill','#fff').text(label);
+    };
+    const edge=(x1,y1,x2,y2,label,lx,ly)=>{
+      svg.append('line').attr('x1',x1).attr('x2',x2).attr('y1',y1).attr('y2',y2).attr('stroke',P.muted).attr('stroke-width',3).attr('marker-end','url(#w4-pattern-arrow)');
+      svg.append('text').attr('x',lx).attr('y',ly).attr('text-anchor','middle').attr('font-size',28).attr('fill',P.text).text(label);
+    };
+    if(pat==='many'){
+      node(170,105,'h',P.yellow);node(590,45,'t₁',P.green);node(590,165,'t₂',P.accent);
+      edge(198,101,554,49,'r',380,49);edge(198,109,554,161,'r',380,180);
+    }else if(pat==='composition'){
+      node(110,105,'a',P.yellow);node(380,105,'b',P.accent);node(650,105,'c',P.green);
+      edge(143,105,343,105,'r₁',240,74);edge(413,105,613,105,'r₂',515,74);
+    }else{
+      node(170,105,'a',P.yellow);node(590,105,'b',P.green);
+      edge(200,90,553,90,pat==='inversion'?'r₁':'r',380,62);
+      if(pat==='symmetry'||pat==='inversion')edge(560,125,207,125,pat==='inversion'?'inverse r₂':'r',380,169);
+      else svg.append('text').attr('x',380).attr('y',165).attr('text-anchor','middle').attr('font-size',28).attr('fill',P.text).text('reverse is a different claim');
+    }
+    const result=document.getElementById('w4-pt-result');
+    result.innerHTML=`<p class="w4-eyebrow">Schematic pattern above · ${model} below</p><p><strong>${title}</strong></p><p>${algebra}</p><p><strong>Scope:</strong> ${scope}</p>`;
   }
-
-  document.querySelectorAll("#w4-pt-widget [data-pat]").forEach((b) =>
-    b.addEventListener("click", () => {
-      pat = b.getAttribute("data-pat");
-      document.querySelectorAll("#w4-pt-widget [data-pat]").forEach((x) => x.classList.toggle("active", x === b));
-      render();
-    }));
-  document.querySelectorAll("#w4-pt-widget [data-model]").forEach((b) =>
-    b.addEventListener("click", () => {
-      model = +b.getAttribute("data-model");
-      document.querySelectorAll("#w4-pt-widget [data-model]").forEach((x) => x.classList.toggle("active", x === b));
-      render();
-    }));
-
-  U.onThemeChange(render);
-  U.lazyBoot("w4-pt-svg", render);
+  ['w4-pt-pattern','w4-pt-model'].forEach(id=>document.getElementById(id).addEventListener('change',render));
+  U.onThemeChange(render); U.lazyBoot('w4-pt-svg',render);
 })();

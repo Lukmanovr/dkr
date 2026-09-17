@@ -1,0 +1,14 @@
+```{=html}
+<link rel="stylesheet" href="../assets/d3/w4-learning.css">
+<div class="interactive-container w4-learning" id="w4-ma-widget">
+  <div class="fig-label">Experiment · Correct ordering is not yet enough</div>
+  <div class="widget-controls">
+    <label>Negative distance <input id="w4-ma-negative" type="range" min="0" max="4" step="0.1" value="1.5"><output id="w4-ma-value">1.5</output></label>
+    <label>Margin γ <input id="w4-ma-gamma" type="range" min="0.5" max="2" step="0.5" value="1"><output id="w4-ma-gvalue">1.0</output></label>
+  </div>
+  <div id="w4-ma-svg"></div>
+  <div id="w4-ma-result" class="w4-readout" aria-live="polite" aria-atomic="true"></div>
+  <noscript><p>Positive distance 1, negative distance 1.5, margin 1: loss=max(0,1+1−1.5)=0.5. A negative distance of at least 2 gives zero loss.</p></noscript>
+  <p class="fig-caption">The positive distance stays at 1. The vertical dashed line marks the negative distance needed to satisfy the margin. <strong>Try this:</strong> find the first zero-loss setting at γ = 1, then change γ to 2. A zero loss means this sampled comparison is separated enough; it does not mean every graph fact has been learned.</p>
+</div>
+```

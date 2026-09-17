@@ -1,0 +1,16 @@
+```{=html}
+<link rel="stylesheet" href="../assets/d3/w4-learning.css">
+<div class="interactive-container w4-learning" id="w4-cp-widget">
+  <div class="fig-label">Experiment · What changes when the endpoints swap?</div>
+  <div class="widget-controls">
+    <label><span>Real relation c</span><input id="w4-cp-real" type="range" min="-2" max="2" step="0.25" value="1"><output id="w4-cp-c">1</output></label>
+    <label><span>Imaginary relation d</span><input id="w4-cp-imag" type="range" min="-2" max="2" step="0.25" value="0"><output id="w4-cp-d">0</output></label>
+    <button type="button" id="w4-cp-conjugate">Conjugate relation</button>
+    <button type="button" id="w4-cp-reset">Reset example</button>
+  </div>
+  <div id="w4-cp-svg"></div>
+  <div id="w4-cp-result" class="w4-readout" aria-live="polite" aria-atomic="true"></div>
+  <noscript><p>With h=1+2i, t=3+i, r=c+di, the shared part is S=5c and the directional part is A=−5d. Forward is S+A; reverse is S−A. At c=1,d=0 both scores are 5.</p></noscript>
+  <p class="fig-caption">The same relation is used for both directions. Changing c moves the scores together; changing d separates them. Conjugating the relation flips d and exchanges the scores. <strong>Try this:</strong> set c=1, d=−1, then conjugate.</p>
+</div>
+```

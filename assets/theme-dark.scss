@@ -608,11 +608,13 @@ figure.dkr-fig > figcaption.fig-caption::before {
     align-items: center !important;
     justify-content: center !important;
   }
-  .katex-display > .katex > .katex-html::before {
+  // Only numbered equations need a spacer to balance their right-hand tag.
+  // Adding this to unnumbered math consumes all free space on the left.
+  .katex-display > .katex > .katex-html:has(> .tag, > .katex-tag)::before {
     content: "";
     flex: 1 1 0;
   }
-  .katex-display > .katex > .katex-html > .base {
+  .katex-display > .katex > .katex-html > :is(.base, .katex-base) {
     flex: 0 0 auto !important;
   }
   .katex-display > .katex > .katex-html > .tag,

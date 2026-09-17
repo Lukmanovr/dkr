@@ -19,7 +19,7 @@ const body = ["w1-hero.html", "w1-permute.html", "w1-multigraph.html", "w1-konig
   "w1-builder.html", "w1-cost.html", "w1-types.html", "w1-tasks.html",
   "w2-centrality.html", "w2-pagerank.html", "w2-wl.html", "w2-louvain.html", "w2-katz.html", "w2-surfer.html", "w2-poweriter.html", "w2-clustering.html", "w2-graphlets.html", "w2-nullmodel.html", "w2-resolution.html", "w2-spectral.html", "w2-baseline.html",
   "w3-walks.html", "w3-pq.html", "w3-embed.html", "w3-labelprop.html",
-  "w4-transe.html", "w4-patterns.html", "w4-negatives.html", "w4-rank.html",
+  "w4-transe.html", "w4-patterns.html", "w4-negatives.html", "w4-rank.html", "w4-transr.html", "w4-bilinear.html", "w4-rotate.html", "w4-margin.html", "w4-complex-parts.html",
   "w5-query.html", "w5-boxes.html", "w5-rag.html", "w5-extract.html",
   "w7-agg.html", "w7-sage.html", "w7-gat.html", "w7-ablation.html",
   "w9-wl.html", "w9-trees.html", "w9-power.html", "w9-squash.html",
@@ -52,7 +52,7 @@ for (const f of ["d3.v7.min.js", "_dkr.js", "w6-message-passing.js", "w6-spectra
   "w1-hero.js", "w1-permute.js", "w1-multigraph.js", "w1-konigsberg.js", "w1-closure.js", "w1-walks.js", "w1-lap.js", "w1-builder.js", "w1-cost.js", "w1-types.js", "w1-tasks.js",
   "w2-centrality.js", "w2-pagerank.js", "w2-wl.js", "w2-louvain.js", "w2-katz.js", "w2-surfer.js", "w2-poweriter.js", "w2-clustering.js", "w2-graphlets.js", "w2-nullmodel.js", "w2-resolution.js", "w2-spectral.js", "w2-baseline.js",
   "w3-walks.js", "w3-pq.js", "w3-embed.js", "w3-labelprop.js",
-  "w4-transe.js", "w4-patterns.js", "w4-negatives.js", "w4-rank.js",
+  "w4-transe.js", "w4-patterns.js", "w4-negatives.js", "w4-rank.js", "w4-transr.js", "w4-bilinear.js", "w4-rotate.js", "w4-margin.js", "w4-complex-parts.js",
   "w5-query.js", "w5-boxes.js", "w5-rag.js", "w5-extract.js",
   "w7-agg.js", "w7-sage.js", "w7-gat.js", "w7-ablation.js",
   "w9-wl.js", "w9-trees.js", "w9-power.js", "w9-squash.js",
@@ -206,24 +206,73 @@ const lpM = lpTexts.match(/stable after (\d+) sweeps · (\d+)\/34 labeled · (\d
 if (!lpM || +lpM[3] < 26) { failures++; console.error("  FAIL labelprop outcome: " + lpTexts.slice(0, 200)); }
 else console.log(`  w3-labelprop stable after ${lpM[1]} sweeps, ${lpM[2]}/34 labeled, ${lpM[3]}/34 correct ✓`);
 click("w3-lp-reset");
-// week-4 widget interactions
-for (let i = 0; i < 12; i++) click("w4-te-train");          // 3,600 SGD steps
-const teTexts = [...window.document.querySelectorAll("#w4-te-svg svg text")].map((t) => t.textContent).join(" | ");
-const teRes = parseFloat((teTexts.match(/mean residual ‖h\+r−t‖ = ([\d.]+)/) || [])[1]);
-if (!(teRes < 0.6)) { failures++; console.error("  FAIL transe mean residual after 3600 steps: " + teRes); }
-else console.log(`  w4-transe trains: mean residual ${teRes} after 3,600 steps ✓`);
-const teCrush = parseFloat((teTexts.match(/\|Innopolis − Kazan\| = ([\d.]+)/) || [])[1]);
-const teHero = teTexts.match(/hero fact [^:]+: ([\d.]+) · nonsense [^:]+: ([\d.]+)/);
-if (!teHero || !(parseFloat(teHero[1]) < parseFloat(teHero[2]))) {
-  failures++; console.error("  FAIL transe hero-vs-nonsense ordering: " + (teHero || teTexts.slice(-160)));
-} else console.log(`  w4-transe: crush |Inno−Kazan| = ${teCrush}; hero ${teHero[1]} beats nonsense ${teHero[2]} ✓`);
-click("w4-te-auto"); click("w4-te-auto");
-click("w4-te-reset");
-for (const b of window.document.querySelectorAll("#w4-pt-widget [data-pat]")) b.dispatchEvent(new window.Event("click", { bubbles: true }));
-for (const b of window.document.querySelectorAll("#w4-pt-widget [data-model]")) b.dispatchEvent(new window.Event("click", { bubbles: true }));
-const ptTexts = [...window.document.querySelectorAll("#w4-pt-svg svg text")].map((t) => t.textContent).join(" ");
-if (!/bijection/.test(ptTexts)) { failures++; console.error("  FAIL patterns final cell (RotatE × 1-to-N): " + ptTexts.slice(0, 120)); }
-else console.log("  w4-patterns walks all 20 cells, ends on RotatE × 1-to-N ✓");
+// week-4: deterministic arithmetic and explicit tie handling.
+{
+  const el = id => window.document.getElementById(id);
+  const set = (id, value, event='change') => {
+    el(id).value = value; el(id).dispatchEvent(new window.Event(event, {bubbles:true}));
+  };
+  const check = (ok, message) => {
+    if (!ok) { failures++; console.error('  FAIL w4: ' + message); }
+    else console.log('  w4: ' + message + ' ✓');
+  };
+  set('w4-te-tail','1');
+  check(+el('w4-te-result').dataset.score === -1, 'TransE decoy score -1');
+  set('w4-te-y','0','input');
+  check(+el('w4-te-result').dataset.score === 0, 'changing relation makes decoy exact');
+  click('w4-te-reset');
+  set('w4-pt-pattern','direction'); set('w4-pt-model','DistMult');
+  check(el('w4-pt-result').textContent.includes('Cannot distinguish'), 'DistMult direction identity');
+  for (const pattern of ['symmetry','direction','inversion','composition','many']) {
+    for (const model of ['TransE','TransR','DistMult','ComplEx','RotatE']) {
+      set('w4-pt-pattern',pattern); set('w4-pt-model',model);
+      check(el('w4-pt-result').textContent.includes('Scope:'), pattern + '/' + model + ' states assumptions');
+    }
+  }
+  for(const scale of [0,.5,1]) {
+    set('w4-tr-scale',scale,'input');
+    check(JSON.stringify(JSON.parse(el('w4-tr-result').dataset.scores)) === JSON.stringify([-scale,-scale,-3]), 'TransR projection at ' + scale);
+  }
+  set('w4-bi-model','DistMult');
+  for(const w of [-2,0,3]) {
+    set('w4-bi-weight',w,'input');
+    check(+el('w4-bi-result').dataset.score===2+2*w, 'DistMult coordinate products ' + w);
+    check(el('w4-bi-result').dataset.score===el('w4-bi-result').dataset.reverse, 'DistMult forced swap symmetry');
+  }
+  set('w4-bi-model','ComplEx');
+  check(+el('w4-bi-result').dataset.score===2 && +el('w4-bi-result').dataset.reverse===-2,'ComplEx direction from conjugation');
+  el('w4-bi-swap').checked=true;el('w4-bi-swap').dispatchEvent(new window.Event('change'));
+  check(+el('w4-bi-result').dataset.score===-2,'ComplEx swap changes sign');
+  set('w4-bi-weight',0,'input');
+  check(+el('w4-bi-result').dataset.score===0,'ComplEx zero imaginary component in pure-imaginary relation');
+  check(+el('w4-cp-result').dataset.forward===5 && +el('w4-cp-result').dataset.reverse===5,'ComplEx real relation symmetry');
+  // Independent direct complex multiplication, not the widget's grouped formula.
+  const mul=([a,b],[c,d])=>[a*c-b*d,a*d+b*c];
+  for(const c of [-2,0,1,1.25,2]) for(const d of [-2,-1,0,.75,2]) {
+    set('w4-cp-real',c,'input');set('w4-cp-imag',d,'input');
+    const forward=mul(mul([1,2],[c,d]),[3,-1])[0];
+    const reverse=mul(mul([3,1],[c,d]),[1,-2])[0];
+    check(+el('w4-cp-result').dataset.forward===forward && +el('w4-cp-result').dataset.reverse===reverse,'ComplEx expansion agrees with multiplication at '+c+','+d);
+  }
+  set('w4-cp-real',1,'input');set('w4-cp-imag',-1,'input');
+  click('w4-cp-conjugate');
+  check(+el('w4-cp-result').dataset.forward===0 && +el('w4-cp-result').dataset.reverse===10,'Conjugate relation exchanges directional scores');
+  click('w4-cp-reset');
+  set('w4-ma-negative',1.5,'input');
+  check(+el('w4-ma-result').dataset.loss===.5,'Margin loss despite correct ordering');
+  set('w4-ma-negative',2,'input');
+  check(+el('w4-ma-result').dataset.loss===0,'Margin boundary gives zero');
+  set('w4-ma-gamma',2,'input');
+  check(+el('w4-ma-result').dataset.loss===1,'Larger margin reactivates loss');
+  set('w4-ro-angle',90,'input');
+  check(Math.abs(+el('w4-ro-result').dataset.reverseScore+2)<1e-8,'Quarter-turn does not reverse itself');
+  set('w4-ro-angle',180,'input');
+  check(Math.abs(+el('w4-ro-result').dataset.reverseScore)<1e-8,'Half-turn reverses itself');
+  el('w4-ro-inverse').checked=true;el('w4-ro-inverse').dispatchEvent(new window.Event('change'));
+  for(const angle of [-180,-45,0,75,180]){
+    set('w4-ro-angle',angle,'input');
+    check(Math.abs(+el('w4-ro-result').dataset.reverseScore)<1e-8,'Inverse returns to head at '+angle);
+  }
 slide("w4-ng-alpha", 3);
 for (const b of window.document.querySelectorAll("#w4-ng-widget [data-q]")) b.dispatchEvent(new window.Event("click", { bubbles: true }));
 const ngTexts = [...window.document.querySelectorAll("#w4-ng-svg svg text")].map((t) => t.textContent).join(" | ");
@@ -233,13 +282,15 @@ else console.log(`  w4-negatives: hardest negative takes ${ngTop}% at α = 3 ✓
 const warns = [...window.document.querySelectorAll("#w4-ng-svg svg text")].filter((t) => /⚠/.test(t.textContent));
 if (!warns.length) { failures++; console.error("  FAIL negatives: accidental-true ⚠ candidate missing on third triple"); }
 else console.log("  w4-negatives: accidentally-true corruption flagged ⚠ ✓");
-const rkFilter = window.document.getElementById("w4-rk-filter");
-const rkRead = () => [...window.document.querySelectorAll("#w4-rk-svg svg text")].map((t) => t.textContent).join(" | ");
-click("w4-rk-next"); click("w4-rk-next");
-const rkM = rkRead().match(/raw: MRR ([\d.]+), Hits@1 ([\d.]+) · filtered: MRR ([\d.]+), Hits@1 ([\d.]+)/);
-if (!rkM || !(parseFloat(rkM[3]) >= parseFloat(rkM[1]))) { failures++; console.error("  FAIL rank metrics: " + rkRead().slice(-200)); }
-else console.log(`  w4-rank: MRR raw ${rkM[1]} → filtered ${rkM[3]}, Hits@1 ${rkM[2]} → ${rkM[4]} ✓`);
-rkFilter.checked = true; rkFilter.dispatchEvent(new window.Event("change", { bubbles: true }));
+  set('w4-rk-example','0');
+  check(+el('w4-rk-result').dataset.rank===2,'Volga raw rank 2');
+  el('w4-rk-filter').checked=true;el('w4-rk-filter').dispatchEvent(new window.Event('change'));
+  check(+el('w4-rk-result').dataset.rank===1,'Volga filtered rank 1');
+  set('w4-rk-example','1');
+  check(+el('w4-rk-result').dataset.rank===1.5,'filtered tied rank 1.5');
+  el('w4-rk-filter').checked=false;el('w4-rk-filter').dispatchEvent(new window.Event('change'));
+  check(+el('w4-rk-result').dataset.rank===2.5,'raw tied rank 2.5');
+}
 // week-5 widget interactions
 const qyText = () => [...window.document.querySelectorAll("#w5-qy-svg svg text")].map((t) => t.textContent).join(" | ");
 click("w5-qy-hop"); click("w5-qy-hop");
@@ -1047,7 +1098,7 @@ else console.log("  WL cast stabilizes after round 2 ✓");
 for (const id of ["w1-he-svg", "w1-pe-svg", "w1-mg-svg", "w1-kb-svg", "w1-cl-svg", "w1-wk-svg", "w1-lp-svg", "w6-mp-svg", "w6-sp-svg", "w6-nm-svg", "w6-pm-svg", "w1-bd-svg", "w1-ct-svg", "w1-ty-svg", "w1-tk-svg",
   "w2-ce-svg", "w2-pr-svg", "w2-wl-svg", "w2-lv-svg",
   "w3-wk-svg", "w3-pq-svg", "w3-em-svg", "w3-lp-svg",
-  "w4-te-svg", "w4-pt-svg", "w4-ng-svg", "w4-rk-svg",
+  "w4-te-svg", "w4-pt-svg", "w4-ng-svg", "w4-rk-svg", "w4-tr-svg", "w4-bi-svg", "w4-ro-svg", "w4-ma-svg",
   "w5-qy-svg", "w5-bx-svg", "w5-rg-svg", "w5-ex-svg",
   "w7-ag-svg", "w7-sg-svg", "w7-gt-svg", "w7-ab-svg",
   "w9-wl-svg", "w9-tr-svg", "w9-pw-svg", "w9-sq-svg",
@@ -1058,7 +1109,7 @@ for (const id of ["w1-he-svg", "w1-pe-svg", "w1-mg-svg", "w1-kb-svg", "w1-cl-svg
   "w14-pr-svg", "w14-me-svg", "w14-sp-svg", "w14-mp-svg"]) {
   const svg = window.document.querySelector(`#${id} svg`);
   const n = svg ? svg.querySelectorAll("*").length : 0;
-  const min = id === "w4-pt-svg" ? 8 : 10;   // the patterns explorer is legitimately sparse
+  const min = ["w4-pt-svg", "w4-rk-svg", "w4-bi-svg", "w4-ma-svg"].includes(id) ? 8 : 10;   // focused Week 4 diagrams are deliberately sparse
   if (n < min) { failures++; console.error(`  FAIL #${id}: svg has only ${n} elements`); }
   else console.log(`  #${id}: svg with ${n} elements ✓`);
 }

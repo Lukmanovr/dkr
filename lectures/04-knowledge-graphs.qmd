@@ -1,978 +1,1815 @@
 ---
 title: "Knowledge Graphs I: Facts as Geometry"
 subtitle: "Week 4 · Thursday, September 17, 2026 · 90 minutes"
-description: "Typed, directed facts and the machinery that completes them: RDF and open-world honesty, the TransE/DistMult/ComplEx/RotatE scoring geometries, the relation-pattern cheat sheet with proofs, corruption and self-adversarial training, and filtered ranking evaluation done right."
+description: "TransE, TransR, DistMult, and ComplEx: embedding spaces, expressiveness, worked algorithms, and reliable evaluation for knowledge graph completion."
 date: 2026-09-17
 date-modified: last-modified
 format:
   html:
-    toc-depth: 3
+    toc-depth: 2
+    css: ../assets/d3/w4-learning.css
+    body-classes: w4-lecture-page
 ---
 
-::: {.content-visible when-format="html"}
+## The graph knows two facts. Can it suggest a third?
 
-::: {.callout-tip title="Learning objectives" icon="false"}
-After this lecture (and Lab 4) you can:
-
-1. **represent** facts as (head, relation, tail) triples, explain RDF, ontologies, and the open- vs closed-world assumptions — and say which one your data license actually grants you;
-2. **define** the TransE, DistMult, ComplEx, and RotatE scoring functions and compute each by hand on toy embeddings;
-3. **prove** which relation patterns — symmetry, antisymmetry, inversion, composition, 1-to-N — each model can represent: the model-selection cheat sheet;
-4. **derive** the margin-based and self-adversarial negative-sampling losses and explain corruption sampling under the open-world assumption;
-5. **run** filtered ranking evaluation, compute MRR and Hits@K by hand, and explain why FB15k had to become FB15k-237.
-:::
-
-## The graph that completes itself
-
-In 2012 Google announced it would stop searching for *strings* and start searching for
-*things* ([Singhal, 2012](https://blog.google/products/search/introducing-knowledge-graph-things-not/)
-— the "things, not strings" post): behind the search box it had built a graph of entities — people, places,
-proteins, films — connected by named relations. Wikidata, the open sibling, now holds
-over a hundred million entities and more than a billion statements, each one a triple
-you already met in Lab 1: *(Innopolis University, located_in, Innopolis)*.
-
-Here is the industry's dirty secret, and this week's engine. When researchers audited
-Freebase — the KG that seeded Google's — they found that **71% of its people had no
-recorded place of birth**, and 75% no nationality
-([Dong et al., 2014](https://doi.org/10.1145/2623330.2623623) — the Knowledge Vault
-paper, which opens with exactly this audit). Not because these facts are unknown
-to humanity; because nobody had typed them in. Every real knowledge graph is a sparse
-shadow of the truth it models — and the incompleteness is not uniform noise but
-*structured*: famous entities are dense with facts while the long tail is nearly
-bare, recent facts lag curation, and whole relation types exist only where some
-ingestion pipeline happened to look. Structured missingness means you cannot fix it
-by waiting or by hiring: curation scales linearly while the world's facts compound.
-The only strategies that scale are inference (today: guess the missing facts from
-the geometry of the stated ones) and automated extraction (Week 5: have machines
-read for you) — and both, as we will see, come with epistemic bills attached.
-
-::: {.predict}
-**Commit before you look.** Our own twelve-triple fragment from Lab 1 — is it complete?
-Find a true fact about its ten entities that none of the twelve triples states, using
-only facts already derivable from the fragment itself.
-
-::: {.predict-answer}
-**(IU, located_in, Tatarstan)** — because IU is in Innopolis and Innopolis is in
-Tatarstan. (Also: KFU is in Tatarstan; both universities are in Russia; Kazan is in
-Russia…) The fragment *implies* far more than it *states*. A knowledge graph that could
-score unstated triples by plausibility would complete itself — and that scoring
-problem, **knowledge graph completion**, is this week.
-:::
-:::
+Innopolis University is in Innopolis. Innopolis is in Tatarstan. Both facts are
+in our graph, but the direct university-to-region edge is missing. A student
+asks whether the university is in Tatarstan. What should our system answer?
 
 {{< include ../assets/figures/fig-w4-hero.html >}}
 
-Last week's cliffhanger asked what happens when edges get types and directions. The
-honest answer, which the filing cabinet predicted: everything from Week 3 survives —
-encoder, decoder, similarity, loss, even the negative-sampling reflexes — but the
-decoder must grow up. "Are these two entities close?" is no longer the
-question; *(Kazan, capital_of, Tatarstan)* is true while *(Kazan, part_of, Volga)* is
-nonsense, and both pairs are "close". The question is now **"is this fact true?"**, and
-the decoder must hear the relation to answer it.
+::: {.predict}
+**Discuss before continuing.** Does the missing edge mean the claim is false?
+What extra ingredient would let us justify the answer?
 
-**Roadmap.** (1) Facts, schemas, and the open-world assumption — the epistemics of
-knowledge. (2) Completion as a ranking task. (3) Four geometries for truth: relations
-as translations, products, complex products, rotations. (4) The cheat sheet: what each
-geometry can and cannot say, with proofs. (5) Training when missing ≠ false. (6)
-Evaluation that doesn't lie: filtered MRR, and two famous scandals.
-
-::: {.callout-note title="Recap — what this lecture assumes" collapse="true"}
-- **Lab 1**: the twelve Wikidata triples and `kg_stats` — entities are everything that appears as a head *or* a tail, including "city" and "university".
-- **Week 3**: the encoder–decoder template; embedding lookup tables; negative sampling (SGNS); Pitfall 2 (only geometry is identifiable, not coordinates).
-- **Week 1**: heterogeneous graphs — typed nodes and edges as a modeling decision. A KG is that decision taken seriously at planetary scale.
+::: {.predict-answer}
+The graph may simply be incomplete. A rule about geographical containment could
+justify the third fact. A model trained on similar facts could also suggest it,
+but a learned suggestion and a rule-supported conclusion provide different
+kinds of evidence.
+:::
 :::
 
-## 1. Facts, schemas, and honest ignorance
+This lecture develops the prediction approach. We will give entities numerical
+representations, use a relation to compare them, and learn which candidate facts
+deserve high scores. The difficult part is choosing a comparison that respects
+the meaning of the relation. A roommate relationship works in both directions.
+An advisor relationship usually does not. One person can advise several students.
+The geometry must leave room for these differences.
 
-This section fixes the vocabulary and the epistemics everything else builds on — what
-a fact is, what a schema is, and what a *missing* fact means.
-
-::: {#def-w04-kg .definition name="Knowledge graph / triple"}
-A **knowledge graph** is a collection of atomic facts stored as **triples**
-$(h, r, t)$ — a head entity $h$, a named relation $r$, a tail entity $t$ — over an
-entity vocabulary $\mathcal{E}$ and a relation vocabulary $\mathcal{R}$. Read each
-triple as one typed, directed, labeled edge; the graph is nothing but the set of
-edges, so "adding knowledge" and "adding triples" are the same act.
+::: {.w4-thesis}
+**The central idea:** a knowledge graph embedding model is a choice about how a
+relation compares two entities. That choice determines which patterns are easy
+to represent and which create a conflict.
 :::
 
-The web-standard serialization is
-<span class="term" data-def="RDF (Resource Description Framework): the W3C standard for publishing triples, with globally unique URIs for entities and relations so that independent datasets can merge without name collisions. Wikidata speaks it; so does every biomedical ontology.">**RDF**</span> —
-subject–predicate–object with global URIs, so that *Kazan-the-city* never collides with
-*Kazan-the-helicopter-plant* when two datasets merge. Above the facts sits an
-<span class="term" data-def="Ontology / schema: the type system of a KG — entity classes (city, person), relation signatures (located_in: place → place), and constraints (a capital_of head must be a city). It is what makes some corruptions detectably absurd.">**ontology**</span>:
-classes, relation signatures (*located_in* goes place → place), constraints. Our
-fragment carries a miniature one — the `instance_of` edges *are* its type system.
+Our four core models are **TransE, TransR, DistMult, and ComplEx**. Each answers
+two questions: *where do the embeddings live, and which relation patterns can
+their comparison express?* TransE translates in one real space; TransR first
+projects into a relation's space; DistMult weights matching real coordinates;
+ComplEx uses complex coordinates to distinguish direction.
 
-Look inside one real entry before the abstractions take over, because the production
-format is richer than $(h, r, t)$ and the extra structure previews half of Week 5.
-On Wikidata, our university is the item **Q19864795**; entities get opaque Q-ids and
-relations get P-ids (*located in the administrative territorial entity* is **P131**)
-precisely so that labels can be multilingual and *renameable* without breaking a
-billion references — the URI discipline of RDF, doing quiet interoperability work.
-Each fact is a **statement** that can carry **qualifiers** (*since 2012*, *until…*) —
-facts about facts, which is how a triple store expresses time without exploding the
-schema — and **references**: the source backing the claim.
+By the end, you should be able to:
 
-Two lessons ride along.
-First, real KGs version their truth — Wikidata records what *sources say*, including
-conflicting statements ranked by preference, an engineering-grade implementation of
-the humility §1 is about to formalize. Second, provenance is not an add-on but a
-field in the data model, a point that returns as a battle scar in Week 5's
-construction section. When this lecture compresses all of that into $(h, r, t)$, it
-is a deliberate simplification — the same one the embedding literature makes — and
-you should know what got left on the table: qualifiers, time, and sources are
-exactly the parts current embedding models handle worst.
+1. Draw the entity and relation spaces of each of these four models.
+2. Compute each score by hand and implement it with the correct dimensions.
+3. Explain symmetry, direction, inversion, composition, and multiple tails using
+   an algebraic construction or a counterexample.
+4. Trace a negative sample, loss, and parameter update through a training step.
+5. Compute a filtered rank and use a small numerical check to catch a mistake.
 
-The epistemological fine print matters more than any formula today:
+The [closing algorithms](#algorithms-you-can-implement) assemble those skills
+into complete procedures. RotatE is an optional connection to
+[Lab 4](../labs/lab04.qmd), where you rebuild the components in PyTorch.
 
-::: {.callout-important title="The open-world assumption, or: what a missing edge means" icon="false"}
-Under the <span class="term" data-def="Closed-world assumption (CWA): anything not stated is false. Correct for a database that is complete by construction — an airline's flight table. Catastrophically wrong for knowledge graphs.">closed-world assumption</span>,
-absence is denial: no *(IU, located_in, Tatarstan)* edge means IU is *not* in
-Tatarstan. Databases live here. Knowledge graphs cannot: they are built by volunteers
-and extractors sampling an unbounded world, so absence usually means *nobody said*.
-That is the <span class="term" data-def="Open-world assumption (OWA): a missing fact is unknown, not false. The working epistemics of every real KG — and the reason KG training data contains no true negatives, only unstated triples.">**open-world assumption**</span>,
-and it has a sharp consequence for machine learning: **a KG gives you positives and
-silence — never labeled negatives.** Every "negative example" this week is manufactured
-by corrupting a positive, and some manufactured negatives will be accidentally true.
-Keep that discomfort; §5 pays it off.
+**Before we begin.** Recall vector addition, multiplication of corresponding
+coordinates, and the length of a vector. A matrix makes new coordinates by taking
+weighted sums of the old ones. We will introduce complex numbers through pictures.
+The diagrams use deliberately simple coordinates, not geographical measurements.
+
+In [Week 3](03-embeddings.qmd), closeness in an embedding space expressed a
+notion of node similarity. Today the same pair can fit one relation and fail
+another: two people can be colleagues without being roommates. The relation
+must therefore participate in the comparison.
+
+The main question stays the same throughout: **what information does a relation preserve, and what
+distinctions does its scoring rule erase?**
+
+## 1. A fact becomes a comparison {#from-a-fact-to-three-vectors}
+
+### Three parts, three roles
+
+Read “IU is located in Innopolis” from left to right: an entity, a relation,
+and another entity. The relation tells us what the arrow means. Swapping the
+endpoints changes the claim to “Innopolis is located in IU.”
+
+::: {#def-w04-kg .definition name="A knowledge graph fact"}
+A **triple** $(h,r,t)$ records a head entity $h$, a relation $r$, and a tail
+entity $t$. In this lecture, a **knowledge graph** is a set of such triples.
+We study relations between two entities; richer graphs can also store dates,
+literal values, sources, and qualifiers.
 :::
 
-Scale check, so the toy examples stay calibrated: Wikidata ≈ $10^8$ entities; Google's
-graph reported 500 billion facts on 5 billion entities back in 2020; biomedical KGs
-(drugs–targets–diseases) power literal drug discovery. At that scale, completion is not
-a party trick — every percent of Hits@10 is millions of recovered facts.
+### A knowledge graph preserves the kinds of things and links {#kg-types-and-applications}
 
-Since you will spend a career meeting these systems, take the five-minute tour of
-where they came from and what they run on today. The dream is old: the **Cyc**
-project began hand-encoding common-sense facts in 1984 and is *still going* — a
-monument to how expensive curation is, and the cautionary tale behind every "we'll
-just write down the knowledge" plan. The web era systematized the formats: the W3C's
-**semantic web** stack gave us RDF for facts, **OWL** for ontologies with actual
-logical semantics (class hierarchies, relation properties — you can declare
-*located_in* transitive and have a reasoner draw the hero figure's dashed edge by
-rule), and **SPARQL**, the SQL of triple stores, in which our hero query is four
-lines you could run against Wikidata's public endpoint right now.
+Consider a graph of research papers. A paper is written by an author, published
+at a venue, and assigned a publication year. An unlabeled drawing would connect
+the paper to three neighbors without telling us what any connection means.
+That information is essential: an author is a possible answer to “Who wrote
+this?”, while a year is a possible answer to “When was it published?”
 
-Then the
-crowdsourced giants: **Freebase** (2007, acquired by Google, closed 2016 — its
-exports live on as our FB15k benchmarks, which is why their entity IDs look like
-`/m/02mjmr`) and **Wikidata** (2012, community-run, the open backbone that feeds
-every Wikipedia infobox you have ever read).
+{{< include ../assets/figures/fig-w4-typed.html >}}
 
-Meanwhile industry largely adopted a
-sibling data model: **property graphs** (Neo4j and kin), where nodes and edges carry
-arbitrary key–value properties and queries are written in Cypher — friendlier for
-application developers, looser semantically; the RDF-versus-property-graph choice is
-a real architectural decision you may face, and the honest summary is: RDF for
-interoperability and reasoning, property graphs for product engineering, embeddings
-(this lecture) agnostic to both. One orientation fact to keep: everything in this
-lecture *adds to* rather than replaces the symbolic stack — a deployed system
-typically runs SPARQL/Cypher for what is stated and a completion model for what is
-not, and knowing which question goes to which engine is precisely the judgment this
-week builds.
+There are two kinds of labels to keep separate. A **node type** describes what
+an entity is: author, paper, venue, or year. A **relation type** describes an
+edge: written_by, published_at, or published_in_year. Multiple node or relation
+types make a graph heterogeneous. In the schematic, the year is modeled as a
+node; a database could instead store it as a literal attribute. That is a
+representation choice, not a change in the underlying fact.
 
-## 2. Completion is ranking
+A biomedical graph has a different vocabulary but the same structure. A
+hypothetical drug can inhibit a protein; that protein can be associated with a
+disease; a candidate treats edge connects a drug to a disease. The path gives
+evidence worth investigating, but it does not by itself establish that the drug
+treats the disease. The distinction between an observed association and a
+justified conclusion matters before any embedding is trained.
 
-The task, precisely — and note it is Week 3's link prediction with one extra input.
+These examples explain why knowledge graphs are useful. They combine facts that
+would otherwise be separated across tables or documents, and give applications
+a vocabulary for asking relational questions. A scholarly search system can
+connect an author to their papers and venues. A product system can connect
+items to brands, categories, and compatible accessories. A search answer panel
+can assemble several facts about one identified entity. Completion is one
+operation over this structure; storage, retrieval, provenance, and entity
+resolution are other necessary parts of a complete system.
 
-::: {#def-w04-scoring .definition name="KG completion / scoring function"}
-Given the training triples $\mathcal{T} \subseteq \mathcal{E} \times \mathcal{R}
-\times \mathcal{E}$, **knowledge graph completion** learns a **scoring function**
-$f(h, r, t) \in \mathbb{R}$ — higher means more plausible — and answers queries
-$(h, r, ?)$ and $(?, r, t)$ by scoring *every* entity in the vacant slot and
-ranking. Read $f$ as a plausibility judge whose only consumed output is the
-*order* it induces — never as a probability of truth.
+Type constraints can reject obviously unsuitable candidates. A publication year
+does not normally answer a query for an author. But type checking cannot choose
+the correct person among thousands of authors. The statistical model must learn
+distinctions **within** a type as well as between types. If evaluation restricts
+candidates by type, that restriction must be stated: it changes the ranking task.
+
+An encoder based on relation-aware message passing could use different learned
+transformations for neighbors connected by different
+relations. We will study that approach later, in the heterogeneous-GNN material.
+For today we use a simpler encoder: directly learn a vector for every entity.
+This lets us isolate what the **decoder** contributes, without also changing
+how neighborhoods are aggregated.
+
+::: {.predict}
+**Read the schema.** A paper has an edge to Ada labeled written_by and an edge
+to a venue labeled published_at. What is lost if we erase only the edge labels?
+Would keeping the node types recover everything?
+
+::: {.predict-answer}
+We lose the meaning of each connection. Types recover some possibilities, but
+not all: a person could write, review, or edit a paper, and all three edges have
+the same endpoint types. Relation labels carry information beyond node types.
+:::
 :::
 
-Nobody asks for calibrated probabilities of truth (the open world forbids them, as
-the next paragraph argues in full); a ranking that puts real facts above fabrications
-is both achievable, measurable, and — for every deployment in this lecture — the
-thing actually consumed downstream.
+### A large graph is still an incomplete graph {#kg-incompleteness}
 
-Why ranking rather than classification, and why the refusal of probabilities is
-principled rather than lazy — two questions worth settling before the models arrive.
-A classifier needs both classes in its training data, and §1 just established that a
-KG supplies no negatives: any "P(true)" you extract is calibrated against
-*manufactured* negatives, i.e., against a fiction of your own construction. Ranking
-sidesteps the fiction — "more plausible than" needs no negative class, only
-comparisons — and it matches deployment, where a completion system's actual job is
-to hand a curator, a biologist, or a downstream reranker a short list worth their
-attention.
+The candidate space grows much faster than a list of observed facts. With
+$n_e$ entities and $n_r$ relation types there are $n_e^2n_r$ possible ordered
+triples before applying schema constraints. Even a toy system with 10,000
+entities and 20 relations has two billion possible triples. A stored set of
+100,000 facts occupies a very small part of that space.
 
-(When genuine labeled negatives exist — a curated benchmark like CoDEx
-([Safavi & Koutra, 2020](https://arxiv.org/abs/2009.07810))
-ships verified false triples, and one of the project topics builds on exactly this —
-**triple classification** becomes meaningful, and it is telling that the field
-needed special datasets to make that task honest.) One more framing note: nothing
-requires the *same* embedding to serve every relation equally; a production system
-often trains one model and then per-relation decision thresholds, which is where the
-per-relation evaluation discipline of §6 stops being pedantry and starts being the
-deployment spec.
+{{< include ../assets/figures/fig-w4-incomplete.html >}}
 
-In the Week 3 template: the **encoder** is still a lookup table — one vector per entity,
-and now *one vector per relation*. The **similarity** is membership in $\mathcal{T}$.
-All the invention concentrates in the **decoder** $f$, which must take *three* inputs.
-The filing cabinet gains its promised row — and this whole lecture is the story of one
-cell:
+Read the figure one relation at a time. A row fixes the head, a column fixes
+the tail, and a cell asks whether that relation connects them. A colored cell
+records a known fact. A question mark records our lack of knowledge. A blank
+cell is not a measured negative outcome. Adding more relation types gives a
+stack of such matrices, often called a three-way adjacency tensor.
 
-| method | encoder | decoder $f(h,r,t)$ | similarity |
-|---|---|---|---|
-| DeepWalk (Wk 3) | lookup | $\mathbf{z}_h^\top \mathbf{z}_t$ — relation-deaf | walk co-occurrence |
-| **KG embeddings (today)** | lookup ×2 | **four designs below** | observed triples |
-| GCN (Wk 6) | neural network | task head | labels |
+Graphs are incomplete for several reasons. Some facts were never collected;
+some remain in text; some cannot be linked to a reliable entity identifier;
+some need a date or context that the chosen schema omits. More data does not
+automatically resolve all these cases. An embedding predicts according to the
+facts and conventions it sees, so a systematic collection bias can also become
+a systematic prediction bias.
 
-## 3. Four geometries for "is this true?"
+Freebase and its benchmark subsets illustrate this issue.
+Other well-known public graph resources include Wikidata, DBpedia, YAGO, and
+NELL. The important distinction for our experiments is between a **knowledge
+resource** and a **benchmark split extracted from it**. A benchmark does not
+make the underlying world complete. Train, validation, and test designate which
+recorded facts are available for particular stages of an experiment.
 
-Each model is one answer to a single design question: *what kind of geometric object is
-a relation?* All four are computed below on concrete toy vectors — check at least one
-by hand now, because the midterm will ask for exactly this:
+This motivates completion: use regularities in the observed graph to prioritize
+unknown cells. A learned model cannot enumerate every possible fact during
+training. It samples comparisons, shares parameters across facts, and later
+scores a selected query's candidates. We will examine each step separately.
 
-{{< include ../assets/figures/fig-w4-scorers.html >}}
+### Learn representations, then choose the comparison
 
-A remark on why the list starts in 2013 when neural KG models predate it: the era's
-first attempts — Structured Embeddings, the Neural Tensor Network — threw full neural
-machinery at triples (per-relation matrices, bilinear tensors, hidden layers) and
-were expensive, fiddly, and hard to scale. TransE's paper is five pages and its model
-is one addition; it matched or beat the heavyweights at a fraction of the cost, and
-the field learned the lesson it keeps relearning in every subfield: **on large sparse
-data, a cheap model trained on everything beats an expressive model trained on what
-fits.** Every scorer below is "the simplest thing with property X"; the sophistication
-lives in knowing which X your relations need.
+An embedding assigns a short list of learned numbers to each entity. IU has one
+vector; Innopolis has another. The same entity vector is reused wherever that
+entity appears. Relations also have learned parameters. They tell the model
+how to compare the two entity vectors for a particular kind of fact.
 
-**TransE ([Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html)): a relation is a translation.**
-$$
-f(h, r, t) = -\bigl\|\mathbf{h} + \mathbf{r} - \mathbf{t}\bigr\|
-$$ {#eq-w04-transe}
-where — $\mathbf{h}, \mathbf{t} \in \mathbb{R}^d$ are the head and tail entity
-vectors, $\mathbf{r} \in \mathbb{R}^d$ is the relation vector, and $\|\cdot\|$ is
-the Euclidean (or $L_1$) norm, so the score is the negated miss distance.
-True facts should make $\mathbf{h} + \mathbf{r}$ land on $\mathbf{t}$. One vector per relation, beautifully cheap, and
-chains of translations *add* — a property §4 turns into a theorem. It is Week 3's
-dot-product decoder with one added vector, and it started the entire field.
+{{< include ../assets/figures/fig-w4-lookup.html >}}
 
-**DistMult ([Yang et al., 2015](https://arxiv.org/abs/1412.6575)): a relation is a feature-weighting.**
-$$
-f(h, r, t) = \sum_{i=1}^{d} h_i \, r_i \, t_i
-$$ {#eq-w04-distmult}
-where — $h_i, r_i, t_i$ are the $i$-th coordinates of the head, relation, and tail
-vectors (all in $\mathbb{R}^d$), and the sum runs over the embedding dimensions.
-A bilinear score with a diagonal relation matrix: $r$ decides which coordinates of the
-head–tail agreement matter. Fast, strong on benchmarks — and hiding a flaw you can spot
-from the formula alone: $h$ and $t$ enter symmetrically. Look at the figure's middle
-panel: swapping them cannot change the score. *Ever.*
+There are two decisions here. The **encoder** retrieves the representations.
+The **decoder**, also called the scorer, uses them to judge a triple. We use
+simple embedding lookup, so no graph neural network is needed. Most of today's
+models share that encoder and differ in the decoder.
 
-**ComplEx ([Trouillon et al., 2016](https://arxiv.org/abs/1606.06357)): a relation is a complex weighting.** Move every vector to
-$\mathbb{C}^d$ and score with the real part of the Hermitian product (a dot product
-with a complex conjugate on one side):
-$$
-f(h, r, t) = \operatorname{Re}\Bigl(\textstyle\sum_i h_i \, r_i \, \bar{t}_i\Bigr)
-$$ {#eq-w04-complex}
-where — $h_i, r_i, t_i \in \mathbb{C}$ are complex coordinates, the bar in
-$\bar{t}_i$ is the **complex conjugate** (flip the sign of the imaginary part), and
-$\operatorname{Re}(\cdot)$ takes the real part of the resulting complex number.
-The conjugate on $\bar{t}$ breaks the swap symmetry: the figure's third panel scores
-$+2$ forward and $-2$ backward. One implementation detail with a proof-sized payoff:
-choosing $\operatorname{Im}(\mathbf{r}) = 0$ recovers DistMult exactly — symmetry
-becomes a *choice per relation* instead of a prison. If complex numbers feel like a
-rabbit from a hat, use the demystifying reading: a complex dimension is just a *pair*
-of real dimensions with a rotation defined between them, so ComplEx is "DistMult on
-pairs of coordinates, where each relation may also rotate within each pair" — and a
-rotation is the minimal operation that knows clockwise from counterclockwise, i.e.,
-the cheapest possible way to buy direction. "Take the real part" is then not mystic
-either: the Hermitian product's real part collects the symmetric evidence and adds
-the rotation-aligned antisymmetric evidence with a sign — precisely the two channels
-the proposition below separates. Nothing here needs $\sqrt{-1}$ to be anything but
-bookkeeping for 2×2 rotation blocks.
+The vectors do not begin with a meaning such as “latitude” or “university size.”
+Training adjusts them so that many observed facts become compatible at once.
+Two coordinates are enough to draw our examples; real models use more. An entity's
+integer ID only identifies its row in the embedding table. Changing the ID
+consistently does not change the entity or its relationships.
 
-**RotatE ([Sun et al., 2019](https://arxiv.org/abs/1902.10197)): a relation is a rotation.** Keep $\mathbb{C}^d$ — that is, keep the
-paired-coordinates view — but constrain $|r_i| = 1$: each relation coordinate becomes
-a pure phase, rotating the corresponding head coordinate without rescaling it:
-$$
-f(h, r, t) = -\bigl\|\mathbf{h} \circ \mathbf{r} - \mathbf{t}\bigr\|,
-\qquad \mathbf{h} \circ \mathbf{r} = (h_1 r_1, \ldots, h_d r_d)
-$$ {#eq-w04-rotate}
-where — $\circ$ is the coordinatewise (Hadamard) product spelled out on the right,
-$\mathbf{h}, \mathbf{t} \in \mathbb{C}^d$, and each $r_i = e^{i\theta_i}$ is a unit
-complex number, i.e. a rotation by angle $\theta_i$ in coordinate pair $i$.
-Translation's chaining, plus phases that can express symmetry (a half-turn is its own
-inverse) — the best of both prior worlds, and the reason it tops this family's
-benchmarks.
+If there are $n_e$ entities and each has $d$ real coordinates, the entity table
+contains $n_ed$ learned numbers. Looking up a triple retrieves two entity rows
+and the relevant relation parameters. The scorer returns one number. A new
+scorer can therefore be compared with an old one while holding the graph,
+queries, and lookup procedure fixed.
 
-Before pushing on, place the four in their family tree, because they are selections
-from a *space*, and papers will assume you know the space. The bilinear branch starts
-at **RESCAL** ([Nickel, Tresp & Kriegel, 2011](https://icml.cc/2011/papers/438_icmlpaper.pdf)),
-which scores with a *full* matrix per relation:
-$$
-f(h, r, t) = \mathbf{h}^\top \mathbf{M}_r \mathbf{t}
-$$ {#eq-w04-rescal}
-where — $\mathbf{h}, \mathbf{t} \in \mathbb{R}^d$ are the entity vectors and
-$\mathbf{M}_r \in \mathbb{R}^{d \times d}$ is a trainable matrix owned by relation
-$r$ — $d^2$ parameters per relation. Maximally expressive (it can represent every
-pattern on today's cheat sheet) and maximally overparameterized: $d^2$ parameters per
-relation overfits every real KG, which is the actual reason DistMult's diagonal
-restriction exists, and the reason DistMult's symmetry flaw was accepted for years —
-it was the price of trainability. ComplEx is the third point on that line: diagonal
-*complex* is exactly "pairs of dimensions with a rotation between them," recovering
-much of RESCAL's expressiveness at DistMult's parameter count;
-**TuckER** ([Balažević et al., 2019](https://arxiv.org/abs/1901.09590))
-interpolates the whole family through a shared core tensor. The translation branch —
-TransE, its many-relations-many-spaces descendants (TransH, TransR — mentioned so
-leaderboard tables read as taxonomy, not alphabet soup), RotatE — buys composition
-and interpretable geometry at the cost of the functional-scorer crush.
+This is a **shallow, transductive** representation: a training-time ID owns a
+learned row. A previously unseen entity has no trained row merely because its
+name has appeared at inference time. Incorporating it requires additional data,
+optimization, or an encoder that can construct a representation from attributes
+or neighborhoods. This is one reason not to confuse embedding lookup with a
+general-purpose language or graph encoder.
 
-Parameter
-arithmetic worth doing once: on FB15k-237 at $d = 200$, entities cost
-$14{,}541 \times 200 \approx 2.9$M parameters for *every* model; relations cost
-RESCAL $237 \times 200^2 = 9.5$M, DistMult/ComplEx/RotatE $237 \times 200 \approx 47$K
-— the diagonal restriction moved relation capacity from the dominant cost to a
-rounding error, and that, not elegance, is why the whole modern family is diagonal.
+The coordinate axes are also not uniquely interpretable. For TransE, adding
+the same vector to every entity leaves every residual unchanged because that
+shift cancels between head and tail. An orthogonal change of coordinates applied
+to all entity and relation vectors preserves Euclidean distances. The model's
+predictions can be stable even though the displayed coordinates look different.
+What matters is the relation among vectors, not the name of an axis.
 
-Practical selection, one breath: start with ComplEx or RotatE (pattern coverage),
-fall back to DistMult when symmetry is harmless and speed matters, reach for TransE
-when you need interpretable relation vectors, and remember that training quality
-(negatives, epochs, regularization) moves benchmarks more than model identity — the
-2020 re-evaluation literature's uncomfortable, replicated finding
-([Sun et al., 2020](https://arxiv.org/abs/1911.03903)).
+### Completion means ranking possible answers
 
-Formulas memorize poorly and derive well. Watch the first one *earn* its geometry — and
-fail exactly where the algebra says it must:
+Suppose we hide the tail of a fact. For $(\text{IU},\text{located\_in},?)$,
+the model tries candidate tails and scores each completed triple. It then returns
+the highest-scoring candidates for inspection.
+
+::: {#def-w04-scoring .definition name="Completion as ranking"}
+A **scoring function** $f(h,r,t)$ assigns one real number to a triple.
+Throughout this lecture, **higher is better**. Tail prediction ranks candidates
+for $(h,r,?)$; head prediction ranks candidates for $(?,r,t)$.
+:::
+
+This shared convention will keep the models comparable in our reasoning. A
+distance-based model will negate its distance, making a small error a high score.
+A compatibility model will reward agreement directly. Their numerical scales
+can differ; their job is to order candidate answers well.
+
+An unrecorded triple is **unknown** under the open-world assumption. It may be
+false, or it may be a true fact that nobody entered. We will still need sampled
+comparisons for training, but sampling a replacement does not establish that it
+is false. Likewise, a high score expresses learned plausibility, not a proof or
+an automatically calibrated probability.
+
+Keep three related tasks distinct. **Tail prediction** holds the head and
+relation fixed and varies the tail. **Head prediction** holds the relation and
+tail fixed and varies the head. **Relation prediction** holds both entities
+fixed and asks which relation best describes them. Ordinary untyped link
+prediction asks whether an edge connects a pair at all. KG completion also
+needs the edge's meaning. Our lab evaluates both head and tail prediction.
+
+**The next question:** what is the simplest geometric action a relation could take?
+
+## 2. TransE makes a relation a shared displacement
+
+### Move the head, then inspect the miss
+
+Put IU at $\mathbf h=(1,1)$. Let the relation vector be $\mathbf r=(2,1)$.
+Read that relation as an instruction: move two units right and one unit up.
+Starting from IU, it predicts a tail at $(3,2)$.
+
+We place Innopolis at $(3,2)$ and a comparison candidate, Kazan, at $(3,1)$.
+The first point is an exact landing; the second misses by one unit. Before
+looking at the score, the picture already tells us which candidate should win.
 
 {{< include ../assets/d3/w4-transe.html >}}
 
-## 4. What a geometry can and cannot say
+Use the control to choose Kazan. The head and relation stay fixed; only the
+candidate being judged changes. Now lower the relation's vertical component to
+zero. The prediction lands on Kazan instead. This is how a relation vector
+affects a ranking: it changes the place against which every tail is compared.
 
-Here is the discipline that turns four formulas into an engineering decision.
-
-::: {#def-w04-pattern .definition name="Relation pattern"}
-A **relation pattern** is a logical regularity a relation obeys — e.g. symmetry:
-$r(a,b) \Rightarrow r(b,a)$ for all entities $a, b$. A model **represents** the
-pattern if some choice of its parameters makes the pattern hold *exactly* in the
-scores. Read "represents" as "can in principle" — a capability statement about the
-geometry, prior to and independent of any training run.
-:::
-
-Five patterns cover most of practice:
-
-{{< include ../assets/figures/fig-w4-patterns.html >}}
-
-Put a real relation behind each row before the proofs, because the patterns are
-empirical claims about your data, and auditing for them is a skill the lab
-exercises. **Symmetry**: *spouse*, *sibling*, *borders*, protein–protein
-*interacts_with* — if your KG stores these in one direction only (many do, to save
-space), your training data hides the symmetry and your evaluation double-counts it;
-check before modeling. **Antisymmetry**: *located_in*, *parent_of*, *precedes* — the
-overwhelming majority of real relations; this is why DistMult's flaw is a real wound
-and not a curiosity. **Inversion**: *located_in*/*contains*, *authored*/*authored_by*
-— KGs built from multiple sources routinely contain both members, which is
-harmless-to-helpful for ComplEx and RotatE and, as §6's scandal shows, catastrophic
-for benchmark integrity when the two ride in different splits.
-
-**Composition**:
-*part_of* chains, *supervisor_of* ∘ *supervisor_of*, border-of-border — the pattern
-that makes multi-hop inference thinkable, and the one whose exact form (transitivity)
-just escaped everybody. **1-to-N**: *instance_of*, *citizen_of*, any
-attribute-like relation — on Wikidata the median relation is heavily 1-to-N, which
-quietly explains a benchmark regularity you can now predict: translation-family
-models score systematically worse on tail prediction for these relations than
-similarity-family models, before a single line of training differs.
-
-The verdicts are theorems, not folklore. The four you should be able to produce cold:
-
-::: {#prp-transe-sym .proposition name="TransE cannot represent a symmetric relation"}
-If $f(a, r, b) = f(b, r, a) = 0$ (both directions score perfectly) for some $a \neq b$,
-then $\mathbf{r} = \mathbf{0}$ — and the relation collapses: every entity is related
-precisely to itself.
-:::
-
-<details><summary>Proof (two lines)</summary>
-Perfect scores mean $\mathbf{a} + \mathbf{r} = \mathbf{b}$ and
-$\mathbf{b} + \mathbf{r} = \mathbf{a}$. Adding: $2\mathbf{r} = \mathbf{0}$. With
-$\mathbf{r} = \mathbf{0}$, $f(h,r,t) = -\|\mathbf{h} - \mathbf{t}\|$ is maximal only
-at $\mathbf{t} = \mathbf{h}$. $\square$
-</details>
-
-::: {#prp-distmult-sym .proposition name="DistMult is symmetric — always"}
-For every choice of parameters, $f(h, r, t) = f(t, r, h)$. DistMult cannot prefer
-*(Kazan, capital_of, Tatarstan)* over *(Tatarstan, capital_of, Kazan)* by any margin,
-for any training, ever.
-:::
-
-<details><summary>Proof (one line)</summary>
-$\sum_i h_i r_i t_i = \sum_i t_i r_i h_i$ by commutativity of multiplication. $\square$
-</details>
-
-::: {#prp-complex .proposition name="ComplEx chooses its symmetry per relation"}
-With $\operatorname{Im}(\mathbf{r}) = \mathbf{0}$ the ComplEx score is symmetric in
-$(h,t)$; with $\operatorname{Im}(\mathbf{r}) \neq \mathbf{0}$ it contains an
-antisymmetric term — so both symmetric and antisymmetric relations are representable,
-relation by relation.
-:::
-
-<details><summary>Proof sketch (split into parts)</summary>
-Write $h_i \bar t_i = s_i + a_i i$ where $s_i = \operatorname{Re}(h_i \bar t_i)$ is
-symmetric under the swap $h \leftrightarrow t$ and $a_i = \operatorname{Im}(h_i \bar t_i)$
-flips sign under it. Then
-$\operatorname{Re}(r_i \, h_i \bar t_i) = \operatorname{Re}(r_i) s_i - \operatorname{Im}(r_i) a_i$:
-the real part of $\mathbf{r}$ weights the symmetric channel, the imaginary part the
-antisymmetric one. Set $\operatorname{Im}(\mathbf{r}) = 0$ for symmetry; give it mass
-for direction — the figure's $+2/-2$ panel is this identity with numbers. $\square$
-</details>
-
-::: {#prp-rotate .proposition name="RotatE composes"}
-If $r_3 = r_1 \circ r_2$ (phases add), then whenever $(a, r_1, b)$ and $(b, r_2, c)$
-hold exactly, $(a, r_3, c)$ holds exactly: rotation is the only decoder here whose
-relations form a group under composition.
-:::
-
-<details><summary>Proof (one line, plus the contrast)</summary>
-$(\mathbf{a} \circ \mathbf{r_1}) \circ \mathbf{r_2} = \mathbf{a} \circ (\mathbf{r_1} \circ \mathbf{r_2})$
-by associativity of (coordinatewise) complex multiplication; unit moduli are closed
-under it. TransE composes the same way with $\mathbf{r_3} = \mathbf{r_1} + \mathbf{r_2}$
-— but cannot simultaneously do symmetry (@prp-transe-sym); DistMult and ComplEx have
-no relation-on-relation operation that mirrors chaining at all. $\square$
-</details>
-
-Every cell of the sheet has a derivation of this size — walk them:
-
-{{< include ../assets/d3/w4-patterns.html >}}
-
-Two consequences worth pulling out of the table, both of which you have already seen
-happen live. First, the **1-to-N crush** you
-watched in Figure 1: any *functional* scorer — one that maps $h$ to a single target
-point ($\mathbf{h}+\mathbf{r}$, or $\mathbf{h} \circ \mathbf{r}$) — must place all
-of a head's true tails at that one point, so *Tatarstan contains {Kazan, Innopolis}*
-forcibly merges the two cities. Similarity scorers (DistMult, ComplEx) can love many
-tails at once. Second, a corollary that answers the hero figure:
-
-::: {#cor-transitive .corollary name="Nobody here represents transitivity"}
-A transitive relation composes *with itself into itself*: $r \circ r \Rightarrow r$.
-TransE then needs $\mathbf{r} + \mathbf{r} = \mathbf{r}$, i.e. $\mathbf{r} = \mathbf{0}$;
-RotatE needs every phase to satisfy $2\theta_i = \theta_i$, i.e. $\theta_i = 0$ — the
-identity rotation. Either way the relation degenerates. *located_in* is transitive —
-so the hero fact can earn partial credit from geometry, but no exact representation
-exists in this family. (Week 5's query embeddings attack multi-hop inference head-on.)
-:::
-
-This is the cheat sheet's real lesson: **model selection is pattern audit.** List the
-patterns your relations obey — Lab 4 does this for FB15k-237 — and the table picks
-your model. No benchmark scores required.
-
-Step back and notice what *kind* of reasoning this section performed, because it is
-the course's second full instance of a pattern worth naming. In Week 3, the NetMF
-proposition told you what an embedding method converges to, and suddenly its
-capabilities and blind spots were readable off a formula. Today, five algebraic
-identities told you what four models can *ever* represent — before any training, on
-any dataset, forever. This mode — **derive the representational envelope first, then
-experiment inside it** — is what separates model selection from model shopping.
-
-It
-also has a converse discipline: when a paper claims model M learned pattern P, and
-your envelope says M cannot represent P exactly, the claim is not necessarily wrong —
-approximate representation can be operationally sufficient (the widget's hero fact
-earned partial credit!) — but the burden of proof has moved, and you now know
-precisely which experiment to demand: exhibit the pattern held to margin, not just a
-benchmark average. Week 9 will run this exact play a third time, on message-passing
-networks, with WL as the envelope; consider today the dress rehearsal.
-
-## 5. Training on missing truth
-
-The loss must work under the open-world constraint from §1: positives from
-$\mathcal{T}$, negatives manufactured. The classic recipe (TransE) is
-<span class="term" data-def="Corruption sampling: manufacture a negative from a positive (h,r,t) by replacing the head or the tail with a random entity — (h′,r,t) or (h,r,t′). The standard source of negatives in KG training, honest under the open-world assumption only because collisions with unstated truths are rare.">**corruption**</span>
-plus a margin:
+The calculation has three meaningful steps. Add head and relation to locate the
+prediction. Subtract the candidate tail to obtain the **residual**, or miss.
+Measure that residual's length. Negate the distance to obey our higher-is-better
+score convention.
 
 $$
-\mathcal{L} = \sum_{(h,r,t) \in \mathcal{T}}
-\max\bigl(0,\; \gamma - f(h,r,t) + f(h', r, t')\bigr)
+f(h,r,t)=-\|\mathbf h+\mathbf r-\mathbf t\|_2.
+$$ {#eq-w04-transe}
+
+Here $\mathbf h$, $\mathbf r$, and $\mathbf t$ are real vectors of the same
+dimension. The Euclidean norm $\|\cdot\|_2$ measures length. Innopolis receives
+score $0$; Kazan receives $-1$. The closer tail wins because $0>-1$.
+This model is **TransE**: a relation acts as a translation.
+
+::: {.predict}
+**Calculate one new case.** Keep $\mathbf h=(1,1)$ and $\mathbf r=(2,1)$.
+A candidate tail is at $(0,6)$. What is the miss, its length, and the score?
+
+::: {.predict-answer}
+The prediction remains $(3,2)$. Subtracting the tail gives $(3,-4)$, whose
+length is $5$. The score is $-5$. A large positive distance becomes a low score.
+:::
+:::
+
+### One relation must work for many facts
+
+The relation vector belongs to the relation type, not to an individual edge.
+Every fact with that relation uses the same displacement. That sharing is what
+makes generalization possible: observations about one entity affect how other
+entities are compared. It also creates constraints.
+
+If one relation needed a different arrow for every fact, fitting a stored graph
+would be easy but would tell us little about a missing fact. TransE makes a much
+stronger bet: one shared arrow can organize many facts. Training will try to
+find entity positions and arrows that make that bet work.
+
+The original model supports different distance choices. We use Euclidean distance
+throughout these examples and the lab. Zero distance means an exact geometric
+fit. It does not certify that the fact is true, and learning a useful ranking
+does not require every positive fact to reach zero distance.
+
+### What would a successful learned geometry look like? {#transe-parallel-displacements}
+
+Imagine three observed pairs with the same relation. A successful TransE
+geometry gives them approximately parallel displacements of approximately equal
+length. It does not require their head vectors to coincide. The relation is
+reused; each head supplies a different starting point.
+
+{{< include ../assets/figures/fig-w4-parallel.html >}}
+
+For the first pair, subtract the head from the tail: $(2,1)-(0,0)=(2,1)$.
+For the second, $(2,3)-(0,2)=(2,1)$. For the third,
+$(5,1)-(3,0)=(2,1)$. All three constraints agree on one relation vector.
+This is the pattern the optimizer is trying to create across many observations.
+
+If the observed displacements disagree, the model must move entities, move the
+relation, or accept residual error. Moving one entity can help one fact while
+hurting another because the row is shared. A two-dimensional picture of a
+trained embedding is therefore evidence about a coupled optimization problem,
+not a collection of independent arrows. A visualization of higher-dimensional
+embeddings also introduces a second projection whose distortions must not be
+mistaken for the model's original distances.
+
+In our two-dimensional examples, the $L_1$ norm would measure the sum of the
+absolute horizontal and vertical misses; $L_2$ measures straight-line length.
+For residual $(3,4)$ they give 7 and 5 respectively. Both reward smaller error,
+but their equal-distance contours differ. Keep the choice fixed when checking
+hand calculations against an implementation. The scorer, loss, and normalization
+are separate choices in the full learning procedure.
+
+**Before choosing a more complicated model, we should find a fact pattern that
+the shared-arrow idea struggles to represent.**
+
+## 3. The graph puts demands on the geometry
+
+### The same arrow does not always mean the same kind of relationship
+
+A relation name carries expectations about other facts. If Ada is Bo's roommate,
+the reverse roommate fact should also hold. If Ada advises Bo, the reverse
+advisor fact need not hold. An inverse relation would use a different name:
+Bo is advised by Ada. These distinctions become tests of our scorer.
+
+::: {#def-w04-pattern .definition name="A relation pattern"}
+A **relation pattern** describes how facts constrain other facts. We will test
+symmetry, direction, inverse relations, composition, and multiple valid tails.
+The graph states the desired pattern; a model supplies a geometry that may or
+may not accommodate it.
+:::
+
+{{< include ../assets/figures/fig-w4-atlas.html >}}
+
+Read the atlas as five separate questions. Must an edge reverse under the same
+relation? Must its reverse be rejected? Does a different relation undo it?
+Does a declared rule connect the ends of a path? Can a single query have several
+correct answers? Passing one test does not imply passing the others.
+
+The direction row uses **asymmetry**: both directions cannot hold together.
+Strictly, *antisymmetry* allows both only for an entity related to itself.
+KG papers sometimes use “antisymmetry” more loosely for distinguishing forward
+and reverse. Our arguments will state the actual score or distance condition.
+
+Here is a precise way to read the five questions. Symmetry asks whether
+$r(a,b)\Rightarrow r(b,a)$. An inverse relation asks whether
+$r_1(a,b)\Rightarrow r_2(b,a)$ with a possibly different relation name.
+Composition asks whether $r_1(a,b)\land r_2(b,c)\Rightarrow r_3(a,c)$.
+Transitivity is the special case where all three relation names are the same.
+A one-to-many example supplies two facts $r(h,t_1)$ and $r(h,t_2)$ with distinct
+tail entities. These are statements about facts; we still have to say what
+counts as representing them with scores.
+
+We will use three levels of argument. An **exact fit** asks a distance to be
+zero. A **score identity** holds for every parameter choice, whether trained
+or not. A **ranking experiment** checks whether true candidates beat alternatives
+after learning. Exact constructions explain geometric possibilities, and score
+identities expose unavoidable restrictions. Neither substitutes for the ranking
+experiment. Keeping these levels separate is how to read a capability table
+without turning a useful schematic into an unjustified universal claim.
+
+### A symmetric pair reveals TransE's conflict
+
+On a line, put Ada at 0 and Bo at 2. A translation of $+2$ reaches Bo from Ada.
+Apply that same translation to Bo: it lands at 4, farther from Ada. To return
+to Ada we would need $-2$, but the roommate relation must keep the same vector.
+
+{{< include ../assets/figures/fig-w4-collapse.html >}}
+
+::: {.predict}
+**Try to repair the drawing.** Can you place the two people at different points
+and choose one translation that takes each exactly to the other?
+
+::: {.predict-answer}
+No. The two journeys need opposite displacements. Requiring the same displacement
+in both directions forces it to zero and places the two embeddings together.
+:::
+:::
+
+::: {#prp-transe-sym .proposition name="Exact symmetric TransE fits collapse"}
+If both directions have zero distance, then
+$\mathbf a+\mathbf r=\mathbf b$ and $\mathbf b+\mathbf r=\mathbf a$.
+Adding the equations gives $2\mathbf r=0$, so $\mathbf r=0$ and
+$\mathbf a=\mathbf b$.
+:::
+
+The important phrase is **both distances are zero**. This is a statement about
+exact fitting with distinct embeddings. A trained TransE model may compromise,
+keep small nonzero errors, and still rank useful answers highly. We have diagnosed
+a geometric pressure; we have not predicted the outcome of every training run.
+
+Multiple tails expose a related pressure. If an advisor has two students, an
+exact TransE fit asks both student vectors to equal the same predicted point:
+$\mathbf t_1=\mathbf h+\mathbf r=\mathbf t_2$. Distinct IDs survive, but their
+vectors coincide. The reverse case, several heads sharing one tail, creates a
+similar constraint on the heads.
+
+### Direction works because the reverse adds the shift again {#transe-direction-inversion}
+
+Suppose a forward edge fits exactly, so $\mathbf t=\mathbf h+\mathbf r$.
+The reverse residual is then
+
+$$
+\mathbf t+\mathbf r-\mathbf h
+=(\mathbf h+\mathbf r)+\mathbf r-\mathbf h=2\mathbf r.
+$$
+
+For any nonzero relation vector, the forward distance is zero and the reverse
+distance is $2\|\mathbf r\|_2$. With $\mathbf r=(2,1)$ the reverse score is
+$-2\sqrt5$. This is a construction of directional behavior. The model does
+not need a separate mechanism to notice that “parent of” should differ from
+its reversal; a nonzero translation already permits that distinction.
+
+### An inverse relation undoes the shift
+
+For an inverse relation, we are allowed a different vector. If the first
+relation moves two units right and one unit up, its inverse moves two left and
+one down. Thus $\mathbf r_{\rm inv}=-\mathbf r$ gives
+
+$$
+\mathbf t+\mathbf r_{\rm inv}
+=(\mathbf h+\mathbf r)-\mathbf r=\mathbf h.
+$$
+
+Using the same vector is symmetry; negating it is inversion. The distinction
+matters in the data: advisor and advised_by name different relations, whereas
+roommate uses the same name on the reverse edge. Ordinary training does not
+automatically tie inverse vectors together, even when this construction exists.
+One can impose such a constraint when the inverse relation is known, or examine
+whether the learned vectors approximately satisfy it.
+
+{{< include ../assets/figures/fig-w4-path.html >}}
+
+### Composition adds displacements, with a visible error budget {#transe-composition}
+
+In the second part of the figure, take $\mathbf a=(0,0)$,
+$\mathbf b=(2,1)$, and $\mathbf c=(3,3)$. The first step uses
+$\mathbf r_1=(2,1)$ and the second uses $\mathbf r_2=(1,2)$.
+The direct displacement is $(3,3)=\mathbf r_1+\mathbf r_2$. Substituting the
+first exact fit into the second eliminates the intermediate entity:
+
+$$
+\mathbf c=\mathbf b+\mathbf r_2
+=(\mathbf a+\mathbf r_1)+\mathbf r_2
+=\mathbf a+(\mathbf r_1+\mathbf r_2).
+$$
+
+Setting $\mathbf r_3=\mathbf r_1+\mathbf r_2$ makes the direct edge exact.
+That relation identity is sufficient for this geometric construction. It is
+not a statement that arbitrary learned relation rows are automatically linked.
+
+The approximate case explains what the drawing does and does not promise.
+Write the two residuals as $\mathbf e_1=\mathbf a+\mathbf r_1-\mathbf b$
+and $\mathbf e_2=\mathbf b+\mathbf r_2-\mathbf c$. If the direct relation
+is their vector sum, its residual is $\mathbf e_1+\mathbf e_2$. By the triangle
+inequality its length is at most $\|\mathbf e_1\|+\|\mathbf e_2\|$.
+Errors can accumulate along a path. If $\mathbf r_3$ also differs from the
+sum, that relation mismatch adds another error term. A promising path does not
+become a logical proof merely because its edge scores are high.
+
+For the opening containment example, two steps of located_in add
+$2\mathbf r$, not $\mathbf r$. Requiring all three edges of that same-relation
+triangle to fit exactly forces $2\mathbf r=\mathbf r$, hence $\mathbf r=0$.
+Composing two relations and making one relation transitive are distinct demands.
+
+### Several close tails are weaker than several distinct exact fits
+
+If both tails are within distance $\epsilon$ of the same predicted point,
+their separation is at most $2\epsilon$. To see it, travel from the first tail
+to the prediction and from the prediction to the second tail; the direct route
+cannot be longer. Therefore, insisting on tiny positive distances pressures
+several true tails toward one another. Allowing nonzero distances permits
+distinct tails and useful rankings, but it does not remove this pressure.
+
+This also explains why equidistant tails can remain distinct: two points
+can lie on the same circle around a prediction and receive equal scores. They
+need not coincide unless both distances must be zero. Later we will compare
+these circular score contours with DistMult's straight ones.
+
+::: {.predict}
+**Classify the requirement.** An advisor has two students, each student is
+advised_by that advisor, and the students are roommates. Which part asks for
+one-to-many behavior, which asks for an inverse, and which asks for symmetry?
+
+::: {.predict-answer}
+One advisor with two student tails is one-to-many. Reversing advisor into
+advised_by uses an inverse relation. Reversing roommate keeps the same relation
+and asks for symmetry. The graph can demand all three at once, so checking
+only one property of a model is insufficient.
+:::
+:::
+
+**A useful repair:** let a relation compare only the features it needs, while
+keeping the full entity representations distinct.
+
+## 4. TransR changes the space in which a relation acts {#transr-give-each-relation-its-own-view}
+
+### Distinct entities can look the same to one relation
+
+Two students may share an advisor but have different research interests. A
+relation about their advisor need not use every feature that a relation about
+their research uses. TransR gives each relation a learned linear map, applies it
+to both entity vectors, and then translates in the resulting space.
+
+Watch the two tails below. They begin at $(2,1)$ and $(2,-1)$. The left-hand
+picture stores the entities. The right-hand picture shows what this particular
+relation sees. Lower the vertical scale and notice which picture changes.
+
+{{< include ../assets/d3/w4-transr.html >}}
+
+At scale one, both tails miss the predicted point $(2,0)$ by one unit. At scale
+zero, the map discards their vertical difference. Both projected tails now land
+at $(2,0)$, while the original entity vectors remain distinct. A different
+relation can use a different map and retain the distinction.
+
+This is a selective loss of information. A decoy at $(-1,0)$ still projects to
+$(-1,0)$ and remains three units away. A map that collapsed everything would also
+erase that useful distinction. The model needs to learn which differences are
+relevant to each relation, not merely make all distances small.
+
+### Project both endpoints, then translate
+
+Let $M_r$ be the matrix for relation $r$. First form $M_r\mathbf h$ and
+$M_r\mathbf t$. These are the head and tail as seen by that relation. Then use
+the same translation idea as before:
+
+$$
+f(h,r,t)=-\|M_r\mathbf h+\mathbf r-M_r\mathbf t\|_2.
+$$ {#eq-w04-transr}
+
+Entities have $d$ coordinates, projected entities have $k$, and
+$M_r\in\mathbb R^{k\times d}$. The translation $\mathbf r\in\mathbb R^k$
+lives in the projected space. Both endpoints use the same matrix. A general
+linear map can mix or scale coordinates; “projection” here need not mean an
+orthogonal projection.
+
+The widget uses $M_r=\operatorname{diag}(1,\lambda)$. It keeps the first
+coordinate and scales the second by $\lambda$. At zero, differences along the
+vertical direction become invisible to this relation. Such invisible directions
+form the matrix's **kernel**. The term names something you have already seen
+in the picture.
+
+::: {.predict}
+**Transfer the idea.** A different relation keeps only the vertical coordinate:
+$M_r=[0\;1]$. Its head is $(5,1)$ and its translation is $2$. Which tails fit
+exactly: $(0,3)$, $(7,3)$, or $(5,4)$?
+
+::: {.predict-answer}
+The projected head is 1, so the predicted projected tail is 3. The first two
+tails project to 3 and have score 0. The third projects to 4 and has score −1.
+Horizontal differences do not matter to this relation.
+:::
+:::
+
+### The kernel describes exactly which differences disappear {#transr-kernel}
+
+Take $M=[1\;0]$. Every vector $(0,v)$ maps to zero. These vertical vectors
+form $\ker M$, the set of inputs that the map erases. They are **differences**
+that the relation cannot detect. The set of points that map to 2 is instead
+$\{(2,v):v\in\mathbb R\}$: a vertical line shifted away from the origin.
+Do not confuse that shifted set with the kernel itself.
+
+{{< include ../assets/figures/fig-w4-kernel.html >}}
+
+Both $(2,1)$ and $(2,-1)$ map to 2 because their difference $(0,2)$ lies in
+the kernel. A second relation using $[0\;1]$ would map them to 1 and −1 and
+could distinguish them. There is one entity table, but each relation decides
+which of its distinctions matter. The matrix learns a view of the entities;
+it does not create a new entity ID for every occurrence.
+
+In general, if $M_r\mathbf t_0=M_r\mathbf h+\mathbf r$, then
+$\mathbf t_0+\mathbf v$ is another exact tail whenever $M_r\mathbf v=0$:
+
+$$
+M_r(\mathbf t_0+\mathbf v)
+=M_r\mathbf t_0+M_r\mathbf v
+=M_r\mathbf h+\mathbf r.
+$$
+
+The whole set of exact tails is a translated kernel, often called an affine
+fiber. A nontrivial kernel gives the relation room to accept different stored
+entities at the same projected location. If the map is injective, its kernel
+contains only zero and this particular source of flexibility disappears.
+For a $k\times d$ matrix, rank-nullity says
+$\dim\ker M_r=d-\operatorname{rank}(M_r)$: directions retained and directions
+erased account for the entire entity space.
+
+### Symmetry, direction, and inversion have different constructions {#transr-pattern-constructions}
+
+For **symmetry**, use the two distinct entities $(2,1)$ and $(2,-1)$,
+projection $[1\;0]$, and translation 0. Both projected entities equal 2,
+so both directed distances are zero. The original vectors remain distinct.
+The same construction also gives zero distance to self-pairs: it establishes
+the symmetric-pair fit, not a perfect representation of every desired negative
+in an arbitrary graph.
+
+For **direction**, keep $[1\;0]$ but use head $(0,0)$, tail $(2,1)$, and
+translation 2. The forward projected residual is $0+2-2=0$; the reverse is
+$2+2-0=4$. The algebra is the TransE argument inside the relation space:
+an exact forward fit and a nonzero translation produce reverse residual
+$2\mathbf r$.
+
+For **inversion**, use the same projection in both relations and negate the
+translation. In the previous example the reverse relation uses −2, giving
+$2-2-0=0$. In symbols, $M_2=M_1$ and $\mathbf r_2=-\mathbf r_1$ are
+sufficient to undo the projected shift. If the two matrices are unrelated,
+negating the relation vector alone is not enough: the starting and ending
+coordinates may mean different things in the two spaces.
+
+For **one-to-many**, return to the slider example: both tails have the same
+projection, which matches the translated head. Many-to-one follows the same
+logic with multiple projected heads. These constructions represent several
+relation patterns without requiring the original entity vectors to
+collapse. They do require the learned map to preserve enough information to
+reject unsuitable alternatives.
+
+### Compose constraints by tracking the information each step loses {#transr-composition-proof}
+
+The statement “linear maps compose” does not by itself explain TransR
+composition. Each relation maps **both**
+endpoints from entity space into its own comparison space. Multiplying two
+arbitrary projection matrices can even be dimensionally undefined. We need
+to combine the constraints they impose on endpoint differences.
+
+Start with a concrete three-coordinate example. Let
+$\mathbf a=(0,1,7)$, $\mathbf b=(2,1,4)$, and $\mathbf c=(5,8,4)$.
+The first relation keeps the first two coordinates and translates by $(2,0)$.
+The second keeps the first and third coordinates and translates by $(3,0)$.
+The direct relation can keep the first coordinate, set its second output to
+zero, and translate by $(5,0)$.
+
+{{< include ../assets/figures/fig-w4-kernel-compose.html >}}
+
+Verify each step. Under $M_1$, the endpoints become $(0,1)$ and $(2,1)$.
+Under $M_2$, they become $(2,4)$ and $(5,4)$. The first step ignores the change
+in the third entity coordinate; the second ignores the change in the second.
+Only the first coordinate carries a shared constraint from start to finish:
+it must increase by $2+3=5$. Under $M_3$, the original endpoints become
+$(0,0)$ and $(5,0)$, so the direct fit is exact.
+
+Now derive that result without relying on these particular coordinates.
+Assume two exact fits and choose entity-space offsets $\mathbf g_1,\mathbf g_2$
+such that $M_1\mathbf g_1=\mathbf r_1$ and
+$M_2\mathbf g_2=\mathbf r_2$. Such offsets exist when the relation vectors
+are in the images of their maps, as they must be for the assumed exact fits.
+
+**Step 1: describe every allowed first step.** Rearrange the first fit:
+
+$$
+M_1(\mathbf b-\mathbf a)=\mathbf r_1=M_1\mathbf g_1
+\quad\Longrightarrow\quad
+\mathbf b=\mathbf a+\mathbf g_1+\mathbf v_1,
+\qquad \mathbf v_1\in\ker M_1.
+$$
+
+The vector $\mathbf g_1$ supplies the required displacement. The kernel vector
+$\mathbf v_1$ supplies any additional displacement that relation 1 cannot see.
+The same reasoning gives
+$\mathbf c=\mathbf b+\mathbf g_2+\mathbf v_2$ with
+$\mathbf v_2\in\ker M_2$.
+
+**Step 2: eliminate the intermediate entity.** Substitute the first expression
+for $\mathbf b$ into the second:
+
+$$
+\mathbf c-\mathbf a
+=\mathbf g_1+\mathbf g_2+\mathbf v_1+\mathbf v_2.
+$$
+
+All uncertainty in the endpoint difference lies in
+$S=\ker M_1+\ker M_2$, the set of sums of one vector from each kernel.
+The plus sign between subspaces means this set of sums; it is not merely their
+union and not the intersection of their invisible directions.
+
+**Step 3: make the direct relation ignore that uncertainty.** Choose a matrix
+$M_3$ whose kernel is $S$, and set
+$\mathbf r_3=M_3(\mathbf g_1+\mathbf g_2)$. Applying it to the endpoint
+difference erases $\mathbf v_1+\mathbf v_2$, leaving
+
+$$
+M_3(\mathbf c-\mathbf a)=\mathbf r_3
+\quad\Longleftrightarrow\quad
+M_3\mathbf a+\mathbf r_3=M_3\mathbf c.
+$$ {#eq-w04-transr-composition}
+
+Why can $M_3$ have the same $k\times d$ shape? The subspace $S$ contains
+$\ker M_1$, so its codimension is at most $\operatorname{rank}(M_1)\leq k$.
+Choose rows spanning the orthogonal complement of $S$, then pad with zero rows
+until there are $k$ rows. The resulting kernel is exactly $S$. This completes
+the construction rather than assuming that an appropriate map appears by magic.
+
+The cost of this construction is visible in the example: the composed relation
+discards more information. If the two kernels together span all of entity
+space, $M_3$ becomes zero and the composed relation distinguishes nothing.
+Representing a path implication is useful only if enough distinctions survive
+to reject relevant negatives. Learning is also not guaranteed to discover these
+particular tied maps and offsets unless the training objective encourages them.
+
+::: {.predict}
+**Find the surviving information.** In the three-coordinate example, could the
+composed relation reject $(5,-100,100)$ as a tail for the same head?
+
+::: {.predict-answer}
+Not with $M_3$ keeping only the first coordinate. That tail also maps to $(5,0)$
+and fits exactly. The endpoint constraint inherited from the two steps concerns
+only the first coordinate. Additional evidence or constraints would be needed
+to distinguish these candidates.
+:::
+:::
+
+The flexibility costs something. Every relation now stores a matrix as well as
+a vector, and each score requires two projections. A sparse relation has more
+parameters to estimate from limited evidence. That motivates a different approach:
+compare feature agreement with a small number of relation weights.
+
+## 5. DistMult rewards agreement, but loses direction {#distmult-and-complex-compare-compatible-features}
+
+### A score can measure compatibility directly
+
+So far, we have asked a relation to predict a location. DistMult asks a different
+question: how well do the head and tail's features agree, after weighting those
+features for the relation?
+
+Take $\mathbf h=(2,1)$, $\mathbf r=(1,3)$, and $\mathbf t=(1,2)$.
+The first coordinate contributes $2\times1\times1=2$. The second contributes
+$1\times3\times2=6$. Adding the contributions gives a score of 8. A positive
+relation weight rewards same-sign agreement; a negative weight reverses it.
+
+{{< include ../assets/d3/w4-bilinear.html >}}
+
+Start with **DistMult** selected. Change the second relation weight. You can make
+its contribution larger, remove it, or reverse its sign. Each change still
+produces one score by adding coordinate contributions.
+
+$$
+f(h,r,t)=\sum_{i=1}^{d}h_i r_i t_i.
+$$ {#eq-w04-distmult}
+
+The subscript $i$ selects a coordinate. The sum combines all $d$ contributions.
+An alternative view is a dot product between the transformed head
+$\mathbf h\circ\mathbf r$ and the tail, where $\circ$ means multiplication
+of corresponding coordinates. No distance is being measured, and the score
+does not have TransE's upper bound of zero.
+
+### Why start with a matrix, then remove its off-diagonal entries? {#distmult-bilinear-matrix}
+
+A general bilinear score is $\mathbf h^T A_r\mathbf t$, with a relation matrix
+$A_r$. Expanding it gives $\sum_i\sum_j h_i A_{r,ij}t_j$: every head feature
+can interact with every tail feature. “Bilinear” means linear in the head when
+the relation and tail are fixed, and linear in the tail when the other two are
+fixed. It does not mean linear in all unknown parameters simultaneously.
+
+Use our head $(2,1)$ and tail $(1,2)$ with
+$A_r=\begin{bmatrix}1&2\\0&3\end{bmatrix}$.
+First multiply $A_r\mathbf t=(5,6)$, then take the head's dot product:
+$2\times5+1\times6=16$. In reverse, $A_r\mathbf h=(4,3)$ and
+$\mathbf t^T A_r\mathbf h=1\times4+2\times3=10$.
+The off-diagonal entry lets a first head coordinate interact differently with
+a second tail coordinate than in the reversed pair.
+
+{{< include ../assets/figures/fig-w4-bilinear-matrix.html >}}
+
+DistMult restricts $A_r$ to the diagonal $\operatorname{diag}(\mathbf r)$.
+Deleting that off-diagonal 2 removes a contribution of
+$h_1\times2\times t_2=8$ from the forward score. The score becomes 8, matching
+our original calculation. All cross-coordinate terms disappear; each remaining
+term compares the same coordinate in the head and tail.
+
+This is a statistical and computational tradeoff. A full matrix has $d^2$
+relation parameters and generally costs $O(d^2)$ to apply. A diagonal matrix
+has $d$ parameters and costs $O(d)$. With limited evidence for a relation, the
+larger matrix can fit accidental correlations. Restricting it makes estimation
+and scoring cheaper, but also removes distinctions we may need. We should test
+which distinctions are lost before deciding that the smaller model is sufficient.
+
+### The decisive test is to swap the endpoints
+
+::: {.predict}
+**Predict before using the checkbox.** Swap the head and tail while keeping the
+relation fixed. Will 8 increase, decrease, or stay the same? Could more training
+change that answer?
+
+::: {.predict-answer}
+It stays 8. Each coordinate multiplies the same three real numbers in a different
+order. Training can change the numbers but cannot change that identity.
+:::
+:::
+
+::: {#prp-distmult-sym .proposition name="DistMult forces equal reverse scores"}
+For every choice of parameters,
+$f(h,r,t)=\sum_i h_i r_i t_i=\sum_i t_i r_i h_i=f(t,r,h)$.
+:::
+
+This is useful for a symmetric relation such as roommate. It is a problem when
+the graph needs to distinguish “Kazan is the capital of Tatarstan” from its
+reverse. Both triples receive the same score under the same relation, regardless
+of how long we train.
+
+### Alignment is related to cosine similarity, but also depends on length {#distmult-level-sets}
+
+Let $\mathbf q=\mathbf h\circ\mathbf r$. Then the score is
+$\mathbf q^T\mathbf t$. For nonzero vectors, this can be written as
+
+$$
+f(h,r,t)=\|\mathbf q\|_2\,\|\mathbf t\|_2\cos\angle(\mathbf q,\mathbf t).
+$$
+
+The angle describes alignment; the lengths multiply that alignment. The raw
+score is therefore not normalized cosine similarity. For $\mathbf q=(2,0)$,
+tails $(1,0)$ and $(10,0)$ have the same angle and cosine of 1, but scores 2
+and 20. Increasing a vector's length can increase the score without changing
+its direction. This is one reason to choose regularization deliberately.
+
+{{< include ../assets/figures/fig-w4-levelsets.html >}}
+
+Now consider two tails $(2,1)$ and $(2,-1)$. Both have score 4 against
+$\mathbf q=(2,0)$. In fact, every tail $(2,v)$ has score 4. A fixed-score
+condition $\mathbf q^T\mathbf t=c$ describes a line in two dimensions, or
+a hyperplane in higher dimensions when $\mathbf q\ne0$. It can contain many
+distinct entity vectors. A threshold $\mathbf q^T\mathbf t>c$ selects a
+half-space. In this geometry, accepting several tails does not require their
+coordinates to coincide.
+
+Compare that with TransE in the left panel. Distinct tails can share a nonzero
+distance on a circle, but shrinking that distance to zero leaves a single point.
+The difference between the two geometries is a difference in their score
+contours. It is more informative than saying that one model “supports many
+tails” without stating the score condition.
+
+### Inverse names cannot repair a direction-blind scorer {#distmult-inverse-composition}
+
+Suppose Ada advises Bo. We want advisor(Ada, Bo) and advised_by(Bo, Ada) to
+score highly, while their respective reversals score poorly. Setting both
+relation vectors equal can make the two desired scores agree. But DistMult
+also equates each score with its own unwanted reversal. Two relation names do
+not undo the scorer's inability to tell head from tail.
+
+The obstacle is the required directional distinction, not merely that inverse
+relations should have different-looking parameter vectors. Different vectors
+can produce the same scores on a restricted collection of entity embeddings.
+When diagnosing a representation, specify the facts and negatives that must
+be separated; an argument about parameter names alone is insufficient.
+
+Composition needs similar care. Diagonal matrices can be multiplied, and the
+original DistMult work uses relation embeddings in rule mining. That is different
+from proving that two high pairwise scores force a high score at the path's ends.
+Here is a counterexample to that universal implication:
+
+$$
+\mathbf a=(1,0),\quad \mathbf b=(1,1),\quad \mathbf c=(0,1),
+\qquad \mathbf r_1=\mathbf r_2=\mathbf r_3=(1,1).
+$$
+
+Both path scores are 1, while the direct score is 0. Even choosing the direct
+diagonal matrix as the product of the two identity matrices has not changed
+this. For a threshold of 0.5, both premises pass and the conclusion fails.
+The reason is that a high dot product does not say
+$\mathbf a\circ\mathbf r_1=\mathbf b$; there is no such point equality to
+substitute into the next step. Directed compositions additionally encounter
+DistMult's reversal restriction.
+
+This explains the limits of the scoring rule without claiming
+that DistMult can never learn a dataset containing compositional regularities.
+Its strength is a small, efficient compatibility function. Its fixed weakness
+is reversal symmetry. The next model keeps coordinate-wise products while
+making the two endpoint roles distinguishable.
+
+## 6. ComplEx makes the two directions distinguishable
+
+### A complex coordinate is a pair of real numbers
+
+Write $a+bi$ as a point with coordinates $(a,b)$, where $i^2=-1$. The horizontal
+coordinate is its real part and the vertical coordinate is its imaginary part.
+We will use two operations. **Conjugation** reflects the point across the real
+axis: $\overline{a+bi}=a-bi$. Multiplication by $i$ makes a quarter-turn:
+$(a+bi)i=-b+ai$.
+
+{{< include ../assets/figures/fig-w4-conjugate.html >}}
+
+Ordinary multiplication distributes over both parts:
+$(a+bi)(c+di)=ac+adi+bci+bd,i^2$.
+Because $i^2=-1$, collect the real and imaginary terms to obtain
+$(ac-bd)+(ad+bc)i$. For example,
+$(1+2i)(3+i)=3+i+6i-2=1+7i$.
+Nothing here requires an unfamiliar numerical data type conceptually: we can
+store two real arrays and implement these additions and products ourselves.
+
+{{< include ../assets/figures/fig-w4-rotation.html >}}
+
+Follow the specific point $(1,1)$. A quarter-turn takes it to $(-1,1)$, so
+$(1+i)i=-1+i$. Applying the same turn again takes it to $(-1,-1)$, not back
+to the starting point. Complex multiplication gives us a simple way to construct
+a transformation with different forward and reverse behavior.
+
+### The score compares the transformed head with the tail
+
+Use $h=1+i$, $r=i$, and $t=-1+i$. Forward, the transformed head $hr$ points
+exactly along the tail. Reverse, the transformed head $tr$ points opposite the
+original head. The following diagram makes the comparison visible.
+
+{{< include ../assets/figures/fig-w4-complex.html >}}
+
+The **ComplEx** score multiplies by the conjugate tail and takes the real part.
+For this example, $hr=-1+i$ and $\bar t=-1-i$. Their product is 2, so the
+forward score is 2. In reverse, $tr=-1-i$ and $\bar h=1-i$. Their product is
+−2, so the reverse score is −2.
+
+$$
+f(h,r,t)=\operatorname{Re}\left(\sum_{i=1}^{d}h_i r_i\bar t_i\right).
+$$ {#eq-w04-complex}
+
+The coordinates are now complex. The bar conjugates the tail, the sum combines
+coordinate contributions, and $\operatorname{Re}$ keeps the real part so the
+result can rank candidates. One complex coordinate stores two real numbers.
+
+Why does the picture use alignment? For two complex numbers $z=a+bi$ and
+$w=u+vi$, the real part of $z\bar w$ is $au+bv$. That is the ordinary dot
+product of the two coordinate pairs. The conjugate turns complex multiplication
+into this familiar real comparison. ComplEx combines such comparisons after
+transforming the head by the relation.
+
+Return to the [coordinate-products experiment](#w4-bi-widget) and select **ComplEx**. Its two
+boxes now show real-channel and imaginary-channel contributions. Swap the
+endpoints and watch the score change sign. Then set the imaginary relation
+component to zero. In this particular example the whole relation becomes zero,
+and both scores become zero.
+
+::: {.predict}
+**Explain the mechanism.** Why would removing the conjugate from the score
+restore the same score in both directions?
+
+::: {.predict-answer}
+Without conjugation, $hrt$ and $trh$ contain the same complex factors. Complex
+scalar multiplication commutes, so their real parts agree. The asymmetric use
+of conjugation is essential to this construction.
+:::
+:::
+
+::: {#prp-complex .proposition name="ComplEx can also represent symmetry"}
+A real relation vector makes the score symmetric, even with complex entity
+vectors. Imaginary relation components permit asymmetric terms. They do not
+force every entity pair to have different forward and reverse scores.
+:::
+
+The lesson is not that every relation should become asymmetric. A useful model
+must allow the graph to determine which relations need symmetry and which need
+direction. ComplEx offers both possibilities. The cost is a second real channel
+per complex coordinate, which matters when comparing model sizes.
+
+### Expand the score until the direction becomes visible {#complex-four-term-derivation}
+
+The quarter-turn example proves that a directional pair is possible. To see
+which parameters control it in general, work on one complex coordinate. Write
+$h=a+bi$, $r=c+di$, and $t=u+vi$. First transform the head:
+
+$$
+hr=(ac-bd)+(ad+bc)i.
+$$
+
+Now multiply by $\bar t=u-vi$. The real part contains the product of the two
+real components and the contribution from $i\times(-i)=1$:
+
+$$
+\operatorname{Re}(hr\bar t)
+=(ac-bd)u+(ad+bc)v
+=acu+adv+bcv-bdu.
+$$ {#eq-w04-complex-four-terms}
+
+Read the four terms as four real feature interactions. The first uses real
+head, real relation, and real tail. The second uses real head, imaginary
+relation, and imaginary tail. The third uses imaginary head, real relation,
+and imaginary tail. The fourth uses imaginary head, imaginary relation, and
+real tail, with a minus sign. The full score sums these contributions over
+all complex coordinates. Taking the real part is essential: the ranking must
+compare real numbers.
+
+Group the same expression by the relation's two components:
+
+$$
+\underbrace{c(au+bv)}_{S:\ \text{shared on reversal}}
+\; + \;
+\underbrace{d(av-bu)}_{A:\ \text{changes sign on reversal}}.
+$$ {#eq-w04-complex-symmetric-skew}
+
+Swapping $(a,b)$ with $(u,v)$ leaves $au+bv$ unchanged and negates $av-bu$.
+Thus the forward score is $S+A$ and the reverse score is $S-A$. Their difference
+is $2A$. This decomposition makes the mechanism explicit: the real part of the
+relation weights a symmetric contribution, while its imaginary part weights
+a contribution that changes sign when the endpoints swap.
+
+{{< include ../assets/d3/w4-complex-parts.html >}}
+
+The experiment uses $h=1+2i$ and $t=3+i$, so $au+bv=5$ and $av-bu=-5$.
+The two scores are $5c-5d$ and $5c+5d$. Begin with $d=0$: changing $c$ moves
+both scores together. Then change $d$: the scores separate in opposite
+directions. Try $c=1,d=-1$ and obtain forward 10, reverse 0. Conjugating the
+relation reverses the sign of $d$ and exchanges those scores.
+
+### Symmetry and asymmetry follow from the decomposition {#complex-symmetry-proof}
+
+If every imaginary relation component is zero, every $A$ term vanishes and
+the score is symmetric. This proves the earlier proposition for arbitrary
+complex entity vectors. The entities do not need to be real; only the relation
+is restricted. If the entities and relations are all real, the score reduces
+to DistMult exactly.
+
+If every real relation component is zero, every $S$ term vanishes and the
+forward and reverse scores are negatives of one another. Positive values in
+one direction can be paired with negative values in the other. A mixed relation
+can combine both effects. This is more flexible than imposing symmetry on every
+relation in the graph.
+
+An imaginary relation does not guarantee a nonzero directional difference for
+every pair. If the two real coordinate pairs are parallel, $av-bu=0$ and that
+coordinate contributes no asymmetry. Contributions can also cancel across
+coordinates. The model permits the required behavior; learned entity geometry
+still determines which pairs exhibit it.
+
+### An inverse relation conjugates the relation parameters {#complex-inverse-proof}
+
+To reverse an entire relation's score function, set
+$\mathbf r_{\rm inv}=\overline{\mathbf r}$. This keeps its symmetric part
+and flips its directional part. Swapping endpoints also flips the directional
+part, so the two sign changes cancel:
+
+$$
+f(h,r,t)=f(t,\bar r,h).
+$$
+
+The identity can also be checked directly. The complex conjugate of
+$t\bar r\bar h$ is $\bar t r h$, which equals $hr\bar t$ because scalar
+complex multiplication commutes. A number and its conjugate have the same real
+part. Apply that argument coordinate by coordinate and sum. No zero-distance
+assumption or optimization claim is needed.
+
+For the earlier example $h=1+i$, $r=i$, $t=-1+i$, the inverse relation is
+$-i$. Forward under $i$ and reverse under $-i$ both score 2; the unwanted
+directions score −2. This achieves the directional inverse distinction that
+DistMult cannot make. Untied learned relation rows do not automatically become
+conjugates; that remains a property to encourage or inspect.
+
+### Multiple tails and composition still depend on the score condition
+
+Fix a transformed head $hr=-1+i$. The two distinct tails $-1+i$ and $-2$
+both give real alignment 2: their real coordinate pairs lie on the line
+$-u+v=2$. Thus ComplEx can give several distinct tails the same high score,
+just as the real dot-product model can. It does not ask all good tails to
+equal the transformed head.
+
+That same distinction blocks an automatic path-substitution argument. The
+DistMult composition counterexample also works inside ComplEx by choosing all
+imaginary components zero. Consequently, multiplying relation coordinates is
+not by itself a guarantee that high path scores imply a high endpoint score.
+This is a counterexample to a universal implication, not a claim that ComplEx
+cannot fit data containing composition patterns. Expressiveness comparisons
+must retain these explicit assumptions.
+
+## 7. Optional extension: RotatE connects the two geometric ideas {#extension-rotate-turns-each-coordinate}
+
+TransE predicts a point and measures the miss. ComplEx uses complex multiplication
+and measures compatibility. **RotatE** combines parts of these ideas: it rotates
+the head and measures the distance to the tail. It extends our four core models
+and is the second model implemented in Lab 4.
+
+Constrain each relation coordinate to magnitude one. It can turn a point without
+stretching its distance from the origin. An angle specifies that turn. The
+experiment below sets the tail to the forward landing point, then asks whether
+the same relation can bring us back.
+
+{{< include ../assets/d3/w4-rotate.html >}}
+
+At 90 degrees, applying the relation twice makes a half-turn. The return landing
+point differs from the head, so forward and reverse scores differ. At 180 degrees,
+applying the same relation twice makes a full turn. Both directions fit, even
+though the two entity points are distinct. This solves the symmetric-pair
+construction that caused TransE's exact-fit collapse.
+
+Now enable the inverse relation. It negates the return angle, so every chosen
+forward turn can be undone. Symmetry and inversion are different: symmetry uses
+the same relation in both directions; inversion allows a different relation.
+
+$$
+r_i=\cos\theta_i+i\sin\theta_i,\qquad
+f(h,r,t)=-\|\mathbf h\circ\mathbf r-\mathbf t\|_2.
+$$ {#eq-w04-rotate}
+
+Here $\theta_i$ is coordinate $i$'s angle in radians, so $|r_i|=1$.
+Each complex coordinate rotates independently. The norm combines all residual
+coordinate magnitudes into one distance; the minus sign restores higher-is-better.
+We use $\|\mathbf z\|_2=\sqrt{\sum_i|z_i|^2}$, matching our lab. Other
+implementations can use a different norm, so reproduction requires checking it.
+
+Using the earlier $h=1+i$, $r=i$, $t=-1+i$ example, RotatE gives forward score
+0 and reverse score $-2\sqrt2$. ComplEx gave 2 and −2 for the same coordinates.
+The ranking agrees here, but the models measure different quantities. The choice
+of complex numbers alone does not define a scorer.
+
+::: {#prp-rotate .proposition name="Rotations compose by adding angles"}
+If $\mathbf b=\mathbf a\circ\mathbf r_1$ and
+$\mathbf c=\mathbf b\circ\mathbf r_2$, then
+$\mathbf c=\mathbf a\circ(\mathbf r_1\circ\mathbf r_2)$.
+The combined rotation multiplies relation coordinates, or equivalently adds
+their angles modulo $2\pi$.
+:::
+
+Translations also compose: their vectors add. Neither identity proves that a
+trained model obeys every logical rule over its high-scoring triples. And one
+exact RotatE landing point still cannot equal two distinct tail vectors. Nearby
+tails can score well; an exact multiple-tail fit would make them coincide.
+
+::: {.predict}
+**Compare, then explain.** A graph contains symmetric roommate relations and
+directed advisor relations. Which fixed limitation rules out DistMult if both
+directions must be distinguished? Why does a half-turn help RotatE?
+
+::: {.predict-answer}
+DistMult forces equal scores on every reversed pair. RotatE can use a half-turn
+for the symmetric relation and a different angle for a directed relation. This
+shows representational possibilities; validation must still test whether learning
+finds useful parameters.
+:::
+:::
+
+## 8. Learning turns geometric choices into a model
+
+### Compare an observed fact with a sampled alternative
+
+All our coordinates so far were chosen by hand. Training starts with adjustable
+entity and relation parameters, then repeatedly asks an observed fact to outscore
+a sampled alternative. Over many comparisons, the shared parameters organize
+the graph in the chosen geometry.
+
+{{< include ../assets/figures/fig-w4-training.html >}}
+
+To make a comparison, keep the relation and replace either the head or the tail.
+Replacing Innopolis with Kazan changes the claim while preserving the question
+being asked. Such a **corruption** gives the model something to discriminate.
+Because the graph is incomplete, a sampled alternative can be an unrecorded truth
+or even another known true answer. A training filter can reject known training
+positives; it cannot discover every missing truth.
+
+### Correct ordering needs enough separation
+
+Suppose the observed triple has distance 1 and the sampled alternative has
+distance 1.5. The observed triple already wins. A **margin** of 1 asks it to win
+by a full unit, so the separation is still short by 0.5.
+
+{{< include ../assets/d3/w4-margin.html >}}
+
+Move the negative distance until the loss first reaches zero, then increase the
+margin. Notice that the boundary moves. This loss rewards a specified gap, not
+an absolute demand that every positive distance become zero.
+
+$$
+\ell=\max(0,\gamma-f_{\mathrm{pos}}+f_{\mathrm{neg}}),
+\qquad \mathcal L=\frac1B\sum_{b=1}^{B}\ell_b.
 $$ {#eq-w04-margin}
 
-where — the sum runs over the training triples $\mathcal{T}$; $f$ is any scoring
-function from §3; $\gamma > 0$ is the **margin**, the demanded score gap; and
-$(h', r, t')$ is the manufactured negative, corrupting head *or* tail uniformly at
-random. Read @eq-w04-margin as a geometric demand: every true triple must outscore
-its corruption by at least the margin $\gamma$, and beyond that the loss stops
-caring — no wasted gradient on already-easy comparisons. This is Week 3's SGNS
-instinct in ranking form.
+The positive and negative scores belong to one comparison, $\gamma>0$ is the
+required margin, and $B$ is the number of comparisons averaged in a batch.
+With negative-distance scores, the loss is
+$\max(0,\gamma+d_{\mathrm{pos}}-d_{\mathrm{neg}})$.
+The example above gives $\max(0,1+1-1.5)=0.5$.
 
-Assembled into a procedure, this is the training loop of
-[Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html)
-essentially verbatim, and it is exactly what Lab 4's `train_transe` executes —
-your `corrupt` is line 4 and your `margin_loss` is line 5 of @alg-w04-transe-epoch:
+::: {.predict}
+**Catch a reversed objective.** Someone proposes a loss that gets smaller when
+the negative score increases. Would optimizing it improve the desired ranking?
 
-::: {#alg-w04-transe-epoch .algorithm name="TransE Training Epoch"}
-One epoch of margin-based training with corruption sampling under the open-world
-assumption.
-
-**Input:** triples $\mathcal{T}$; entity table $\mathbf{E}$; relation table
-$\mathbf{R}$; scorer $f$ (@eq-w04-transe); margin $\gamma$; learning rate $\eta$.
-**Output:** updated $\mathbf{E}$, $\mathbf{R}$.
-
-1. $\mathbf{e} \leftarrow \mathbf{e} / \|\mathbf{e}\|$ for every entity row of $\mathbf{E}$ &nbsp;&nbsp;▹ project to unit sphere
-2. **for** each minibatch $B \subset \mathcal{T}$ (shuffled) **do**
-3. &nbsp;&nbsp;&nbsp;&nbsp;**for** each $(h, r, t) \in B$ **do**
-4. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$(h', r, t') \leftarrow$ replace $h$ **or** $t$ (coin flip), uniform entity
-5. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$\ell \leftarrow \max\bigl(0,\ \gamma - f(h,r,t) + f(h',r,t')\bigr)$
-6. &nbsp;&nbsp;&nbsp;&nbsp;**end for**
-7. &nbsp;&nbsp;&nbsp;&nbsp;one SGD/Adam step on the mean of $\ell$ over $B$ &nbsp;&nbsp;▹ ≤ 5 rows per triple
-8. **end for**
-9. **return** $\mathbf{E}$, $\mathbf{R}$
+::: {.predict-answer}
+No. A larger negative score makes the sampled alternative more competitive.
+Our loss should decrease when the positive score increases, or when the negative
+score decreases. Checking that direction catches a sign error before training.
+:::
 :::
 
-Three remarks on the steps. The renormalization in line 1 runs at the *start* of
-every epoch, before any gradient step — the order Lab 4 reproduces — and it is
-load-bearing, as the next paragraph but one explains. Line 4 manufactures one
-negative per positive; industrial recipes draw several and §5's closing idea weights
-them. And line 7's cost is what makes the whole thing planetary-scale: a triple's
-hinge touches at most five embedding rows ($\mathbf{h}, \mathbf{t}, \mathbf{r},$
-and the corrupted pair), so an epoch is $O(|\mathcal{T}| \cdot d)$ — no term ever
-sees the full entity set.
+### Updating a shared vector changes several facts
 
-::: {#exm-w04-sgd .example name="One SGD step by hand"}
-Run one SGD step of @alg-w04-transe-epoch by hand, because the update's *shape* is
-the pedagogy. TransE in
-$d = 2$, margin $\gamma = 1$, learning rate $0.1$. Current state:
-$\mathbf{h} = (1, 0)$, $\mathbf{r} = (0.5, 0.5)$, $\mathbf{t} = (1.2, 0.8)$; the
-corruption replaces the tail with $\mathbf{t}' = (0.5, 0.9)$. Positive residual:
-$\mathbf{h} + \mathbf{r} - \mathbf{t} = (0.3, -0.3)$, distance $\approx 0.42$.
-Negative residual: $(1.0, -0.4)$, distance $\approx 1.08$. Margin check:
-$\gamma + 0.42 - 1.08 = 0.34 > 0$ — violated, gradient flows. The gradient of a
-distance is its unit residual, so: $\mathbf{h}$ and $\mathbf{r}$ step *against* the
-positive unit residual $(0.71, -0.71)$ (pulling $\mathbf{h}+\mathbf{r}$ toward
-$\mathbf{t}$), $\mathbf{t}$ steps *along* it (meeting them halfway), while the
-corrupted $\mathbf{t}'$ steps *away* along its own unit residual $(0.93, -0.37)$ —
-one true fact tightened, one fake pushed off, five vectors touched, everything else
-untouched. Multiply by 272 thousand triples and a few epochs, and that is the entire
-training run you will launch in Lab 4. Note also what happens if the corruption had
-scored *worse* than margin-far: no update at all — the hinge's indifference is a
-feature, spending gradient only where the ranking is actually threatened.
+Gradient descent adjusts parameters to reduce the loss. For an active comparison,
+it tries to improve the positive score relative to the negative score. With tail
+corruption, the head and relation occur in both scores, so their updates combine
+both influences. One parameter change can also affect other facts that reuse
+the same entity or relation. Training balances those coupled requirements.
+
+### Follow one gradient update by hand {#one-gradient-update}
+
+A one-dimensional example makes those two influences visible. Let head $h=0$,
+relation $r=0$, observed tail $t=2$, and sampled tail $n=-1$. The predicted
+location is $q=h+r=0$. Positive and negative distances are 2 and 1, so margin
+1 gives loss $1+2-1=2$. The sampled alternative currently wins.
+
+While the margin is active, the loss is
+$1+|h+r-t|-|h+r-n|$. Its two residuals are −2 and 1. The derivative of
+$|x|$ at a nonzero $x$ is its sign. Therefore the gradient with respect to the
+shared prediction is $-1-(+1)=-2$: moving the prediction right both approaches
+the observed tail and moves away from the sampled one. Since $q=h+r$, both
+$h$ and $r$ receive that gradient.
+
+Take one gradient-descent step with learning rate 0.1, updating all four
+parameters together. This illustration uses no normalization during the step.
+
+| Parameter | Before | Gradient | After subtracting 0.1 × gradient |
+|---|---:|---:|---:|
+| Head $h$ | 0 | −2 | 0.2 |
+| Relation $r$ | 0 | −2 | 0.2 |
+| Observed tail $t$ | 2 | 1 | 1.9 |
+| Sampled tail $n$ | −1 | 1 | −1.1 |
+
+The new prediction is $0.2+0.2=0.4$. Both distances are now 1.5: the positive
+score improved from −2 to −1.5, and the negative score fell from −1 to −1.5.
+The loss fell from 2 to $1+1.5-1.5=1$. We have improved the comparison without
+yet satisfying the margin. This is what one local optimization step achieves;
+other triples sharing these rows may respond differently.
+
+If you differentiate only the positive score when updating the head or relation,
+you miss half the signal in this example. If you forget the minus sign on the
+negative distance, you move the prediction toward both tails. Following a small
+update is therefore a stronger implementation check than merely observing a
+loss value printed by a training loop.
+
+::: {.w4-thesis}
+**TransE training in outline.** Given training triples and adjustable embeddings:
+
+1. Apply the chosen normalization rule; our lab normalizes entity rows at the start of each epoch.
+2. Take a batch of observed triples and sample head or tail replacements.
+3. Score the observations and their sampled alternatives using the same parameters.
+4. Measure the average shortfall from the desired margin.
+5. Differentiate that loss and update the shared parameters.
+6. Repeat for the remaining batches.
 :::
 
-Two training details that separate a formula from a working model — both of which
-our own lab discovered the hard way, so consider this paragraph experimentally
-verified. **Entity normalization:** TransE's original recipe projects entity vectors
-back to the unit sphere every epoch. It looks like a fussy detail; it is
-load-bearing. In unbounded space the optimizer can satisfy any margin by inflating
-*norms* — push everything far from everything, scores separate, nothing is learned
-about structure; bounded entities force the geometry to do the work (Lab 4's
-symmetric-relation showdown literally does not exhibit the r → 0 crush without it).
+Normalization, negative sampling, initialization, and optimization settings are
+part of the training recipe. They can change the outcome even when the scorer
+is unchanged. Our normalization schedule is a teaching variant, not an exact
+reproduction of every original paper. The closing algorithms specify a second
+recipe with explicit regularization and checks for each step.
 
-**The other loss:** modern implementations often replace the margin with the
-logistic form
-$$
-\mathcal{L}_{\text{log}} = -\log\sigma\bigl(f(h,r,t)\bigr)
-\;-\; \log\sigma\bigl(-f(h',r,t')\bigr)
-$$ {#eq-w04-logistic}
-where — $\sigma(x) = 1/(1+e^{-x})$ is the logistic sigmoid, $f$ is the scorer,
-$(h,r,t)$ the observed triple and $(h',r,t')$ its corruption — Week 3's SGNS shape,
-now over facts, and the loss RotatE actually trains with (Lab 5 reuses it) —
-optionally with the **N3 regularizer**
-([Lacroix et al., 2018](https://arxiv.org/abs/1806.07297)): a cube-norm penalty
-that, for ComplEx, provably encourages low *tensor rank* (the number of rank-one
-pieces needed to build the score tensor — few pieces, simple model) and is worth
-several MRR points on benchmarks. Margin-vs-logistic rarely changes the ranking story; regularization and
-negative-sampling quality often do — one more instance of this course's refrain that
-training protocol is a first-class citizen of every result.
+The training loss answers whether sampled comparisons are improving. It does
+not yet tell us how well the model ranks missing facts. That requires a separate
+test with parameters held fixed.
 
-Two refinements to corruption itself, before the weighting trick, both standard and
-both instructive. **Type-aware corruption** uses the ontology (§1's schema, earning
-rent): replacing the tail of *located_in* with a random *year* manufactures a
-negative the model can reject on type grounds alone, teaching it typing rather than
-geography — so serious pipelines corrupt within the relation's type signature, making
-negatives harder and the learned geometry semantic. It has a flip side worth an exam
-answer: type-aware corruption also *raises* the accidental-truth rate, since
-in-type corruptions are more likely to be unstated facts. **Bernoulli corruption**
-(from the TransH paper — [Wang et al., 2014](https://ojs.aaai.org/index.php/AAAI/article/view/8870)
-— adopted everywhere) tilts the head-versus-tail coin per
-relation by its mapping type: for a 1-to-N relation like *instance_of*, corrupting
-the *head* is much less likely to hit an accidental truth than corrupting the tail —
-so you corrupt heads more often. Both refinements read as trivia until you notice
-what they share: negative *quality*, not negative *quantity*, is the training
-resource, which is exactly the observation the next idea industrializes.
+## 9. Evaluation asks whether the right answers rise to the top
 
-Uniform corruption has a scale problem: with $10^5$ entities, almost every random
-corruption is absurd (*Volga located_in university*), scores terribly already, and
-teaches nothing. RotatE's fix — **self-adversarial negative sampling** — reweights
-sampled negatives by the *model's own current belief* in them:
+### A question can have more than one true answer
 
-$$
-p(h'_j, r, t'_j) = \frac{\exp \alpha f(h'_j, r, t'_j)}{\sum_k \exp \alpha f(h'_k, r, t'_k)}
-$$ {#eq-w04-selfadv}
-
-where — $(h'_j, r, t'_j)$ is the $j$-th sampled corruption of the current positive,
-the sum over $k$ runs across the whole batch of sampled corruptions (a softmax over
-that candidate set), $f$ is the current model's score, and $\alpha \geq 0$ is a
-**temperature** controlling how sharply the weighting concentrates ($\alpha = 0$
-recovers uniform corruption). The probabilities are
-used as weights on the negative terms (no gradient flows through
-the weights — a detail that matters: with gradient through the weights, the model
-could game its own curriculum by scoring everything low). Hard, plausible lies get
-the gradient; absurdities are ignored. The idea should feel familiar twice over: it
-is boosting's focus-on-your-errors instinct, and it is the corruption-side twin of
-the $\deg^{3/4}$ noise distribution from Week 3 — three fields independently
-discovering that uniform negatives waste the budget. Watch it migrate:
-
-{{< include ../assets/d3/w4-negatives.html >}}
-
-The ⚠ in the widget is the open-world bill arriving: corruption sometimes manufactures
-a *true* fact and calls it negative. At toy scale you can see it happen; at $10^5$
-entities it is rare per batch but systematic — one reason implementations filter
-corruptions against the known triple set, and one reason self-adversarial weighting
-must be used with care (it actively *hunts* plausible triples, and the most plausible
-"lie" is occasionally the truth).
-
-## 6. Scoring the scorer
-
-Evaluation is ranking, and the protocol has enough teeth to deserve its own worked
-example. For each test triple, hide the head (then the tail), score every entity in
-the vacancy, sort, find the true entity's rank. Report **MRR** (mean reciprocal rank)
-and **Hits@K** (fraction with rank ≤ K). The protocol dates to the same
-[Bordes et al., 2013](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html)
-paper — its Table 3 is where raw and filtered metrics were born — and Lab 4's
-exercise 3 implements lines 4–5 of @alg-w04-filtered-rank as `filtered_rank`:
-
-::: {#alg-w04-filtered-rank .algorithm name="Filtered Ranking Evaluation"}
-Computes filtered MRR and Hits@K for a scorer over held-out triples.
-
-**Input:** test triples $\mathcal{S}$; scorer $f$; known-true indexes
-$K(h,r) \to \{t\}$ and $K'(r,t) \to \{h\}$ built from train ∪ valid ∪ test.
-**Output:** filtered MRR, Hits@K.
-
-1. $\text{ranks} \leftarrow ()$
-2. **for** each $(h, r, t) \in \mathcal{S}$ **do**
-3. &nbsp;&nbsp;&nbsp;&nbsp;$s_e \leftarrow f(h, r, e)$ for every entity $e$ &nbsp;&nbsp;▹ tail vacancy
-4. &nbsp;&nbsp;&nbsp;&nbsp;$s_e \leftarrow -\infty$ for $e \in K(h,r) \setminus \{t\}$ &nbsp;&nbsp;▹ filter known truths
-5. &nbsp;&nbsp;&nbsp;&nbsp;append $1 + \#\{e : s_e > s_t\}$ to ranks
-6. &nbsp;&nbsp;&nbsp;&nbsp;repeat lines 3–5 for the head vacancy, using $K'$
-7. **end for**
-8. $\text{MRR} \leftarrow \text{mean}(1/\text{ranks})$; &nbsp; $\text{Hits@K} \leftarrow \text{mean}[\text{rank} \leq K]$
-9. **return** MRR, Hits@K
-:::
-
-Why the steps are what they are: line 4 deletes every *competitor* that is a known
-true fact — but never the target itself, the bug the lab's assert hunts for; line 5
-counts strictly-greater scores, so ties are *not* silently resolved in the model's
-favor (break them randomly, never optimistically — the second scandal below); and
-line 6 makes both directions count, because models are routinely much worse at one.
-Cost: one full-entity scoring pass per vacancy — $O(|\mathcal{E}| \cdot d)$ per test
-triple, which is why real evaluations batch it on a GPU. One subtlety separates
-honest numbers from nonsense:
+Consider the held-out fact “the Volga flows through Tatarstan.” We ask
+$(\text{Volga},\text{flows\_through},?)$ and score every entity as a tail.
+In the toy model below, Russia ranks above Tatarstan. Russia is also a known
+true answer. Should that count as a mistake on this target fact?
 
 {{< include ../assets/figures/fig-w4-eval.html >}}
 
-**Filtered** means: before computing the rank, delete every *other* candidate that
-forms a known true triple (train or test). The model ranked Russia above Tatarstan for
-*(Volga, flows_through, ?)* — and Russia is *correct*, it just wasn't the held-out
-fact. Punishing that is measuring your dataset's redundancy, not your model's error.
+::: {#def-w04-filtered .definition name="Filtered evaluation"}
+For a target triple, **filtered evaluation** excludes other known true answers
+to the same query before measuring the target's rank. The target itself remains
+eligible. The model's scores do not change.
+:::
 
-Know your three metrics as characters, not formulas, because each has a failure mode.
-**Mean Rank** (the original) is dominated by its worst cases — one catastrophic rank
-of 12,000 outweighs a thousand perfect ones — which makes it high-variance and
-hostage to a few pathological queries; the field abandoned it for good reason.
-**MRR** inverts before averaging, so it is bounded, dominated by its *best* cases,
-and mostly a statement about how often you rank near the top — the de facto headline
-number. **Hits@K** is the bluntest and the most honest to product reality ("is the
-right answer on the first page?"); report several K, since Hits@1 and Hits@10 can
-order two models differently.
+Filtering separates two questions: whether the target outranks incorrect
+alternatives, and whether it outranks another correct answer. In this example,
+removing Russia moves Tatarstan from rank 2 to rank 1. Filtering cannot remove
+an unrecorded truth, and it does not remove a higher-scoring incorrect answer
+just because that answer is inconvenient.
 
-Three reporting disciplines turn these into science:
-average over *both* directions (head and tail prediction — models are routinely much
-worse at one); break out per-relation numbers, because a strong average routinely
-hides total failure on antisymmetric or 1-to-N relations (your cheat sheet predicts
-*which* — Lab 4's stretch checks it); and run multiple seeds with a variance bar,
-since single-run MRR deltas under half a point are weather, not climate.
+### Ties need an explicit rule
 
-Run the protocol yourself, on a model that genuinely never saw the test facts:
+If candidate scores are $[9,8,8,1]$ and the target is one of the 8s, it occupies
+positions 2 and 3 jointly with another candidate. We use their average position,
+2.5. Giving every tied target the best position would make a model that ties
+everything look far better than it should.
+
+$$
+\rho=1+n_{>}+\frac{n_{=}-1}{2}.
+$$ {#eq-w04-rank}
+
+Count only eligible candidates after filtering. Here $n_{>}$ counts scores
+strictly above the target and $n_{=}$ counts scores equal to the target,
+including the target itself. The subtraction removes that self-count. With
+no ties, $n_{=}=1$ and the formula becomes ordinary one-based rank.
 
 {{< include ../assets/d3/w4-rank.html >}}
 
-And a word on where test sets *come from*, because whoever constructs the split
-holds the experiment's integrity. The standard recipe — sample a fraction of triples
-uniformly at random as test — has known teeth: it leaks inverse pairs (the scandal
-below), it over-represents high-degree entities (they own most triples, so your test
-metric is again popularity-weighted — stratify or at least report it), and it can
-orphan entities entirely (a test triple whose entity appears in *no* training fact is
-unanswerable by any transductive model — filter them out and *say so*, or your
-denominator is quietly wrong). If the KG has timestamps, split by time; a completion
-system in production predicts tomorrow's facts from today's graph, and a random
-split rehearses a different, easier exam. None of this is exotic — it is Week 1's
-"how to split honestly" table, instantiated for triples — but published papers still
-get it wrong often enough that checking has positive expected value.
+First turn filtering on for the Volga example and explain the excluded row.
+Then choose the tie example. If the score-9 candidate is another known true
+answer, filtering leaves the two 8s in positions 1 and 2. The target's average
+rank is now 1.5, not 1.
 
-Two community scandals complete your evaluation education, both in this week's
-optional readings. **The dataset scandal:** FB15k, the original benchmark, contained
-test triples whose *inverses* sat in the training set — *(a, contains, b)* in train,
-*(b, located_in, a)* in test — so a one-line rule "invert and look up" rivaled deep
-models. FB15k-237 exists because
-[Toutanova & Chen, 2015](https://doi.org/10.18653/v1/W15-4007)
-removed the near-duplicate relations;
-it is the benchmark Lab 4 uses, and the reason you should reflexively ask "*could a
-lookup solve this test set?*" of any benchmark, in any field.
+### Summarize ranks without changing their meaning
 
-**The tie scandal** ([Sun et al., 2020](https://arxiv.org/abs/1911.03903)):
-several published models emitted *identical* scores for thousands of candidates, and
-evaluation code that placed the true entity first among ties reported inflated MRR —
-models looked strong because of a sorting convention. Random tie-breaking is now the
-standard. Neither scandal involved fraud; both involved nobody looking — and both were caught
-by short papers anyone in this room could have written, which is the actually
-encouraging part.
+For target ranks 2 and 1, the reciprocal ranks are $1/2$ and $1$. Their mean is
+0.75. One of the two targets is first, so Hits@1 is 0.5. Both are in the first
+two positions, so Hits@2 is 1.
 
-### Where this machinery earns money
+$$
+\mathrm{MRR}=\frac1Q\sum_{q=1}^{Q}\frac1{\rho_q},\qquad
+\mathrm{Hits@}K=\frac1Q\sum_{q=1}^{Q}\mathbf1[\rho_q\leq K].
+$$ {#eq-w04-metrics}
 
-Three deployment sketches, so the toy numbers have somewhere to land. **Drug
-repurposing** is KG completion with lab validation as the reranker: build the
-drug–target–disease graph from curated databases and literature mining, train a
-completion model, and hand the top-ranked unstated *(drug, treats, disease)*
-candidates to bench scientists. The economics are the interesting part: experiments
-cost thousands of dollars each, so the metric that matters is precision in the top
-handful — Hits@10, not MRR, and *stratified by disease frequency*, because Pitfall 5's
-popularity bias would otherwise spend the lab budget re-discovering aspirin.
+$Q$ counts queries, $\rho_q$ is a target's rank, and $K$ is the cutoff.
+The indicator contributes one when its condition holds and zero otherwise.
+We apply the same formulas to fractional average ranks and report that convention.
+Both head and tail prediction produce a query, so each held-out triple contributes
+two ranks in our lab.
 
-**E-commerce catalogs** run completion as attribute inference — *(product,
-compatible_with, ?)*, *(product, brand, ?)* — where the KG's answers feed filters and
-comparison pages, wrong facts generate support tickets, and the mandatory
-architecture is therefore model-proposes-human-approves above a confidence threshold.
+::: {.w4-thesis}
+**Evaluation in outline.** With the trained parameters fixed:
 
-**Financial and security graphs** use embeddings mostly as *features*: the entity
-vectors, which — by everything this lecture taught — encode each entity's relational
-signature, get concatenated into downstream risk models; nobody asks the KG model to
-be right alone, only to be informative. Common to all three: the symbolic layer never
-disappears. Stated facts are served from the store with provenance; the embedding
-model ranks the *unstated*; and the boundary between the two — what the system
-asserts versus suggests — is a product decision that this week has equipped you to
-argue about precisely.
-
-## Common pitfalls
-
-::: {.callout-warning title="Pitfall 1 · Reading a KG with closed-world eyes" icon="false"}
-"The KG has no *treats* edge between this drug and that disease, so there is no
-relationship" — under OWA this inference is void, and in biomedical KGs it is the
-*discovery target*. Absence licenses nothing. If your downstream logic needs real
-negatives (contraindications, disproven links), they must be curated as explicit
-facts, not inferred from silence.
+1. Hide the tail and score every entity as a candidate.
+2. Exclude other known true tails, preserving the target.
+3. Count better and tied candidates to obtain the target's rank.
+4. Hide the head and repeat the same procedure for head prediction.
+5. Collect these ranks across held-out triples, then calculate MRR and Hits@K.
 :::
 
-::: {.callout-warning title="Pitfall 2 · Raw ranking metrics" icon="false"}
-Unfiltered MRR punishes the model for knowing true facts that aren't the held-out one
-(the figure's Russia). Always state *filtered*, and always ask which flavor a paper
-reports — the gap is large on redundant KGs, and "we beat X" across different
-protocols is noise.
+Use validation data to choose the model and its settings; reserve the test data
+for evaluation after those choices. A training rejection filter normally sees
+training truths. A conventional final benchmark evaluation filter can include
+train, validation, and test truths because it adjusts metric accounting without
+updating parameters. Keep those purposes separate.
+
+Candidate scope matters too. Ranking against a few easy alternatives or a
+restricted entity type is a different task from ranking against every entity.
+And if a test fact's inverse is already in training, a lookup can masquerade as
+generalization. FB15k-237 reduces the common inverse leakage found in FB15k.
+The split and evaluation protocol deserve as much attention as the model name.
+
+## 10. Choose a model by the distinction the task needs
+
+We can now return to the relation patterns and ask a more precise question than
+“Which model is best?” What must the model distinguish for this graph, and what
+does its scorer make easy or impossible?
+
+{{< include ../assets/d3/w4-patterns.html >}}
+
+Begin with one relation, not the entire comparison at once. A directed relation
+requires different scores for a reversed pair, which rules out DistMult for that
+distinction. Two distinct tails with an exact projected fit suggest why TransR
+may help. ComplEx can express symmetric scores with real relation coordinates
+and allow asymmetric scores with imaginary relation coordinates. These arguments
+guide experiments; they do not replace
+validation on held-out facts.
+
+### The four core models: space determines the available distinctions {#four-models-space-and-expressiveness}
+
+Read each row as a design decision followed by its consequence. Here $d$ is
+the entity dimension and $k$ is the TransR relation dimension. A construction
+shows that a model **can** represent a pattern under stated conditions; an
+identity such as DistMult's symmetry holds for **every** parameter setting.
+
+::: {.w4-table-scroll}
+| Model | Embedding space and operation | What this makes possible | What to check before choosing it |
+|---|---|---|---|
+| **TransE** | Entities and relations in $\mathbb R^d$; add a relation vector | Direction; inverse shifts; additive composition of exact translations | Exact symmetric pairs or several exact tails force entity vectors to coincide |
+| **TransR** | Entities in $\mathbb R^d$; $M_r\in\mathbb R^{k\times d}$; relation shift in $\mathbb R^k$ | Relation-specific views; distinct entities can share a projection; direction and inverses | The matrix must have a nontrivial kernel to hide differences; arbitrary projections do not automatically compose |
+| **DistMult** | Entities and relations in $\mathbb R^d$; weighted coordinate products | Symmetric compatibility; several distinct tails can score highly | Reversing the endpoints always preserves the score; directed inverses cannot fix that identity |
+| **ComplEx** | Entities and relations in $\mathbb C^d$; real part of a product with the conjugated tail | Symmetric or asymmetric compatibility; inverse scores by conjugating the relation; multiple high-scoring tails | High scores on a path do not by themselves guarantee a high score for its composed relation |
 :::
 
-::: {.callout-warning title="Pitfall 3 · Benchmarks a lookup can solve" icon="false"}
-FB15k's inverse-relation leak is one instance of a universal failure: test facts
-deterministically recoverable from train by a trivial rule. Before trusting any
-completion benchmark — or building your train/test split — audit for inverses,
-duplicates under relation renaming, and near-synonymous relations. (This is Week 3's
-Pitfall 1 wearing a bow tie: the leak is in the *split*, not the walk.)
+For TransR, the [composition construction](#transr-composition-proof) deliberately
+discards the directions lost along either step. For DistMult and ComplEx,
+relation products can be useful in rule mining, but are not a universal logical
+implication between high-scoring triples. For TransE, “collapse” concerns an
+**exact zero-distance fit**; it does not say that approximate symmetric or
+multiple-tail rankings are impossible. Keep these assumptions attached to the
+comparison when explaining expressiveness.
+
+Keep comparisons fair. The same complex dimension stores twice as many real
+entity numbers as a real dimension. TransR adds a matrix per relation. Give
+models comparable parameter and optimization budgets, use the same candidate
+sets and filters, and inspect performance by relation when possible.
+
+### Compare the parameter budget as well as the model name {#model-parameter-cost}
+
+The table counts stored **real numbers**, so complex models are compared on
+the same basis. Here $d$ is the number of entity coordinates in the model's
+own space; for ComplEx and RotatE these are complex coordinates. TransR has
+$k$ coordinates in relation space. The work column concerns one triple score,
+before scoring all candidates or differentiating a batch.
+
+::: {.w4-table-scroll}
+| Model | Per entity | Per relation | Work per score |
+|---|---:|---:|---|
+| TransE | $d$ | $d$ | $O(d)$ |
+| TransR | $d$ | $kd+k$ | $O(kd)$ |
+| DistMult | $d$ | $d$ | $O(d)$ |
+| ComplEx | $2d$ | $2d$ | $O(d)$ |
+| RotatE | $2d$ | $d$ angles | $O(d)$ |
 :::
 
-::: {.callout-warning title="Pitfall 4 · Trusting scores you didn't tie-break" icon="false"}
-If a model scores many candidates identically (saturated activations, quantization,
-a bug), rank depends on the sort order — and optimistic tie-handling silently inflates
-MRR. Check score-tie rates before celebrating; break ties randomly; be suspicious of
-leaderboard jumps unaccompanied by ideas.
+Multiply the entity column by $n_e$ and the relation column by $n_r$ to obtain
+the parameter count, excluding optimizer state. For 10,000 entities, 100 real
+coordinates require one million real entity parameters; 100 complex coordinates
+require two million. Reducing the complex dimension to 50 matches that entity
+budget, although it does not make the models equivalent. TransR's matrix cost
+can become substantial when there are many relation types.
+
+Candidate ranking adds another factor: a simple all-entity query evaluates
+$n_e$ candidate triples. Batching, cached projections for a fixed relation,
+and matrix multiplication can improve the implementation, but do not change
+what the scorer represents. An apparently better model can also have received
+more parameters, more negative samples, or more optimization. Those differences
+belong in an experimental comparison.
+
+### Read the benchmark result as a question about the data {#stanford-benchmark-comparison}
+
+The following figure compares historical MRR values on FB15k-237 and WN18RR.
+Treat them as a worked
+example of reading evidence, not a current leaderboard or a result produced
+by our walkthrough.
+
+{{< include ../assets/figures/fig-w4-benchmark.html >}}
+
+TransE exceeds DistMult on FB15k-237 in this table, but their order reverses
+on WN18RR. RotatE has the largest MRR among the listed models on both. The
+first observation warns against choosing a model by one dataset's ranking;
+the second gives a result to investigate, not proof that the same winner must
+appear under every graph, dimension, sampler, or training budget.
+
+For completeness, these are the other reported metrics from the same source.
+MR is mean rank, so smaller is better; MRR and Hits@10 are larger-is-better.
+The source leaves TransR's results blank, so there is no TransR measurement
+to infer from that row.
+
+::: {.w4-table-scroll}
+| Model | FB15k-237 MR | MRR | Hits@10 | WN18RR MR | MRR | Hits@10 |
+|---|---:|---:|---:|---:|---:|---:|
+| TransE | 357 | .294 | .465 | 3384 | .226 | .501 |
+| DistMult | 254 | .241 | .419 | 5110 | .430 | .490 |
+| ComplEx | 339 | .247 | .428 | 5261 | .440 | .510 |
+| RotatE | 177 | .338 | .533 | 3340 | .476 | .571 |
 :::
 
-::: {.callout-warning title="Pitfall 5 · Popularity is not truth" icon="false"}
-Entities with many facts get trained more, sit in denser neighborhoods, and outrank
-rare entities in *every* slot — your completion model reinvents the popularity
-contest (degree bias, third week running). Symptoms: tail-entity queries fail;
-Hits@10 looks fine on average and is terrible on rare entities. Report performance
-stratified by entity frequency, and remember it when the model "discovers" that a
-famous protein is linked to everything.
+These historical values come from PDF page 62 of the [source lecture](#lecture-attribution).
+That table alone
+does not specify every training and evaluation setting needed to reproduce them.
+
+Why can mean rank and MRR disagree about a model? Compare query ranks
+$[1,100]$ with $[10,10]$. The first model's mean rank is 50.5, worse than 10,
+but its MRR is $(1+0.01)/2=0.505$, better than 0.1. Mean rank is sensitive to
+large-rank failures; reciprocal rank emphasizes getting answers near the top.
+This is why a single metric can hide a different distribution of successes
+and failures.
+
+To investigate a model difference, begin with training-data relation statistics:
+which relations show reciprocal edges, which have many observed tails per head,
+and which have known inverses? Missing reverse edges are not automatically
+evidence of asymmetry, so interpret these as observations about the available
+graph. Then evaluate by relation or pattern group on held-out facts under the
+same protocol. The geometry suggests a hypothesis about where a model may
+struggle; the grouped experiment checks that hypothesis.
+
+::: {.predict}
+**Explain a ranking reversal.** In the historical table, TransE has a better
+WN18RR mean rank than DistMult but a worse MRR. What kind of query-level results
+could produce that pattern? What extra result would you request before choosing?
+
+::: {.predict-answer}
+TransE could avoid some extremely bad ranks while DistMult places more answers
+very near the top. Request the rank distribution or per-relation metrics,
+together with matched training and evaluation settings. The aggregate numbers
+do not identify a unique explanation.
+:::
 :::
 
-## In this week's lab
+::: {.callout-note title="Three mistakes to recognize"}
+**A small distance means a low-quality fact.** Our distance scorers negate the
+distance, so a smaller miss gives a higher score.
 
-[Lab 4](../labs/lab04.qmd) builds TransE and RotatE from scratch in plain PyTorch
-(about a hundred lines each) and trains them on FB15k-237, the honest benchmark: you
-implement both scoring functions against hand-checkable asserts (the lecture's toy
-numbers), write the corruption sampler and margin loss, run filtered evaluation and
-reproduce MRR/Hits@10 on a held-out subsample — and then perform this week's signature
-experiment: train both models on a small graph rich in *symmetric* relations, and
-watch TransE drive its relation vector toward zero while RotatE parks its phases at
-π, exactly as @prp-transe-sym predicts. Theory, caught red-handed. Calibration for
-your expectations, so the lab's numbers land honestly: our minutes-long training
-reaches roughly MRR 0.17 on FB15k-237, while well-tuned published TransE sits near
-0.29 and the strongest models near 0.36 — the lab optimizes for *understanding per
-minute*, and the gap is almost entirely epochs, dimension, and negative-sampling
-budget, not ideas. Knowing which gaps are ideas and which are compute is itself one
-of this course's intended skills.
+**A more powerful optimizer will fix a symmetric scorer.** DistMult's reversal
+identity holds for every parameter setting. The required distinction must be
+available in the model itself.
 
-::: {.callout-tip title="HW1 is out — due Thursday, October 1 (Week 6)" icon="false"}
-The first homework covers Weeks 1–4: representations and the Laplacian, classical
-features and PageRank, shallow embeddings, and KG embedding theory (including proving
-the DistMult column of today's cheat sheet). See
-[Homework 1](../homeworks/hw1.qmd) for problems, submission format, and the honor-code
-statement. Start early; the proofs are short but not automatic.
+**A high completion score proves a rule.** A learned ranking can suggest a fact.
+A proof also needs the relevant premises and an explicit valid inference rule.
 :::
 
-## Required reading
+## 11. Algorithms you can implement and check {#algorithms-you-can-implement}
 
-**1 · Bordes, Usunier, Garcia-Durán, Weston & Yakhnenko — *Translating Embeddings for Modeling Multi-relational Data* (NeurIPS 2013).** [proceedings.neurips.cc](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html)
+We have drawn the spaces, calculated scores, and explained their consequences.
+Now turn those ideas into procedures. Keep the following division of labor in
+mind: **the model defines the score; the training recipe learns its parameters;
+the evaluation protocol measures its ranking.** Changing the optimizer cannot
+remove an identity such as DistMult's symmetry.
 
-::: {.reading-annotation}
-TransE — the paper that started modern KG embeddings, and a model of economy: one idea
-(relation = translation), one loss (the margin ranking you derived today), five pages.
-Focus on §2 — scoring function, corruption, margin loss — and on Table 3, where mean
-rank and Hits@10 are defined the way the field still evaluates; note the raw-vs-filtered
-distinction being born. Skim the comparisons to the older tensor models (SE, RESCAL) on
-a first pass.
+The four scoring algorithms below are followed by a negative sampler, a complete
+training loop, and filtered evaluation. Read a scorer together with its small
+check before trying a full training run. Implement the steps first on a tiny
+graph, then report both validation and test rankings. The worked calculations
+below give you expected results before you need a larger dataset.
+
+### One interface, four scoring algorithms
+
+An input triple contains integer IDs $(h,r,t)$. $E[h]$ means “look up entity
+row $h$,” and $R[r]$ means “look up relation row $r$.” **Do not multiply the
+IDs themselves.** All four algorithms return one real score $s$, with higher
+better. On a batch of $B$ triples, repeat the calculation independently across
+the batch to return $B$ scores; sum coordinates, never batch examples.
+
+::: {#alg-w04-score-transe .algorithm name="Score a triple with TransE"}
+**Input:** $(h,r,t)$; entity table $E\in\mathbb R^{n_e\times d}$;
+relation table $R\in\mathbb R^{n_r\times d}$. **Output:** real score $s$.
+
+1. **Look up** $\mathbf h\leftarrow E[h]$, $\mathbf r\leftarrow R[r]$, $\mathbf t\leftarrow E[t]$.
+2. **Translate** $\mathbf q\leftarrow\mathbf h+\mathbf r$.
+3. **Measure the residual** $\boldsymbol\delta\leftarrow\mathbf q-\mathbf t$.
+4. **Return** $s\leftarrow-\sqrt{\sum_{j=1}^d\delta_j^2}$.
 :::
 
-**2 · Sun, Deng, Nie & Tang — *RotatE: Knowledge Graph Embedding by Relational Rotation in Complex Space* (ICLR 2019).** [arXiv:1902.10197](https://arxiv.org/abs/1902.10197)
+**Trace it.** With $\mathbf h=(1,1)$ and $\mathbf r=(2,1)$, the prediction is
+$(3,2)$. Candidate tails $(3,2)$, $(3,1)$, and $(0,6)$ have residual lengths
+0, 1, and 5, so their scores are **0, −1, −5**. The first candidate wins.
+Every score is at most zero; an exact fit scores zero. Forgetting the minus
+sign would rank the farthest candidate first. One score costs $O(d)$ operations.
 
-::: {.reading-annotation}
-The strongest direct descendant. Read §3 and Table 1 slowly — it is today's cheat
-sheet in its original habitat, and after this lecture you can verify every cell rather
-than believe it. Then study §3.3, self-adversarial negative sampling: a training trick
-that matters as much as the model, and Figure 3's learned phase histograms — symmetric
-relations really do land on π, which Lab 4 reproduces in miniature. Skim the ablation
-tables.
+::: {#alg-w04-score-transr .algorithm name="Score a triple with TransR"}
+**Input:** $(h,r,t)$; $E\in\mathbb R^{n_e\times d}$;
+$R\in\mathbb R^{n_r\times k}$; $M\in\mathbb R^{n_r\times k\times d}$.
+**Output:** real score $s$.
+
+1. **Look up** $\mathbf h\leftarrow E[h]$, $\mathbf r\leftarrow R[r]$, $\mathbf t\leftarrow E[t]$, $A\leftarrow M[r]$.
+2. **Project both endpoints** $\mathbf h_\perp\leftarrow A\mathbf h$ and $\mathbf t_\perp\leftarrow A\mathbf t$.
+3. **Translate in relation space** $\boldsymbol\delta\leftarrow\mathbf h_\perp+\mathbf r-\mathbf t_\perp$.
+4. **Return** $s\leftarrow-\sqrt{\sum_{j=1}^k\delta_j^2}$.
 :::
 
-**Also see:** Hamilton, *GRL book*, ch. 4 (knowledge graph embeddings; our notation
-follows it — and its Table 4.1 is a compressed cousin of today's cheat sheet, useful
-for cross-checking your own derivations) · CS224W, "Knowledge Graph Embeddings".
-If you read only one thing beyond the two required papers, make it the Toutanova &
-Chen note below: it is four pages, and it will inoculate you against a benchmark
-failure mode for the rest of your career.
+**Trace it.** Use $d=2$, $k=1$, $A=[1\;0]$, $\mathbf h=(0,0)$, and
+$\mathbf r=(2)$. Tails $(2,1)$ and $(2,-1)$ both project to $(2)$ and score
+**0**, while $(-1,0)$ scores **−3**. The two correct tails remain distinct
+in the entity table. A rectangular matrix is a useful test: it catches an
+accidental transpose that a square identity matrix could hide. Both endpoints
+must use the **same matrix selected by this triple's relation**. Cost: $O(kd)$.
 
-**Optional:** Yang et al., [DistMult](https://arxiv.org/abs/1412.6575) (ICLR 2015) —
-read §2's unified view of translation vs. bilinear models and meet the symmetry flaw at
-the source · Trouillon et al., [ComplEx](https://arxiv.org/abs/1606.06357) (ICML 2016)
-— §§3–4 for the Hermitian trick; accept the linear algebra, keep the scoring function ·
-Toutanova & Chen, [Observed vs. Latent Features](https://doi.org/10.18653/v1/W15-4007)
-(2015) — the FB15k leak, diagnosed; a few pages, read all of it ·
-Sun et al., [A Re-evaluation of KG Completion Methods](https://arxiv.org/abs/1911.03903)
-(ACL 2020) — the tie-breaking scandal; read for permanent leaderboard suspicion.
+::: {#alg-w04-score-distmult .algorithm name="Score a triple with DistMult"}
+**Input:** $(h,r,t)$; $E\in\mathbb R^{n_e\times d}$;
+$R\in\mathbb R^{n_r\times d}$. **Output:** real score $s$.
 
-## Check your understanding
-
-<details><summary>Q1 · Epistemics — Your team ships a KG-backed compliance tool. A regulator asks: "the graph shows no ownership link between company A and sanctioned entity B — can we clear A?" Answer as this lecture would, and name one engineering change that would let the tool say more.</summary>
-No: the KG is open-world — a missing edge means *unrecorded*, not *absent*; clearing A
-requires evidence of absence, which silence is not. Engineering change: curate explicit
-negative facts for the relations that matter (verified "no-ownership" assertions with
-provenance), or report completion-model scores *with* the caveat that they rank
-plausibility of the positive, never certify its negation. (Bonus: a calibrated "we
-have vetted A's neighborhood to depth k" coverage statement is often what the
-regulator actually needs.)
-</details>
-
-<details><summary>Q2 · Hand computation — With h = (2, 1), r = (1, 3), t = (1, 2): compute the DistMult score both ways. Then with complex h = 1+i, r = i, t = −1+i: compute the ComplEx score both ways. State what each pair of numbers demonstrates.</summary>
-DistMult: $2{\cdot}1{\cdot}1 + 1{\cdot}3{\cdot}2 = 8$; swapped
-$1{\cdot}1{\cdot}2 + 2{\cdot}3{\cdot}1 = 8$ — identical, demonstrating
-@prp-distmult-sym (forced symmetry). ComplEx: $h r \bar t = (1{+}i)(i)(-1{-}i) = 2$,
-so $\operatorname{Re} = +2$; swapped: $(-1{+}i)(i)(1{-}i) = -2$, so
-$\operatorname{Re} = -2$ — sign flip, demonstrating the antisymmetric channel opened
-by $\operatorname{Im}(r) \neq 0$ (@prp-complex). These are the exact panels of the
-scorers figure; the midterm changes the numbers.
-</details>
-
-<details><summary>Q3 · Model selection — A family-tree KG has spouse (symmetric), parent_of (antisymmetric, 1-to-N), and grandparent_of (the composition of parent_of with itself). Using only the cheat sheet, pick a model and state what each rejected model gets wrong.</summary>
-RotatE: spouse needs symmetry (phases π — TransE out by @prp-transe-sym), parent_of
-needs antisymmetry (DistMult out by @prp-distmult-sym), grandparent_of needs
-composition ($r_{gp} = r_p \circ r_p$ — ComplEx out, no composition). Caveat worth
-stating for full marks: parent_of is 1-to-N, which strains RotatE's functional scorer
-(children of one parent get squeezed together) — no model in the family is clean on
-this KG, and saying *where* your chosen model will hurt is part of the answer.
-</details>
-
-<details><summary>Q4 · Prove it — Show from the definitions: (a) if TransE represents a 1-to-N relation exactly, all N tails coincide; (b) if RotatE represents a transitive relation exactly, the relation is the identity rotation. State what (b) implies about located_in.</summary>
-(a) Exactness gives $\mathbf{h} + \mathbf{r} = \mathbf{t}_1$ and
-$\mathbf{h} + \mathbf{r} = \mathbf{t}_2$ ⇒ $\mathbf{t}_1 = \mathbf{t}_2$: one landing
-point. (b) Transitivity is self-composition into itself, so phases must satisfy
-$\theta_i + \theta_i \equiv \theta_i \pmod{2\pi}$ ⇒ $\theta_i \equiv 0$: the identity
-(@cor-transitive). Hence located_in — transitive in the world — has no exact RotatE
-representation with a non-degenerate relation: geometric KG models *approximate*
-transitive closure and provably cannot nail it, which is a standing argument for
-Week 5's dedicated multi-hop machinery.
-</details>
-
-<details><summary>Q5 · Metrics by hand — A test set has two queries. Query 1: true entity at raw rank 4, with two known-true competitors above it. Query 2: raw rank 1. Compute raw and filtered MRR and Hits@1, and state the general inequality between raw and filtered metrics.</summary>
-Query 1 filtered rank: $4 - 2 = 2$. Raw MRR $= \tfrac{1}{2}(\tfrac14 + 1) = 0.625$;
-filtered MRR $= \tfrac{1}{2}(\tfrac12 + 1) = 0.75$. Hits@1: raw $= 0.5$, filtered
-$= 0.5$ (the filter moved rank 4→2, not to 1). In general filtered ≥ raw for every
-query (removing competitors can only improve a rank), so filtered MRR/Hits@K dominate
-raw — which is why the two must never be compared across papers.
-</details>
-
-<details><summary>Q6 · The leak — Explain the FB15k exploit concretely: what rule solves a leaked test triple, why does an embedding model "learn" it anyway, and how does FB15k-237 close the hole? Connect to Week 3's Pitfall 1.</summary>
-If train has $(a, r_1, b)$ and test has $(b, r_2, a)$ with $r_2$ the inverse relation
-of $r_1$, the rule "answer with the train partner" is perfect — no learning involved.
-An embedding model achieves the same by learning $\mathbf{r}_2 \approx$ the inverse
-transform of $\mathbf{r}_1$ (cheap: @prp-rotate's inversion row), so its score
-reflects dataset redundancy, not inference. FB15k-237 drops near-inverse/duplicate
-relations so no such rule survives. The family resemblance to Week 3: in both cases
-test information reaches training through the *data pipeline* (walks across test
-edges; inverse triples in train), not through the model — audit the split, not the
-architecture.
-</details>
-
-<details><summary>Q7 · Self-adversarial — Why does weighting negatives by the model's own scores accelerate training, when the same scores are exactly what training is trying to fix? And name the failure mode the ⚠ candidate in Figure 3 warns about, plus its standard mitigation.</summary>
-The margin loss only learns from violated comparisons; uniform corruption mostly draws
-absurdities that are already separated, contributing zero gradient. Weighting by
-current scores concentrates the batch on the frontier — negatives the *current* model
-finds plausible — which is where gradient exists. It is a curriculum generated by the
-model itself (and the weights carry no gradient, so it does not chase its own tail).
-Failure mode: the most "plausible lie" is sometimes an unstated truth (open world!),
-and self-adversarial weighting actively promotes it to chief negative — training then
-pushes a true fact down hard. Mitigation: filter candidate corruptions against all
-known triples, and keep α moderate so the weighting stays a tilt, not a spotlight.
-</details>
-
-::: {.notions}
-Notions introduced this week
-
-- **Knowledge graph / triple** (@def-w04-kg) — facts as typed, directed, labeled edges $(h, r, t)$; the graph *is* the set of edges.
-- **RDF / ontology** — the serialization with global URIs, and the type system above the facts (classes, relation signatures, constraints).
-- **Open-world assumption** — a missing fact is unknown, not false; a KG supplies positives and silence, never labeled negatives.
-- **Scoring function / KG completion** (@def-w04-scoring) — $f(h,r,t) \in \mathbb{R}$, consumed only through the ranking it induces.
-- **The four geometries** (@eq-w04-transe, @eq-w04-distmult, @eq-w04-complex, @eq-w04-rotate) — relation as translation, feature-weighting, complex weighting, rotation.
-- **Relation pattern** (@def-w04-pattern) — symmetry, antisymmetry, inversion, composition, 1-to-N; "represents" is a pre-training capability statement.
-- **Corruption sampling** — manufacture negatives by replacing head or tail; the open-world workaround, refined by type-aware and Bernoulli variants.
-- **Margin loss** (@eq-w04-margin, @alg-w04-transe-epoch) — outscore your corruption by $\gamma$, then stop caring; entities renormalized to the unit sphere each epoch.
-- **Self-adversarial negative sampling** (@eq-w04-selfadv) — weight negatives by the model's own belief; hard lies get the gradient.
-- **Filtered ranking, MRR, Hits@K** (@alg-w04-filtered-rank) — delete known-true competitors before ranking; break ties randomly; report both directions.
+1. **Look up** $\mathbf h\leftarrow E[h]$, $\mathbf r\leftarrow R[r]$, $\mathbf t\leftarrow E[t]$.
+2. **Weight the head coordinates** $\mathbf q\leftarrow\mathbf h\circ\mathbf r$.
+3. **Return** $s\leftarrow\sum_{j=1}^d q_jt_j$.
 :::
 
-## Where this leaves us
+**Trace it.** With $\mathbf h=(2,1)$, $\mathbf r=(1,3)$, and
+$\mathbf t=(1,2)$, the weighted head is $(2,3)$ and the score is
+$2\cdot1+3\cdot2=\mathbf8$. Reversing head and tail also gives **8**.
+That equality is a required property of a correct implementation. A different
+reverse score would be a bug, even if it appeared useful for a directed relation.
+The score is not a distance and need not be negative. Cost: $O(d)$.
 
-Facts became geometry today: relations turned into translations, weightings, and
-rotations, and you can now prove — not recall — which regularities each geometry can
-hold, train one honestly on positives-plus-silence, and evaluate it without flattering
-yourself. You also collected two permanent reflexes: ask what a missing edge means,
-and ask whether a lookup could ace the benchmark.
+::: {#alg-w04-score-complex .algorithm name="Score a triple with ComplEx using real arithmetic"}
+**Input:** $(h,r,t)$; real and imaginary tables $E_{\mathrm{re}},E_{\mathrm{im}}
+\in\mathbb R^{n_e\times d}$ and $R_{\mathrm{re}},R_{\mathrm{im}}
+\in\mathbb R^{n_r\times d}$. **Output:** real score $s$.
 
-Notice, too, how much of this week was Week 3 wearing a suit. The encoder is the same
-lookup table (now two of them); the loss is the same discriminate-against-noise
-shape; the leakage lesson is the same lesson relocated from walks to inverse triples;
-even Hadamard-scored link prediction turned out to be DistMult traveling incognito.
-What was genuinely new is exactly one thing — the decoder listens to a *typed,
-directed* relation — and that one change forced the entire §4 theory of what
-geometry can express. Keep that ratio in mind as the course accelerates: most
-"new" methods are one changed cell in the filing cabinet, and finding the changed
-cell is the fastest way to understand any paper this field produces. Practice the
-move deliberately: next time a leaderboard paper crosses your feed, give yourself
-sixty seconds to name its changed cell before reading the abstract's adjectives.
-
-Close the loop — one minute, no notes: score one triple under TransE and under
-DistMult; the one-line proof DistMult cannot rank $(h, r, t)$ above $(t, r, h)$;
-the filtered-rank recomputation on a five-candidate list; the epoch shape of
-@alg-w04-transe-epoch — corrupt, margin, renormalize; and the lookup-baseline
-question you now ask of every KG paper.
-
-But look at what our best models still cannot do. The hero fact needed *two* hops and
-already strained everything (@cor-transitive); a real question — "which drugs target
-proteins associated with this disease?" — is a *path with variables in the middle*,
-marching through an incomplete graph where every hop might be a missing edge. Chaining
-single-hop completions multiplies error; enumerating intermediate candidates explodes.
-Next week, queries themselves become geometric objects — boxes that intersect, regions
-that contain answers — and the knowledge graph meets the technology that suddenly made
-all of this front-page relevant: retrieval for large language models. Bring the
-open-world assumption; it is about to become a product requirement.
-
+1. **Look up** $\mathbf h=\mathbf a+i\mathbf b$, $\mathbf r=\mathbf c+i\mathbf d$, $\mathbf t=\mathbf u+i\mathbf v$ from their paired rows.
+2. **Multiply head and relation:** $\mathbf x\leftarrow\mathbf a\circ\mathbf c-\mathbf b\circ\mathbf d$ and $\mathbf y\leftarrow\mathbf a\circ\mathbf d+\mathbf b\circ\mathbf c$.
+3. **Conjugate the tail conceptually:** $\overline{\mathbf t}=\mathbf u-i\mathbf v$.
+4. **Return the real part:** $s\leftarrow\sum_{j=1}^d(x_ju_j+y_jv_j)$.
 :::
 
-::: {.content-visible when-format="html"}
+**Why the last sign is positive.** Multiplication gives
+$(x+iy)(u-iv)=(xu+yv)+i(yu-xv)$. The two imaginary factors produce
+$i(-i)=+1$. This is exactly where forgetting the conjugate changes the scorer.
+In this algorithm $\mathbf d$ is the imaginary relation vector; the unbold
+$d$ in the summation limit is the number of coordinates.
+
+**Trace it.** Take $h=1+i$, $r=i$, and $t=-1+i$. Step 2 gives $x=-1$,
+$y=1$; step 4 gives $(-1)(-1)+(1)(1)=\mathbf2$. Reversing the endpoints
+gives **−2**. Reversing them *and* replacing $r$ with $\overline r=-i$
+recovers **2**. Setting all imaginary tables to zero recovers DistMult exactly.
+These checks distinguish a correct complex scorer from a real scorer with twice
+as many parameters. Cost: $O(d)$, storing two real numbers per complex coordinate.
+
+### Sample a comparison without an endless rejection loop
+
+A sampled negative means “unobserved in the training set,” not “proven false.”
+Let $T_{\mathrm{train}}$ be a set of training triples, so membership checks
+are fast. For a small implementation, explicitly build the eligible
+corruptions. This makes the sampling rule inspectable and handles a dense graph
+where no replacement is available.
+
+::: {#alg-w04-negative .algorithm name="Construct and sample an eligible negative"}
+**Input:** positive $(h,r,t)$; entity IDs $V$; training truths $T_{\mathrm{train}}$.
+**Output:** one negative $x^-$, or **no eligible comparison**.
+
+1. **Initialize** an empty candidate list $C$.
+2. **For each** $e\in V$: append $(e,r,t)$ if $e\ne h$ and $(e,r,t)\notin T_{\mathrm{train}}$.
+3. **For each** $e\in V$: append $(h,r,e)$ if $e\ne t$ and $(h,r,e)\notin T_{\mathrm{train}}$.
+4. **If** $C$ is empty, return **no eligible comparison**.
+5. **Otherwise**, draw one element uniformly from $C$ and **return** it.
+:::
+
+Exactly one endpoint changes and the relation stays fixed. A head corruption
+and a tail corruption cannot duplicate one another because both exclude the
+unchanged triple. Uniform sampling over this union is not necessarily a 50/50
+choice of side after filtering: one side can have more eligible candidates.
+At scale, rejection sampling with a defined failure policy avoids storing the
+whole list; reproduce the intended distribution when making that substitution.
+Validation and test truths are not consulted during training.
+
+### Train any of the four models with an explicit recipe
+
+We use one common teaching recipe so the algorithm is fully specified.
+It uses the four scorers above, one negative per eligible positive, plain SGD,
+and an L2 penalty over **all stored real parameters**, including TransR matrices
+and ComplEx's imaginary tables. Let $\Theta$ collect those parameters and let
+$P$ be their total count. A batch of $B$ comparisons minimizes
+
+$$
+\begin{aligned}
+\mathcal J(\Theta)&=\frac1B\sum_{b=1}^{B}
+ \max(0,\gamma-f_\Theta(x_b^+)+f_\Theta(x_b^-))\\
+&\quad+\frac{\lambda}{2P}\sum_{p=1}^{P}\Theta_p^2.
+\end{aligned}
+$$ {#eq-w04-algorithm-objective}
+
+The penalty discourages arbitrarily large parameters; it does not enforce unit
+norms. This objective is a teaching choice, not a claim to reproduce all four
+original papers. The checked toy runs use $\gamma=1$, $\lambda=0.001$, learning
+rate $\eta=0.05$, batch size 4, and 200 epochs on its tiny graph. These are
+demonstration settings, not recommended benchmark hyperparameters.
+
+::: {#alg-w04-train .algorithm name="Learn the parameters of a selected scorer"}
+**Input:** model name; training triples; entity/relation counts; dimensions;
+$\gamma>0$, $\lambda\ge0$, $\eta>0$; batch size; epoch count; random seed.
+**Output:** learned parameters $\Theta$.
+
+1. **Initialize** each real embedding table from independent $\mathcal N(0,1/m)$ entries, where $m$ is that table's row width. For TransR, initialize each $k\times d$ matrix as a rectangular identity plus $\mathcal N(0,0.01^2)$ noise.
+2. **Build** the candidate lists from @alg-w04-negative using only training truths. Skip positives with empty lists; stop with an explicit error if all lists are empty.
+3. **For each epoch**, shuffle the eligible training positives and split them into batches.
+4. **For each batch**, sample one negative from each positive's candidate list and compute both scores with the selected scoring algorithm and the current shared parameters.
+5. **Compute** $\mathcal J$ above using the actual batch size, including a possibly smaller final batch.
+6. **Clear** old gradients, differentiate $\mathcal J$ through both scores, and update every parameter: $\Theta\leftarrow\Theta-\eta\nabla_\Theta\mathcal J$.
+7. **After the final batch and epoch**, return $\Theta$.
+:::
+
+Steps 4–6 are the inner batch loop. Do not detach a projected vector or the
+negative score: TransR must learn its matrices, and the shared head and relation
+must receive both gradient contributions. For $\lambda=0$, the
+[earlier one-dimensional calculation](#one-gradient-update) is a complete check
+of one active update: gradients $(-2,-2,1,1)$, learning rate 0.1, loss **2 → 1**.
+For nonzero $\lambda$, each real parameter additionally receives gradient
+$\lambda\Theta_p/P$.
+
+**How this relates to the proposed methods.** The
+[original TransE algorithm](https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data.pdf#page=3)
+uses a margin loss with L1 or L2 distance and unit-length entity normalization.
+[TransR](https://cdn.aaai.org/ojs/9491/9491-13-13019-1-2-20201228.pdf)
+uses a squared L2 energy and norm constraints on embeddings and their projections.
+The [DistMult experiments](https://arxiv.org/abs/1412.6575) use margin learning,
+entity normalization, and relation regularization; the
+[ComplEx paper](https://proceedings.mlr.press/v48/trouillon16.html) uses a
+regularized logistic objective. Our common loop retains the lecture's scoring
+definitions and makes the implementation exercise comparable. Squaring a distance
+preserves its ranking for fixed parameters but changes its gradient and therefore
+its training behavior. Reproducing a paper requires its complete recipe.
+
+### Rank held-out answers with parameters fixed
+
+::: {#alg-w04-evaluate .algorithm name="Filtered evaluation in both directions"}
+**Input:** learned $\Theta$; held-out triples $Q$; all entity IDs $V$;
+known truths $T_{\mathrm{known}}$. **Output:** ranks, MRR, and Hits@K.
+
+1. **Freeze** parameters and disable gradient tracking. Initialize an empty rank list.
+2. **For each** $(h,r,t)\in Q$, construct all candidates $(h,r,e)$ for $e\in V$ and score them with the selected model.
+3. **Exclude** $e\ne t$ when $(h,r,e)\in T_{\mathrm{known}}$. Always keep target $t$.
+4. **Count** eligible scores strictly above the target ($n_>$) and equal to it ($n_=$, including itself). Append $1+n_>+(n_=-1)/2$.
+5. **Repeat** steps 2–4 for head candidates $(e,r,t)$, preserving target $h$ and filtering other known true heads.
+6. **After all queries**, average reciprocal ranks for MRR and the indicators $\mathbf1[\rho\le K]$ for Hits@K.
+:::
+
+For validation, use $T_{\mathrm{train}}\cup T_{\mathrm{valid}}$ as the known
+truths. After selecting settings, final test filtering uses
+$T_{\mathrm{train}}\cup T_{\mathrm{valid}}\cup T_{\mathrm{test}}$.
+There are $2|Q|$ ranks because each triple supplies a head and a tail query.
+This protocol uses exact score equality for ties and applies the metric to the
+resulting average rank; this convention is part of the reported protocol.
+
+**Trace it.** Scores $[9,8,8,1]$ with target ID 1 give rank **2.5**. If IDs 0
+and 1 are known correct, remove ID 0 but retain the target: the rank is **1.5**.
+Removing ID 1 would make the evaluation meaningless. On a batch with ranks 2
+and 1, MRR must be **0.75** and Hits@1 must be **0.5**.
+
+### What has been checked, and what a check establishes {#algorithm-correctness}
+
+The algorithms were checked in executable implementations against independent
+calculations. Repeat these checks on your implementation:
+
+| Check | Expected result | Mistake it exposes |
+|---|---|---|
+| Small score traces above | TransE: $0,-1,-5$; TransR: $0,0,-3$; DistMult: $8,8$; ComplEx: $2,-2$ | Wrong sign, projection, axis, or conjugate |
+| Set $M_r=I$ with $k=d$ | TransR scores equal TransE scores | Incorrect projection or relation lookup |
+| Use native complex multiplication independently | Same score as the real-arithmetic ComplEx algorithm | Incorrect signs in real/imaginary products |
+| Compare derivatives with finite differences | Agreement away from norm and hinge kinks | Broken gradient flow, including through $M_r$ |
+| Construct all eligible negatives on a tiny graph | Exactly one endpoint changes; no training truths; empty pools terminate | False negatives from known training facts or an endless loop |
+| Compute ranks by sorting a tiny candidate list | Same average positions after filtering, target retained | Tie, filtering, or one-based indexing errors |
+| Evaluate both directions for each core model | Exactly two ranks per fact; parameters unchanged | Missing head prediction or training during evaluation |
+
+An independent test of a formula supports implementation correctness; it does
+not prove that learning will find a good model on a new graph. The score
+identities and limitations were established in the model sections. The tiny
+training runs check that the procedures work together. Held-out experiments
+must still establish usefulness for the intended task.
+
+::: {.predict}
+**Rebuild before you run.** Choose one of the four core models. Write its table
+shapes and scorer from memory, then trace a positive and a negative through the
+loss. Which of the checks above would fail if you made your most likely mistake?
+
+::: {.predict-answer}
+For example, TransR needs entity rows of width $d$, relation rows of width $k$,
+and a $k\times d$ map per relation. Project both endpoints before adding the
+relation. A rectangular example catches a transpose; the identity-map check
+catches an incorrect computation; a derivative check catches a detached map.
+These test different properties, so a single successful training run cannot
+replace them.
+:::
+:::
+
+### Close the notes and reconstruct the method
+
+Return to the missing university-to-region fact. On a blank page, draw what
+your system would do from receiving the query to returning a ranked list.
+Include the relation's role, the candidate comparisons, and what the final
+score does and does not establish.
+
+::: {.predict}
+**Exit problem.** Explain one model with a picture, show one relation pattern
+that exposes its limitation, and propose a second model that changes the relevant
+geometric assumption. Then explain how you would check whether the second model
+actually improved the task.
+
+::: {.predict-answer}
+One answer starts with TransE's single landing point for two tails. TransR lets
+distinct entity vectors project to that landing point while preserving their
+original difference. Compare held-out rankings under the same candidate set,
+filter, tie rule, and training budget. The construction explains why the change
+could help; the experiment determines whether it did.
+:::
+:::
+
+### From the lecture to an implementation
+
+Use the algorithms above to implement embedding lookup, scoring, sampling,
+learning, and filtered ranking. Begin with the table shapes and worked numerical
+examples, change a candidate vector, and predict its score before running your
+code. Then rebuild the scorer without looking at the procedure.
+
+[Lab 4](../labs/lab04.qmd) concentrates the benchmark work on TransE and RotatE.
+You implement the scorer, corruption and margin loss, filtered evaluation,
+and a synthetic relation-pattern experiment. The small lecture calculations
+are your first checks before a larger training run. Week 5 extends the question
+from a single missing fact to reasoning with intermediate variables and several
+constraints.
+
+### Reading and further study
+
+**Core model papers:** read the scoring definitions and connect each term to
+the corresponding diagram and algorithm in this lecture.
+[Bordes et al., TransE (2013)](https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html)
+develops translation and margin-based learning;
+[Lin et al., TransR (2015)](https://ojs.aaai.org/index.php/AAAI/article/view/9491)
+explains entity and relation spaces;
+[Yang et al., DistMult (2015)](https://arxiv.org/abs/1412.6575) develops bilinear
+scoring and rule mining;
+[Trouillon et al., ComplEx (2016)](https://arxiv.org/abs/1606.06357) explains
+how complex embeddings accommodate symmetric and asymmetric relations.
+
+**Optional extension for Lab 4:** read the score and relation-pattern discussion
+in [Sun et al., RotatE (2019)](https://arxiv.org/abs/1902.10197), separating what
+the model can represent from what its experiments demonstrate.
+
+**For evaluation:**
+[Toutanova and Chen (2015)](https://aclanthology.org/W15-4007/) motivates FB15k-237,
+and [Sun et al. (2020)](https://aclanthology.org/2020.acl-main.489/) examines how
+ranking conventions affect reported results. Connect these arguments to the
+worked ranking examples and evaluation algorithm above.
+
+::: {#lecture-attribution .small}
+Adapted from [Stanford CS224W](https://web.stanford.edu/class/cs224w/), [*Knowledge Graphs* (2025)](https://web.stanford.edu/class/cs224w/slides/10-kg.pdf), by Charilaos Kanatsoulis and Jure Leskovec.
+:::
+
 {{< include ../assets/d3/w4-scripts.html >}}
-:::

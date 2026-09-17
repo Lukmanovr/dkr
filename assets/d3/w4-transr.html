@@ -1,0 +1,14 @@
+```{=html}
+<link rel="stylesheet" href="../assets/d3/w4-learning.css">
+<div class="interactive-container w4-learning" id="w4-tr-widget">
+  <div class="fig-label">Experiment · Keep entities distinct, change the relation's view</div>
+  <div class="widget-controls">
+    <label>Vertical scale λ <input id="w4-tr-scale" type="range" min="0" max="1" step="0.1" value="1"><output id="w4-tr-value">1.0</output></label>
+    <button id="w4-tr-reset" type="button">Reset projection</button>
+  </div>
+  <div id="w4-tr-svg"></div>
+  <div id="w4-tr-result" class="w4-readout" aria-live="polite" aria-atomic="true"></div>
+  <noscript><p>M = diag(1, λ), h = (0,0), r = (2,0), t₁ = (2,1), t₂ = (2,−1). With λ = 0, the distinct tails both project to (2,0) and both scores become 0.</p></noscript>
+  <p class="fig-caption">Left: stored entity vectors. Right: the vectors used by this relation, after applying M = diag(1, λ). The hollow ring is Mh + r; dashed lines show each residual. <strong>Try this:</strong> lower λ to zero. Which coordinates coincide, and which remain distinct? The matrix is hand-controlled here; training would learn it.</p>
+</div>
+```
